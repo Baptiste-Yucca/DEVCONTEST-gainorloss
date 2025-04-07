@@ -1,0 +1,41 @@
+On peut récupérer les taux du RMM comme ceci,
+l'interface du RRM fais des call API au backend qui semble ouvert : 
+pas de key ou autres...
+
+le RMM a été lancé le 
+Epoch timestamp: 1706061525
+Timestamp in milliseconds: 1706061525000
+Date and time (GMT): Wednesday 24 January 2024 01:58:45
+Date and time (your time zone): mercredi 24 janvier 2024 02:58:45 GMT+01:00
+
+
+
+
+
+en analysant la requete,
+reserveid correspond à la concataination de l'adresse du token (USDC ou WXDAI) ainsique que la pool de réserve du RMM
+
+attention les années sont de 1 à n années
+les mois sont de 0 à 11 (de 0 à n-1 , 12 mois)
+les journs sont de 1 à n ( de 1 à 31)
+
+
+
+
+
+from depuis le timestamp epoch recherché 
+
+resolutionInHours : granularité , on utilisera toujurs 24H
+
+supply USDC 
+reserveId=0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70
+borrow USC
+reserveId=0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70
+
+requete commune 
+https://rmm-api.realtoken.network/data/rates-history?reserveId=0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70&from=1712420750&resolutionInHours=24    
+
+WXDAI
+reserveId=0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70
+https://rmm-api.realtoken.network/data/rates-history?reserveId=0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70&from=1712420988&resolutionInHours=24
+
