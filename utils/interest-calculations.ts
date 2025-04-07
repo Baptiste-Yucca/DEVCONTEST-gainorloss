@@ -1,30 +1,6 @@
 import { Transaction } from '../types/transaction';
-
-export interface DailyRate {
-  liquidityRate_avg: number;
-  variableBorrowRate_avg: number;
-  utilizationRate_avg: number;
-  stableBorrowRate_avg: number;
-  x: {
-    year: number;
-    month: number;
-    date: number;
-    hours: number;
-  };
-  timestamp: number;
-}
-
-export interface DailyCostDetail {
-  date: string; // Format YYYYMMDD
-  timestamp: number;
-  debtAmount: number; // Ajout du montant de la dette
-  dailyRate: number; // Ajout du taux journalier
-  apr: number; // Taux annuel en pourcentage
-  dailyInterest: number;
-  cumulativeInterest: number;
-}
-
-export type DailyCost = number;
+import { DailyRate, DailyCostDetail, DailyCost } from '../types/interest';
+import { fetchRmmRates } from './api/rmm-api/rates';
 
 // Constantes pour les reserveId
 const RESERVE_IDS = {
@@ -33,154 +9,19 @@ const RESERVE_IDS = {
 };
 
 // Fonction pour récupérer tous les taux d'intérêt sur une période
-export const fetchAllInterestRates = async (token: 'USDC' | 'WXDAI', fromTimestamp: number): Promise<Map<string, DailyRate>> => {
+export const fetchAllInterestRates = async (reserveId: string, fromTimestamp: number): Promise<DailyRate[]> => {
   try {
-    const reserveId = RESERVE_IDS[token];
-    const url = `https://rmm-api.realtoken.network/data/rates-history?reserveId=${reserveId}&from=${fromTimestamp}&resolutionInHours=24`;
-    console.log("⚠️ Requête API:", url);
+    console.log("⚠️ Récupération des taux d'intérêt...");
+    const rates = await fetchRmmRates(reserveId, fromTimestamp);
     
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Erreur lors de la récupération des taux: ${response.statusText}`);
+    if (!rates || rates.length === 0) {
+      throw new Error("Aucun taux d'intérêt trouvé");
     }
-    
-    const data: DailyRate[] = await response.json();
-    console.log(`⚠️ Données brutes de l'API: ${data.length} entrées reçues`);
-    
-    // Afficher quelques exemples pour débogage
-    console.log("⚠️ Exemple de données brutes reçues:");
-    if (data.length > 0) {
-      console.log(JSON.stringify(data[0], null, 2));
-    }
-    
-    // Vérifier que les données contiennent bien des taux non nuls
-    let validRatesCount = 0;
-    data.forEach(rate => {
-      if (rate.variableBorrowRate_avg > 0) {
-        validRatesCount++;
-      }
-    });
-    console.log(`⚠️ Taux valides (non nuls): ${validRatesCount}/${data.length}`);
-    
-    // Créer un Map pour un accès facile par date au format YYYYMMDD
-    const ratesByDate = new Map<string, DailyRate>();
-    
-    // Trier les données par date (plus récent en dernier)
-    const sortedData = [...data].sort((a, b) => a.timestamp - b.timestamp);
-    
-    sortedData.forEach((rate, index) => {
-      // Vérifier que le taux est bien défini et non nul
-      if (!rate.variableBorrowRate_avg || rate.variableBorrowRate_avg === 0) {
-        console.warn(`⚠️ Taux nul ou non défini à l'index ${index}, timestamp: ${rate.timestamp}`);
-        return; // Ignorer cette entrée
-      }
-      
-      let dateKey;
-      
-      // IMPORTANT : Utiliser directement les données de rate.x pour créer la clé de date
-      if (rate.x && rate.x.year !== undefined && rate.x.month !== undefined && rate.x.date !== undefined) {
-        // Extraire année, mois, jour directement de l'objet x
-        const apiYear = rate.x.year;
-        // Mois dans l'API est indexé à 0 (janvier = 0)
-        const apiMonth = String(rate.x.month + 1).padStart(2, '0');
-        const apiDay = String(rate.x.date).padStart(2, '0');
-        
-        // Créer la clé au format YYYYMMDD
-        dateKey = `${apiYear}${apiMonth}${apiDay}`;
-        
-        console.log(`⚠️ Utilisation directe des données API: ${apiYear}-${apiMonth}-${apiDay} -> clé=${dateKey}`);
-      } else {
-        // Fallback sur le timestamp si l'objet x n'est pas disponible
-        try {
-          // Vérifier que le timestamp est valide
-          if (!rate.timestamp || rate.timestamp <= 0 || rate.timestamp > 9999999999) {
-            console.warn(`⚠️ Timestamp invalide et pas de données x: ${rate.timestamp}, ignoré`);
-            return; // Ignorer cette entrée
-          }
-          
-          const dateObj = new Date(rate.timestamp * 1000);
-          
-          // Vérifier que la date est valide
-          if (isNaN(dateObj.getTime())) {
-            console.warn(`⚠️ La date générée est invalide: ${rate.timestamp}, ignoré`);
-            return; // Ignorer cette entrée
-          }
-          
-          // Formater au format YYYYMMDD
-          const year = dateObj.getFullYear();
-          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-          const day = String(dateObj.getDate()).padStart(2, '0');
-          dateKey = `${year}${month}${day}`;
-          
-          console.log(`⚠️ Fallback sur timestamp: ${rate.timestamp} -> ${year}-${month}-${day} -> clé=${dateKey}`);
-        } catch (error) {
-          console.error(`⚠️ Erreur lors de la création de la date:`, error);
-          return; // Ignorer cette entrée
-        }
-      }
-      
-      // Vérifier que le taux est raisonnable (entre 0% et 100%)
-      if (rate.variableBorrowRate_avg < 0 || rate.variableBorrowRate_avg > 1) {
-        console.warn(`⚠️ Taux suspect pour ${dateKey}: ${(rate.variableBorrowRate_avg * 100).toFixed(6)}%`);
-      } else {
-        console.log(`Taux pour ${dateKey}: ${(rate.variableBorrowRate_avg * 100).toFixed(6)}%`);
-      }
-      
-      // Stocker le taux le plus récent pour chaque date
-      ratesByDate.set(dateKey, rate);
-    });
-    
-    console.log(`⚠️ ${ratesByDate.size} taux journaliers uniques récupérés au total`);
-    
-    // Afficher toutes les clés disponibles pour débogage
-    console.log("⚠️ Clés de dates disponibles dans le Map des taux:");
-    Array.from(ratesByDate.keys()).sort().forEach(key => console.log(`  ${key}`));
-    
-    // Vérifier les dates manquantes
-    if (ratesByDate.size > 0) {
-      const startTimestamp = sortedData[0].timestamp;
-      const endTimestamp = sortedData[sortedData.length - 1].timestamp;
-      
-      try {
-        // Vérifier que les timestamps sont valides avant de créer des objets Date
-        if (!startTimestamp || !endTimestamp || 
-            startTimestamp <= 0 || endTimestamp <= 0 ||
-            startTimestamp > 9999999999 || endTimestamp > 9999999999) {
-          console.warn(`⚠️ Timestamps invalides: début=${startTimestamp}, fin=${endTimestamp}`);
-        } else {
-          const startDate = new Date(startTimestamp * 1000);
-          const endDate = new Date(endTimestamp * 1000);
-          
-          // Vérifier que les dates sont valides avant d'appeler toISOString()
-          if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            console.warn(`⚠️ Dates invalides générées à partir des timestamps: début=${startTimestamp}, fin=${endTimestamp}`);
-          } else {
-            // Utiliser try/catch autour de toISOString pour éviter les erreurs
-            try {
-              console.log(`⚠️ Période couverte: du ${startDate.toISOString()} au ${endDate.toISOString()}`);
-              
-              // Calculer le nombre de jours attendus
-              const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              console.log(`⚠️ Nombre de jours attendus: ${diffDays}, nombre de jours reçus: ${ratesByDate.size}`);
-              
-              if (diffDays > ratesByDate.size) {
-                console.warn(`⚠️ ATTENTION: Il manque ${diffDays - ratesByDate.size} jours de données!`);
-              }
-            } catch (error) {
-              console.error(`⚠️ Erreur lors de la conversion des dates en ISO: ${error}`);
-            }
-          }
-        }
-      } catch (error) {
-        console.error(`⚠️ Erreur lors de la vérification des dates: ${error}`);
-      }
-    }
-    
-    return ratesByDate;
+
+    console.log(`⚠️ ${rates.length} taux d'intérêt récupérés`);
+    return rates;
   } catch (error) {
-    console.error('⚠️ Erreur lors de la récupération des taux:', error);
+    console.error("⚠️ Erreur lors de la récupération des taux:", error);
     throw error;
   }
 };
@@ -288,8 +129,8 @@ export const calculateInterest = async (
   
   // Récupérer tous les taux d'intérêt en une seule fois
   console.log(`Récupération des taux pour ${token} du ${new Date(startDate * 1000).toISOString()} à aujourd'hui`);
-  const allRates = await fetchAllInterestRates(token, startDate);
-  console.log(`${allRates.size} taux journaliers récupérés pour ${token}`);
+  const allRates = await fetchAllInterestRates(RESERVE_IDS[token], startDate);
+  console.log(`${allRates.length} taux journaliers récupérés pour ${token}`);
   
   // Créer un tableau de jours pour le calcul (du début à la fin)
   const days = [];
@@ -319,7 +160,7 @@ export const calculateInterest = async (
     
     // Pour l'instant, ne traiter que l'USDC comme demandé
     if (token === 'USDC' && currentAmount > 0) {
-      const dailyRate = allRates.get(dateKey);
+      const dailyRate = allRates.find(rate => formatDateYYYYMMDD(rate.timestamp) === dateKey);
       
       if (dailyRate) {
         const dailyRateValue = dailyRate.variableBorrowRate_avg / 365;
@@ -418,7 +259,7 @@ export const displayRawRates = async (token: 'USDC' | 'WXDAI', fromTimestamp: nu
       
       // Afficher quelques taux particuliers pour vérifier
       data.forEach((rate: any) => {
-        if (rate.x && rate.x.month === 2 && rate.x.date === 31) { // Mars (31 mars)
+        if (rate.year === 2 && rate.month === 2 && rate.day === 31) { // Mars (31 mars)
           console.log("Taux du 31 mars:", rate);
         }
       });
@@ -454,13 +295,13 @@ export const calculateDailyDebtWithInterest = async (
   console.log(`Calcul précis de la dette pour ${token} depuis ${new Date(fromTimestamp * 1000).toISOString()}`);
   
   // Récupérer tous les taux d'intérêt en une seule fois
-  const allRates = await fetchAllInterestRates(token, fromTimestamp);
-  console.log(`${allRates.size} taux journaliers récupérés pour ${token}`);
+  const allRates = await fetchAllInterestRates(RESERVE_IDS[token], fromTimestamp);
+  console.log(`${allRates.length} taux journaliers récupérés pour ${token}`);
   
   // Créer un tableau pour stocker tous les taux avec leur date au format YYYYMMDD
   const allRatesArray: Array<{ date: string; rate: DailyRate }> = [];
-  allRates.forEach((rate, dateKey) => {
-    allRatesArray.push({ date: dateKey, rate });
+  allRates.forEach((rate, index) => {
+    allRatesArray.push({ date: formatDateYYYYMMDD(rate.timestamp), rate });
   });
   
   // Afficher les taux pour vérification
@@ -624,7 +465,7 @@ export const calculateDailyDebtWithInterest = async (
     
     // Récupérer le taux du jour - avec log détaillé pour vérifier les correspondances
     console.log(`⚠️ Recherche de taux pour la date ${dateKey} (${formattedDate})`);
-    const dailyRate = allRates.get(dateKey);
+    const dailyRate = allRates.find(rate => formatDateYYYYMMDD(rate.timestamp) === dateKey);
     
     if (dailyRate) {
       console.log(`⚠️ TROUVÉ: Taux pour ${dateKey} = ${(dailyRate.variableBorrowRate_avg * 100).toFixed(6)}%`);
@@ -633,7 +474,7 @@ export const calculateDailyDebtWithInterest = async (
       
       // Afficher tous les dateKey pour vérification
       console.log("⚠️ Toutes les clés disponibles dans allRates:");
-      allRates.forEach((_, key) => console.log(key));
+      allRates.forEach((_, index) => console.log(formatDateYYYYMMDD(allRates[index].timestamp)));
     }
     
     if (dailyRate && currentDebt > 0) {
@@ -694,7 +535,7 @@ export const calculateDailyDebtWithInterest = async (
       });
       
       if (nearestDate && minDiff <= 7) { // Ne prendre que les dates à moins d'une semaine
-        const alternativeRate = allRates.get(nearestDate);
+        const alternativeRate = allRates.find(rate => formatDateYYYYMMDD(rate.timestamp) === nearestDate);
         if (alternativeRate) {
           const rateValue = alternativeRate.variableBorrowRate_avg;
           const aprPercentage = rateValue * 100; // APR en pourcentage

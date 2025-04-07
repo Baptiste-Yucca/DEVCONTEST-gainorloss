@@ -5,7 +5,7 @@ import Header from '@/components/Header';
 import AddressForm from '@/components/AddressForm';
 import Loading from '@/components/Loading';
 import { isValidEthereumAddress } from '@/utils/helpers';
-import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, Transaction, fetchTokenBalances } from '@/utils/api';
+import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, fetchTokenBalances } from '@/utils/api';
 import { formatAmount, formatTimestamp } from '@/utils/helpers';
 import { TOKENS, RESERVE_TO_TOKEN } from '@/utils/constants';
 import {
@@ -28,6 +28,10 @@ import {
   displayRawRates,
   calculateDailyDebtWithInterest
 } from '../utils/interest-calculations';
+import { Transaction, TransactionWithType } from '../types/transaction';
+import { DailyCostDetail as DailyCostDetailType } from '../types/interest';
+import { Transaction as ApiTransaction } from '../utils/api/types';
+import { fetchAddressData } from '../utils/services/address';
 
 // Enregistrer les composants ChartJS
 ChartJS.register(
@@ -41,14 +45,21 @@ ChartJS.register(
   Legend
 );
 
-type TransactionWithType = Transaction & {
-  transactionType: 'supply' | 'withdraw' | 'borrow' | 'repay';
-};
-
 // Ajouter une fonction pour télécharger un PDF des résultats
 const downloadPDF = () => {
   // Fonction à implémenter plus tard
   alert("La génération de PDF sera implémentée dans une future mise à jour");
+};
+
+// Fonction pour convertir les transactions de l'API en transactions avec type
+const convertApiTransactions = (apiTransactions: ApiTransaction[], type: 'supply' | 'withdraw' | 'borrow' | 'repay'): Transaction[] => {
+  return apiTransactions.map(tx => ({
+    id: tx.id,
+    timestamp: tx.timestamp,
+    amount: tx.amount,
+    transactionType: type,
+    reserve: tx.reserve
+  }));
 };
 
 export default function Home() {
@@ -74,8 +85,8 @@ export default function Home() {
   const [tokenFilter, setTokenFilter] = useState<string>('all');
   const [usdcDailyCosts, setUsdcDailyCosts] = useState<number[]>([]);
   const [wxdaiDailyCosts, setWxdaiDailyCosts] = useState<number[]>([]);
-  const [usdcDailyDetails, setUsdcDailyDetails] = useState<DailyCostDetail[]>([]);
-  const [wxdaiDailyDetails, setWxdaiDailyDetails] = useState<DailyCostDetail[]>([]);
+  const [usdcDailyDetails, setUsdcDailyDetails] = useState<DailyCostDetailType[]>([]);
+  const [wxdaiDailyDetails, setWxdaiDailyDetails] = useState<DailyCostDetailType[]>([]);
   const [dailyCostsChartData, setDailyCostsChartData] = useState<any>(null);
   const [rawRates, setRawRates] = useState<any[]>([]);
   const [showRawRates, setShowRawRates] = useState<boolean>(false);
@@ -89,94 +100,17 @@ export default function Home() {
     setAddress(address);
     
     try {
-      // Récupérer toutes les transactions
-      const [borrowsData, suppliesData, withdrawsData, repaysData] = await Promise.all([
-        fetchBorrows(address),
-        fetchSupplies(address),
-        fetchWithdraws(address),
-        fetchRepays(address)
-      ]);
+      const result = await fetchAddressData(address);
       
-      // Log pour le débogage
-      console.log("Transactions récupérées:", {
-        supplies: suppliesData.length,
-        withdraws: withdrawsData.length, 
-        borrows: borrowsData.length,
-        repays: repaysData.length
-      });
+      // Mise à jour du state React
+      setAllTransactions(result.transactions);
+      setTokenBalances(result.tokenBalances);
+      setDailyDebtDetails(result.dailyDebtDetails);
+      setTotalInterestCost(result.totalInterest);
+      setRawRates(result.rawRates);
       
-      // Stocker les données par type
-      setSupplies(suppliesData || []);
-      setWithdraws(withdrawsData || []);
-      setBorrows(borrowsData || []);
-      setRepays(repaysData || []);
-      
-      // Ajouter le type à chaque transaction et les combiner
-      const transactions: TransactionWithType[] = [
-        ...suppliesData.map(tx => ({ ...tx, transactionType: 'supply' as const })),
-        ...withdrawsData.map(tx => ({ ...tx, transactionType: 'withdraw' as const })),
-        ...borrowsData.map(tx => ({ ...tx, transactionType: 'borrow' as const })),
-        ...repaysData.map(tx => ({ ...tx, transactionType: 'repay' as const }))
-      ];
-      
-      // Tri par date (plus récent en premier)
-      const sortedTransactions = transactions.sort((a, b) => b.timestamp - a.timestamp);
-      setAllTransactions(sortedTransactions);
-      
-      // Récupérer les soldes des tokens via Gnosisscan
-      console.log("Récupération des soldes de tokens...");
-      const tokenBalances = await fetchTokenBalances(address);
-      console.log("Soldes récupérés:", tokenBalances);
-      setTokenBalances(tokenBalances);
-      
-      // Pour l'instant, ne calculer que les intérêts USDC comme demandé
-      const usdcTransactions = transactions.filter(tx => 
-        getTokenSymbol(tx.reserve.id).includes('USDC')
-      );
-      
-      // Calculer un timestamp de départ pour la requête API
-      // Si nous avons des transactions, utiliser la plus ancienne comme départ
-      let fromTimestamp = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60); // Par défaut, 30 jours en arrière
-      if (sortedTransactions.length > 0) {
-        const oldestTransaction = [...sortedTransactions].sort((a, b) => a.timestamp - b.timestamp)[0];
-        fromTimestamp = oldestTransaction.timestamp;
-        console.log("Transaction la plus ancienne:", new Date(fromTimestamp * 1000).toISOString());
-      }
-      
-      // Récupérer les taux bruts pour les afficher dans un tableau
-      const reserveId = '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'; // USDC
-      const url = `https://rmm-api.realtoken.network/data/rates-history?reserveId=${reserveId}&from=${fromTimestamp}&resolutionInHours=24`;
-      
-      const ratesResponse = await fetch(url);
-      if (ratesResponse.ok) {
-        const ratesData = await ratesResponse.json();
-        console.log("Données brutes des taux:", ratesData.length, "entrées");
-        setRawRates(ratesData);
-      }
-      
-      // Utiliser la nouvelle fonction pour calculer les intérêts de la dette
-      console.log("Calcul précis des intérêts de la dette USDC...");
-      const { dailyDebtDetails, totalInterest } = await calculateDailyDebtWithInterest(
-        usdcTransactions,
-        'USDC',
-        fromTimestamp
-      );
-      
-      console.log(`Calcul des intérêts terminé: ${dailyDebtDetails.length} jours, total: ${totalInterest.toFixed(6)} USDC`);
-      setDailyDebtDetails(dailyDebtDetails);
-      setTotalInterestCost(totalInterest);
-      
-      // Ancienne méthode (peut être supprimée)
-      console.log("Calcul des intérêts pour USDC (ancienne méthode)...");
-      const usdcResults = await calculateInterest(usdcTransactions, 'USDC');
-      setUsdcDailyCosts(usdcResults.dailyCosts);
-      setUsdcDailyDetails(usdcResults.dailyDetails);
-      
-      // Si nous avons des données, générer le graphique
-      if (dailyDebtDetails.length > 0) {
-        generateDebtChartData(dailyDebtDetails);
-      } else {
-        console.warn("Aucune donnée d'intérêt disponible pour générer le graphique");
+      if (result.dailyDebtDetails.length > 0) {
+        generateDebtChartData(result.dailyDebtDetails);
       }
       
       setSearched(true);
@@ -938,15 +872,15 @@ export default function Home() {
                         .slice()
                         .sort((a, b) => {
                           // Trier par date décroissante
-                          const dateA = new Date(a.x.year, a.x.month, a.x.date);
-                          const dateB = new Date(b.x.year, b.x.month, b.x.date);
+                          const dateA = new Date(a.year, a.month, a.day);
+                          const dateB = new Date(b.year, b.month, b.day);
                           return dateB.getTime() - dateA.getTime();
                         })
                         .map((rate, index) => {
                           // Format de la date
-                          const year = rate.x.year;
-                          const month = String(rate.x.month + 1).padStart(2, '0'); // Ajouter +1 car mois est indexé de 0
-                          const day = String(rate.x.date).padStart(2, '0');
+                          const year = rate.year;
+                          const month = String(rate.month + 1).padStart(2, '0'); // Ajouter +1 car mois est indexé de 0
+                          const day = String(rate.day).padStart(2, '0');
                           const date = `${year}-${month}-${day}`;
                           
                           return (
@@ -1186,15 +1120,14 @@ export default function Home() {
                               {formatTimestamp(tx.timestamp)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <a 
-                                href={`https://gnosisscan.io/tx/${tx.txHash}`}
+                              <a
+                                href={`https://gnosisscan.io/tx/${tx.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-900 truncate block max-w-[150px]"
-                                aria-label={`Voir la transaction ${tx.txHash} sur Gnosisscan`}
-                                tabIndex={0}
+                                className="text-blue-500 hover:text-blue-700"
+                                aria-label={`Voir la transaction ${tx.id} sur Gnosisscan`}
                               >
-                                {tx.txHash.substring(0, 10)}...
+                                {tx.id.substring(0, 10)}...
                               </a>
                             </td>
                           </tr>
