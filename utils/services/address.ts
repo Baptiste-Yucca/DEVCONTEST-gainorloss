@@ -1,9 +1,17 @@
-import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays } from '../api';
-import { fetchTokenBalances } from '../api';
+import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, Transaction, fetchTokenBalances } from '../api';
 import { calculateDailyDebtWithInterest } from '../interest-calculations';
-import { Transaction } from '../api/types';
 import { TransactionWithType } from '../../types/transaction';
 import { DailyCostDetail } from '../../types/interest';
+import { fetchRmmRates } from '../api/rmm-api/rates';
+import { TOKENS, RESERVE_TO_TOKEN } from '../constants';
+
+
+// Fonction pour obtenir le symbole du token à partir de l'adresse de réserve
+const getTokenSymbol = (reserveId: string): string => {
+  const tokenAddress = reserveId.substring(0, 42).toLowerCase();
+  const tokenKey = RESERVE_TO_TOKEN[tokenAddress];
+  return tokenKey ? TOKENS[tokenKey].symbol : 'Inconnu';
+};
 
 interface AddressDataResult {
   transactions: TransactionWithType[];
@@ -59,7 +67,19 @@ export const fetchAddressData = async (address: string) => {
         const oldestTransaction = [...sortedTransactions].sort((a, b) => a.timestamp - b.timestamp)[0];
         fromTimestamp = oldestTransaction.timestamp;
         console.log("Transaction la plus ancienne:", new Date(fromTimestamp * 1000).toISOString());
+        
+        // Calculer le nombre de jours entre la date la plus ancienne et aujourd'hui
+        const today = Math.floor(Date.now() / 1000);
+        const daysDiff = Math.floor((today - fromTimestamp) / (24 * 60 * 60));
+        console.log(`Nombre de jours entre la première transaction et aujourd'hui: ${daysDiff} jours`);
       }
+
+      // Récupérer les taux bruts pour les afficher dans un tableau
+      const reserveId = '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'; // USDC
+      const ratesResponse = await fetchRmmRates(reserveId, fromTimestamp);
+      console.log("Données brutes des taux:", ratesResponse.length, "entrées");
+
+      //TODO retrieve borrowrate      
     } catch (err) {
         console.error('Error fetching data:', err);
     
@@ -92,9 +112,9 @@ const fetchRawRates = async (fromTimestamp: number): Promise<any[]> => {
   }
   return response.json();
 };
-
+/*
 const getTokenSymbol = (reserveId: string): string => {
   if (reserveId.includes('USDC')) return 'USDC';
   if (reserveId.includes('WXDAI')) return 'WXDAI';
   return '';
-}; 
+}; */

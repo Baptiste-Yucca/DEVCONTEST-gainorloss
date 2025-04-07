@@ -24,7 +24,6 @@ export const fetchRmmRates = async (reserveId: string, fromTimestamp: number): P
   }
 
   const rates = await response.json() as RmmApiRate[];
-  console.log("⚠️ Réponse brute de l'API:", JSON.stringify(rates, null, 2));
 
   if (!Array.isArray(rates)) {
     throw new Error("Format de réponse API invalide: attendu un tableau");
