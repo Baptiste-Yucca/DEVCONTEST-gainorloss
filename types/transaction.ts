@@ -1,11 +1,10 @@
 export interface Transaction {
   id: string;
   timestamp: number;
+  formattedDate: string;
   amount: string;
   transactionType: 'supply' | 'withdraw' | 'borrow' | 'repay';
-  reserve: {
-    id: string;
-  };
+  ticker:  string;
 }
 
 export interface TransactionWithType extends Transaction {

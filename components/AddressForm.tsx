@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { isValidEthereumAddress } from '@/utils/helpers';
+import { isValidEthereumAddress } from '../utils/helpers';
 
 type AddressFormProps = {
   onSubmit: (address: string) => void;

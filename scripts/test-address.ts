@@ -8,7 +8,8 @@ const testAddress = async () => {
   try {
     const address = '0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f';
     console.log('Test de fetchAddressData pour l\'adresse:', address);
-    await fetchAddressData(address);
+    const tmpData = await fetchAddressData(address);
+    
   } catch (error) {
     console.error('❌ Erreur lors du test:', error);
   }

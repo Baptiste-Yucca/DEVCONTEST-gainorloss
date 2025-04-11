@@ -1,7 +1,7 @@
 import React from 'react';
-import { Transaction } from '@/utils/api';
-import { formatAmount, formatTimestamp } from '@/utils/helpers';
-import { TOKENS, RESERVE_TO_TOKEN } from '@/utils/constants';
+import { Transaction } from '../utils/api';
+import { formatAmount, formatTimestamp } from '../utils/helpers';
+import { TOKENS, ADDRESS_SC_TO_TOKEN } from '../utils/constants';
 
 type TransactionTableProps = {
   transactions: Transaction[];
@@ -21,7 +21,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions, title
   const getTokenSymbol = (reserveId: string): string => {
     // La réserve contient l'adresse du token au début (longueur EVM = 42 caractères)
     const tokenAddress = reserveId.substring(0, 42).toLowerCase();
-    const tokenKey = RESERVE_TO_TOKEN[tokenAddress];
+    const tokenKey = ADDRESS_SC_TO_TOKEN[tokenAddress];
     return tokenKey ? TOKENS[tokenKey].symbol : 'Inconnu';
   };
 

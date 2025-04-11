@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { TOKENS, RESERVE_TO_TOKEN } from './constants';
+import { TOKENS, ADDRESS_SC_TO_TOKEN } from './constants';
 
 export const isValidEthereumAddress = (address: string): boolean => {
   return ethers.isAddress(address);
@@ -8,7 +8,7 @@ export const isValidEthereumAddress = (address: string): boolean => {
 export const formatAmount = (amount: string, reserveId: string): string => {
   // Récupérer le symbole du token à partir de l'adresse de réserve (42 premiers caractères)
   const tokenAddress = reserveId.substring(0, 42).toLowerCase();
-  const tokenKey = RESERVE_TO_TOKEN[tokenAddress];
+  const tokenKey = ADDRESS_SC_TO_TOKEN[tokenAddress];
   if (!tokenKey) return '0.00';
   
   const token = TOKENS[tokenKey];

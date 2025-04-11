@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import Header from '@/components/Header';
-import TransactionTable from '@/components/TransactionTable';
-import AllTransactionsTable from '@/components/AllTransactionsTable';
-import Loading from '@/components/Loading';
-import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, Transaction } from '@/utils/api';
-import { isValidEthereumAddress } from '@/utils/helpers';
+import Header from '../components/Header';
+import TransactionTable from '../components/TransactionTable';
+import AllTransactionsTable from '../components/AllTransactionsTable';
+import Loading from '../components/Loading';
+import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, Transaction } from '../utils/api';
+import { isValidEthereumAddress } from '../utils/helpers';
 
 export default function Dashboard() {
   const router = useRouter();

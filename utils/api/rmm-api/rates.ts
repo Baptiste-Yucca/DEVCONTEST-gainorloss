@@ -37,6 +37,7 @@ export const fetchRmmRates = async (reserveId: string, fromTimestamp: number): P
     }
     return {
       timestamp: Math.floor(new Date(rate.x.year, rate.x.month, rate.x.date).getTime() / 1000),
+      formattedDate: parseInt(`${rate.x.year}${String(rate.x.month + 1).padStart(2, '0')}${String(rate.x.date).padStart(2, '0')}000000`),
       variableBorrowRate_avg: rate.variableBorrowRate_avg,
       utilizationRate_avg: rate.utilizationRate_avg,
       year: rate.x.year,
