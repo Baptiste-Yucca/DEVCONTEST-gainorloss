@@ -6,6 +6,9 @@ import Loading from '../components/Loading';
 import { formatAmount, formatTimestamp } from '../utils/helpers';
 import { TOKENS, ADDRESS_SC_TO_TOKEN } from '../utils/constants';
 import { AddressData } from '../utils/services/address';
+import DailyDataTable from '../components/DailyDataTable';
+import DailyDataChart from '../components/DailyDataChart';
+import TransactionsTable from '../components/TransactionsTable';
 
 import {
   Chart as ChartJS,
@@ -80,45 +83,7 @@ export default function Home() {
     }
   };
 
-  // Formater les intérêts estimés
-  const formatTokenAmount = (amount: string, decimals: number) => {
-    // Utiliser BigInt pour éviter les erreurs de précision avec les grands nombres
-    if (!amount || amount === '0') return '0.00';
-    
-    try {
-      const amountBigInt = BigInt(amount);
-      const divisor = BigInt(10 ** decimals);
-      const integerPart = amountBigInt / divisor;
-      const fractionalPart = amountBigInt % divisor;
-      
-      // Formatage avec 2 décimales
-      let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
-      fractionalStr = fractionalStr.substring(0, 2).padEnd(2, '0');
-      
-      return `${integerPart}.${fractionalStr}`;
-    } catch (error) {
-      console.error("Erreur de formatage du montant:", error, "Montant:", amount);
-      return '0.00';
-    }
-  };
 
-
-
-  // Fonction pour obtenir la classe CSS du type de transaction
-  const getTransactionTypeStyle = (type: string): string => {
-    switch (type) {
-      case 'supply':
-        return 'bg-blue-100 text-blue-800';
-      case 'withdraw':
-        return 'bg-green-100 text-green-800';
-      case 'borrow':
-        return 'bg-purple-100 text-purple-800';
-      case 'repay':
-        return 'bg-amber-100 text-amber-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   // Fonction pour obtenir le libellé du type de transaction
   const getTransactionTypeLabel = (type: string): string => {
@@ -218,7 +183,16 @@ export default function Home() {
             <h3 className="text-xl font-semibold mb-2">Résultats pour l'adresse :</h3>
             <p className="text-gray-700 mb-6 break-all">{address}</p>
             
-            {displayDailyData(dailyData)}
+            <div className="mb-6 bg-white rounded-lg shadow p-4">
+              <h3 className="text-lg font-semibold mb-2">Coût total de la dette</h3>
+              <p className="text-2xl font-bold text-red-600">
+                {dailyData.reduce((sum, data) => sum + Number(data.interest) / 1000000, 0).toFixed(2)} USDC
+              </p>
+            </div>
+            
+            <DailyDataChart dailyData={dailyData} />
+            <TransactionsTable transactions={transactions} address={address} />
+            <DailyDataTable dailyData={dailyData} address={address} />
           </div>
         )}
       </main>
