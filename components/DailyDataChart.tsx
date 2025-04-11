@@ -1,5 +1,5 @@
 // components/DailyDataChart.tsx
-import React from 'react';
+import React, { useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { DailyData } from '../types/dailyData';
 import {
@@ -26,9 +26,12 @@ ChartJS.register(
 
 interface DailyDataChartProps {
   dailyData: DailyData[];
+  onCaptureImage?: (imageData: string) => void;
 }
 
-const DailyDataChart: React.FC<DailyDataChartProps> = ({ dailyData }) => {
+const DailyDataChart: React.FC<DailyDataChartProps> = ({ dailyData, onCaptureImage }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+
   if (!dailyData || dailyData.length === 0) {
     return (
       <div className="mt-8 text-center text-gray-600">
@@ -112,9 +115,9 @@ const DailyDataChart: React.FC<DailyDataChartProps> = ({ dailyData }) => {
   };
 
   return (
-    <div className="mt-6 bg-white rounded-lg shadow p-4">
-      <h3 className="text-lg font-semibold mb-4">Graphique des données journalières</h3>
-      <div className="h-80">
+    <div className="mt-6 bg-white rounded-xl shadow-md p-6 border border-gray-200">
+      <h3 className="text-lg font-semibold mb-6 text-indigo-700 text-center">Évolution de votre dette et des intérêts</h3>
+      <div className="h-80" ref={chartRef}>
         <Line options={options} data={chartData} />
       </div>
     </div>

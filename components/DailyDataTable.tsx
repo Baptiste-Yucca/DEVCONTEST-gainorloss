@@ -95,34 +95,34 @@ const DailyDataTable: React.FC<DailyDataTableProps> = ({ dailyData, address = ''
   };
 
   return (
-    <div className="mt-6 bg-white rounded-lg shadow overflow-hidden">
+    <div className="mt-6 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
       <div 
-        className="flex justify-between items-center p-4 cursor-pointer bg-gray-50 hover:bg-gray-100"
+        className="flex justify-between items-center p-4 cursor-pointer bg-gradient-to-r from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 transition-colors duration-200"
         onClick={toggleExpanded}
         onKeyDown={(e) => e.key === 'Enter' && toggleExpanded()}
         tabIndex={0}
         aria-expanded={isExpanded}
         aria-label="Afficher/masquer les données journalières"
       >
-        <h3 className="text-lg font-semibold">Données journalières</h3>
-        <span className="text-xs">
+        <h3 className="text-base font-semibold text-indigo-700">Données journalières</h3>
+        <span className="text-xs font-medium px-3 py-1 bg-indigo-200 text-indigo-800 rounded-full">
           {isExpanded ? 'Masquer' : 'Afficher'}
         </span>
       </div>
 
       {isExpanded && (
         <>
-          <div className="flex justify-end space-x-2 p-2 bg-gray-50">
+          <div className="flex justify-end space-x-2 p-3 bg-gray-50 border-t border-b border-gray-200">
             <button 
               onClick={exportToCSV}
-              className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
               aria-label="Exporter au format CSV"
             >
               Exporter CSV
             </button>
             <button 
               onClick={exportToJSON}
-              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
               aria-label="Exporter au format JSON"
             >
               Exporter JSON
@@ -141,10 +141,14 @@ const DailyDataTable: React.FC<DailyDataTableProps> = ({ dailyData, address = ''
               <tbody className="divide-y divide-gray-200">
                 {dailyData.map((data, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="py-3 px-4">{formatDisplayDate(data.date)}</td>
+                    <td className="py-3 px-4 font-medium">{formatDisplayDate(data.date)}</td>
                     <td className="py-3 px-4 text-right">{Number(data.amount) / 1000000}</td>
-                    <td className="py-3 px-4 text-right">{Number(data.interest) / 1000000}</td>
-                    <td className="py-3 px-4 text-right">{parseFloat(data.rate) * 100}%</td>
+                    <td className="py-3 px-4 text-right text-red-600 font-medium">{Number(data.interest) / 1000000}</td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                        {parseFloat(data.rate) * 100}%
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
