@@ -4,10 +4,10 @@ const Header: React.FC = () => {
   return (
     <header className="bg-indigo-600 text-white p-4 shadow-md">
       <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-2xl font-bold">rmmgain</h1>
+        <h1 className="text-2xl font-bold">Gain or Loss ??</h1>
         <div className="flex items-center">
           <div className="text-xs mr-4 text-right">
-            <p>Ne fonctionne que sur l'USDC et Gnosis</p>
+            <p>Ne fonctionne que pour l'USDC et sur Gnosis</p>
             <p>Si vous voulez plus de fonctionnalités,</p>
             <p>dites-le moi sous une de mes vidéos</p>
           </div>
