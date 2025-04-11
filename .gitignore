@@ -13,6 +13,9 @@
 # production
 /build
 
+#yarn 
+package-lock.json
+
 # misc
 .DS_Store
 *.pem
