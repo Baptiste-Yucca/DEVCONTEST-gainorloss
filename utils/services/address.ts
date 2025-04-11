@@ -1,6 +1,6 @@
 import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, Transaction, fetchTokenBalances } from '../api';
 import { TransactionWithType } from '../../types/transaction';
-import { DailyCostDetail, DailyRate, logDailyRateInfo } from '../../types/interest';
+import { DailyRate } from '../../types/interest';
 import { fetchRmmRates } from '../api/rmm-api/rates';
 import { TOKENS, ADDRESS_SC_TO_TOKEN, RESERVE_TO_TICKER, TokenTicker} from '../constants';
 import { DailyData, DailyTransaction } from '../../types/dailyData';
@@ -14,23 +14,16 @@ export interface AddressData {
 }
 
 export const fetchAddressData = async (address: string): Promise<AddressData> => {
-    console.log('Adresse reçue:', address);
+   
     try {
         // Récupérer les soldes des tokens
         const tokenBalances = await fetchTokenBalances(address);
-        console.log("Soldes récupérés:", tokenBalances);
 
         // Récupérer toutes les transactions
         const sortedTransactions = await fetchAllTransactions(address);
         
         // Pour l'instant, ne calculer que les intérêts USDC comme demandé
         const usdcTransactions = getUsdcTransactions(sortedTransactions);
-         
-        console.log("Nombre de transactions USDC:", usdcTransactions.length);
-        if (usdcTransactions.length > 0) {
-            console.log("Date de la transaction la plus ancienne:", new Date(usdcTransactions[0].timestamp * 1000).toISOString());
-            console.log("Date de la transaction la plus récente:", new Date(usdcTransactions[usdcTransactions.length - 1].timestamp * 1000).toISOString());
-        }
 
         let fromTimestamp = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60); // Par défaut, 30 jours en arrière
         if (sortedTransactions.length > 0) {
@@ -38,22 +31,18 @@ export const fetchAddressData = async (address: string): Promise<AddressData> =>
             // On verra plus tard pour traiter les wxdai
             const oldestTransaction = [...sortedTransactions].sort((a, b) => a.timestamp - b.timestamp)[0];
             fromTimestamp = oldestTransaction.timestamp;
-            console.log("Transaction la plus ancienne:", new Date(fromTimestamp * 1000).toISOString());
             
             // Calculer le nombre de jours entre la date la plus ancienne et aujourd'hui
             const today = Math.floor(Date.now() / 1000);
             const daysDiff = Math.floor((today - fromTimestamp) / (24 * 60 * 60));
-            console.log(`Nombre de jours entre la première transaction et aujourd'hui: ${daysDiff} jours`);
         }
 
         // Récupérer les taux bruts pour les afficher dans un tableau
         const reserveId = '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'; // USDC
         const ratesResponse = await fetchRmmRates(reserveId, fromTimestamp);
-        console.log("Données brutes des taux:", ratesResponse.length, "entrées");
-
+        
         // Appeler la fonction pour générer les données
         const processedDailyData = generateDailyData(ratesResponse, usdcTransactions);
-        console.log(`Tableau DailyData créé avec ${processedDailyData.length} entrées`);
         
         // Retourner toutes les données dans un objet structuré
         return {
@@ -102,8 +91,6 @@ export const generateDailyData = (
   // Utiliser formattedDate pour définir la période
   const startDateStr = firstBorrow.formattedDate.substring(0, 8); // YYYYMMDD
   const endDateStr = ratesData[ratesData.length - 1].formattedDate.toString().substring(0, 8);
-  
-  console.log(`Période de calcul: du ${startDateStr} au ${endDateStr}`);
 
   // Regrouper les transactions par jour
   const transactionsByDay = new Map<string, TransactionWithType[]>();
@@ -250,7 +237,5 @@ export const generateDailyData = (
     currentDateStr = incrementDate(currentDateStr);
   }
 
-  console.log(`Calcul terminé: ${result.length} jours traités`);
-  console.log('Total des intérêts:', cumulInterestday.toString());
   return result;
 };

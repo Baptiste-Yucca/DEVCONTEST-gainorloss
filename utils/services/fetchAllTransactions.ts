@@ -8,7 +8,6 @@ import { RESERVE_TO_TICKER, TokenTicker } from '../constants';
  * @returns Un tableau de transactions triées par date (plus récentes en premier)
  */
 export const fetchAllTransactions = async (address: string): Promise<TransactionWithType[]> => {
-  console.log('Récupération des transactions pour:', address);
   try {
     // Récupérer toutes les transactions
     const [borrowsData, suppliesData, withdrawsData, repaysData] = await Promise.all([
@@ -17,14 +16,7 @@ export const fetchAllTransactions = async (address: string): Promise<Transaction
       fetchWithdraws(address),
       fetchRepays(address)
     ]);
-    
-    // Log pour le débogage
-    console.log("Transactions récupérées:", {
-      supplies: suppliesData.length,
-      withdraws: withdrawsData.length, 
-      borrows: borrowsData.length,
-      repays: repaysData.length
-    });
+
     
     // D'abord, créons une fonction utilitaire dans le même fichier
     const timestampToFormattedDate = (timestamp: number): string => {
