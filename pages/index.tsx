@@ -21,13 +21,12 @@ import {
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import { 
-  calculateInterest, 
+  calculateInterestFromDB, 
   calculateTotalInterestCost, 
   generateDailyCostsCSV,
   DailyCostDetail,
-  displayRawRates,
-  calculateDailyDebtWithInterest
-} from '../utils/interest-calculations';
+  calculateDailyDebtWithInterestFromDB
+} from '../utils/interest-calculations-db';
 
 // Enregistrer les composants ChartJS
 ChartJS.register(
@@ -154,9 +153,9 @@ export default function Home() {
         setRawRates(ratesData);
       }
       
-      // Utiliser la nouvelle fonction pour calculer les intérêts de la dette
-      console.log("Calcul précis des intérêts de la dette USDC...");
-      const { dailyDebtDetails, totalInterest } = await calculateDailyDebtWithInterest(
+      // Utiliser la nouvelle fonction pour calculer les intérêts de la dette (depuis la DB)
+      console.log("Calcul précis des intérêts de la dette USDC (depuis la DB)...");
+      const { dailyDebtDetails, totalInterest } = await calculateDailyDebtWithInterestFromDB(
         usdcTransactions,
         'USDC',
         fromTimestamp
@@ -166,9 +165,9 @@ export default function Home() {
       setDailyDebtDetails(dailyDebtDetails);
       setTotalInterestCost(totalInterest);
       
-      // Ancienne méthode (peut être supprimée)
-      console.log("Calcul des intérêts pour USDC (ancienne méthode)...");
-      const usdcResults = await calculateInterest(usdcTransactions, 'USDC');
+      // Ancienne méthode (utilisant la DB)
+      console.log("Calcul des intérêts pour USDC (depuis la DB)...");
+      const usdcResults = await calculateInterestFromDB(usdcTransactions, 'USDC');
       setUsdcDailyCosts(usdcResults.dailyCosts);
       setUsdcDailyDetails(usdcResults.dailyDetails);
       
