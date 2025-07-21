@@ -26,35 +26,29 @@ const initDatabase = async () => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
+  if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Méthode non autorisée' });
   }
 
   try {
-    const { token, fromDate, toDate } = req.body;
+    const { from } = req.query;
 
-    if (!token || !fromDate) {
-      return res.status(400).json({ message: 'Paramètres manquants: token et fromDate requis' });
+    if (!from) {
+      return res.status(400).json({ message: 'Paramètre manquant: from requis' });
     }
 
     // Initialiser la base de données
     const database = await initDatabase();
 
-    // Construire la requête SQL
-    let sql = `
+    // Construire la requête SQL pour récupérer tous les taux depuis la date donnée
+    const sql = `
       SELECT * FROM interest_rates 
-      WHERE token = ? AND date >= ?
+      WHERE date >= ?
+      ORDER BY date ASC
     `;
-    const params: any[] = [token, fromDate];
+    const params: any[] = [from];
 
-    if (toDate) {
-      sql += ' AND date <= ?';
-      params.push(toDate);
-    }
-
-    sql += ' ORDER BY date ASC';
-
-    console.log(`API /rates: Requête pour ${token} depuis ${fromDate}${toDate ? ` jusqu'à ${toDate}` : ''}`);
+    console.log(`API /rates: Requête depuis ${from}`);
 
     // Exécuter la requête
     const rows = await new Promise<any[]>((resolve, reject) => {
@@ -68,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     });
 
-    console.log(`API /rates: ${rows.length} taux trouvés pour ${token}`);
+    console.log(`API /rates: ${rows.length} taux trouvés`);
 
     // Retourner les résultats
     res.status(200).json(rows);

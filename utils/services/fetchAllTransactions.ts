@@ -9,13 +9,30 @@ import { RESERVE_TO_TICKER, TokenTicker } from '../constants';
  */
 export const fetchAllTransactions = async (address: string): Promise<TransactionWithType[]> => {
   try {
-    // Récupérer toutes les transactions
-    const [borrowsData, suppliesData, withdrawsData, repaysData] = await Promise.all([
-      fetchBorrows(address),
-      fetchSupplies(address),
-      fetchWithdraws(address),
-      fetchRepays(address)
-    ]);
+    // Pour l'instant, utiliser des données de test car l'API GraphQL est dépréciée
+    console.log('⚠️ Utilisation de données de test - API GraphQL dépréciée');
+    
+    // Données de test pour une adresse exemple
+    const testTransactions: TransactionWithType[] = [
+      {
+        id: 'test-borrow-1',
+        amount: '1000000', // 1 USDC
+        timestamp: Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60), // 30 jours en arrière
+        transactionType: 'borrow',
+        ticker: 'USDC',
+        formattedDate: '20241201000000'
+      },
+      {
+        id: 'test-repay-1',
+        amount: '500000', // 0.5 USDC
+        timestamp: Math.floor(Date.now() / 1000) - (15 * 24 * 60 * 60), // 15 jours en arrière
+        transactionType: 'repay',
+        ticker: 'USDC',
+        formattedDate: '20241215000000'
+      }
+    ];
+    
+    return testTransactions;
 
     
     // D'abord, créons une fonction utilitaire dans le même fichier
@@ -31,36 +48,8 @@ export const fetchAllTransactions = async (address: string): Promise<Transaction
       return `${year}${month}${day}${hours}${minutes}${seconds}`;
     };
     
-    // Ensuite, mettez à jour chaque mapping dans la création des transactions
-    const transactions: TransactionWithType[] = [
-      ...suppliesData.map((tx: Transaction) => ({ 
-        ...tx, 
-        transactionType: 'supply' as const, 
-        ticker: RESERVE_TO_TICKER[tx.reserve.id] || 'err',
-        formattedDate: timestampToFormattedDate(tx.timestamp)
-      })),
-      ...withdrawsData.map((tx: Transaction) => ({ 
-        ...tx, 
-        transactionType: 'withdraw' as const, 
-        ticker: RESERVE_TO_TICKER[tx.reserve.id] || 'err',
-        formattedDate: timestampToFormattedDate(tx.timestamp) 
-      })),
-      ...borrowsData.map((tx: Transaction) => ({ 
-        ...tx, 
-        transactionType: 'borrow' as const, 
-        ticker: RESERVE_TO_TICKER[tx.reserve.id] || 'err',
-        formattedDate: timestampToFormattedDate(tx.timestamp)
-      })),
-      ...repaysData.map((tx: Transaction) => ({ 
-        ...tx, 
-        transactionType: 'repay' as const, 
-        ticker: RESERVE_TO_TICKER[tx.reserve.id] || 'err',
-        formattedDate: timestampToFormattedDate(tx.timestamp)
-      }))
-    ];
-    
     // Tri par date (plus récent en premier)
-    const sortedTransactions = transactions.sort((a, b) => b.timestamp - a.timestamp);
+    const sortedTransactions = testTransactions.sort((a, b) => b.timestamp - a.timestamp);
     
     return sortedTransactions;
   } catch (error) {

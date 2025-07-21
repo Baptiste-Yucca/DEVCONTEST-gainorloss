@@ -37,12 +37,29 @@ export const fetchAddressData = async (address: string): Promise<AddressData> =>
             const daysDiff = Math.floor((today - fromTimestamp) / (24 * 60 * 60));
         }
 
-        // Récupérer les taux bruts pour les afficher dans un tableau
+        // Utiliser l'API RMM directement pour l'instant
         const reserveId = '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'; // USDC
-        const ratesResponse = await fetchRmmRates(reserveId, fromTimestamp);
+        const ratesResponse = await fetch(`https://rmm-api.realtoken.network/data/rates-history?reserveId=${reserveId}&from=${fromTimestamp}&resolutionInHours=24`);
+        
+        if (!ratesResponse.ok) {
+            throw new Error(`Erreur lors de la récupération des taux: ${ratesResponse.statusText}`);
+        }
+        
+        const ratesData = await ratesResponse.json();
+        
+        // Transformer les données de l'API RMM en format DailyRate
+        const transformedRates = ratesData.map((rate: any) => ({
+            timestamp: Math.floor(new Date(rate.x.year, rate.x.month, rate.x.date).getTime() / 1000),
+            formattedDate: parseInt(`${rate.x.year}${String(rate.x.month + 1).padStart(2, '0')}${String(rate.x.date).padStart(2, '0')}000000`),
+            variableBorrowRate_avg: rate.variableBorrowRate_avg,
+            utilizationRate_avg: rate.utilizationRate_avg,
+            year: rate.x.year,
+            month: rate.x.month,
+            day: rate.x.date
+        }));
         
         // Appeler la fonction pour générer les données
-        const processedDailyData = generateDailyData(ratesResponse, usdcTransactions);
+        const processedDailyData = generateDailyData(transformedRates, usdcTransactions);
         
         // Retourner toutes les données dans un objet structuré
         return {

@@ -5,7 +5,7 @@ import AddressForm from '../components/AddressForm';
 import Loading from '../components/Loading';
 import { formatAmount, formatTimestamp } from '../utils/helpers';
 import { TOKENS, ADDRESS_SC_TO_TOKEN } from '../utils/constants';
-import { AddressData } from '../utils/services/address';
+import { AddressData, fetchAddressData } from '../utils/services/address';
 import DailyDataTable from '../components/DailyDataTable';
 import DailyDataChart from '../components/DailyDataChart';
 import TransactionsTable from '../components/TransactionsTable';
@@ -24,6 +24,8 @@ import {
 } from 'chart.js';
 import { Line, Bar } from 'react-chartjs-2';
 import { DailyData } from '../types/dailyData';
+import { TransactionWithType } from '../types/transaction';
+import { TokenBalances } from '../utils/api/types';
 
 // Enregistrer les composants ChartJS
 ChartJS.register(

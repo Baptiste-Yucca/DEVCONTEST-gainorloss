@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getRates, getStats } = require('../scripts/database');
+const { getRates, getStats } = require('../../scripts/database');
 
 /**
  * @route POST /api/rates
