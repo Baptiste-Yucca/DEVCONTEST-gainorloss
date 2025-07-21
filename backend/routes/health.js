@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { getStats } = require('../scripts/database');
 
 /**
  * @route GET /api/health
@@ -12,16 +11,8 @@ router.get('/', async (req, res) => {
     const startTime = Date.now();
     
     // Vérifier la base de données
-    let dbStatus = 'unknown';
+    let dbStatus = 'not_configured';
     let dbStats = null;
-    
-    try {
-      dbStats = await getStats();
-      dbStatus = 'healthy';
-    } catch (error) {
-      dbStatus = 'error';
-      console.error('Erreur base de données:', error.message);
-    }
 
     const responseTime = Date.now() - startTime;
 
@@ -73,22 +64,10 @@ router.get('/detailed', async (req, res) => {
     };
 
     // Vérifier la base de données
-    try {
-      const dbStats = await getStats();
-      checks.database = {
-        status: 'healthy',
-        details: {
-          tokens: dbStats.length,
-          totalEntries: dbStats.reduce((sum, stat) => sum + stat.count, 0),
-          stats: dbStats
-        }
-      };
-    } catch (error) {
-      checks.database = {
-        status: 'error',
-        details: { error: error.message }
-      };
-    }
+    checks.database = {
+      status: 'not_configured',
+      details: { message: 'Base de données non configurée pour ce endpoint' }
+    };
 
     // Vérifier la mémoire
     const memUsage = process.memoryUsage();

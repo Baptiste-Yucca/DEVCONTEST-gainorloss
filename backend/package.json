@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "init-db": "node scripts/init-rates.js",
     "update-rates": "node scripts/update-rates.js",
+    "fetch-graphql": "node scripts/fetch-graphql-data.js",
     "stats": "node -e \"require('./scripts/database').getStats().then(stats => console.table(stats))\""
   },
   "dependencies": {

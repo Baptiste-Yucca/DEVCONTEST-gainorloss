@@ -1,0 +1,76 @@
+{
+  "redeemUnderlyings": [
+    {
+      "id": "36380488:4:0x608d56a3f767fc6988b4d465b58570d65b42a3e42dc77aecf1385698b5b090e9:19:19",
+      "txHash": "0x608d56a3f767fc6988b4d465b58570d65b42a3e42dc77aecf1385698b5b090e9",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "80000000",
+      "timestamp": 1728289545
+    },
+    {
+      "id": "36380488:3:0x07bb37985d26513480c6f3561ae2e01ba9d1f9b86594fc758961ea7686d2f940:14:14",
+      "txHash": "0x07bb37985d26513480c6f3561ae2e01ba9d1f9b86594fc758961ea7686d2f940",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "80000000",
+      "timestamp": 1728289545
+    },
+    {
+      "id": "35275064:5:0x87b3f93747bfc57167d064208ac1b212a5cfb7bf85c2524f53a6ac13da6593ee:9:9",
+      "txHash": "0x87b3f93747bfc57167d064208ac1b212a5cfb7bf85c2524f53a6ac13da6593ee",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "300000000",
+      "timestamp": 1722580535
+    },
+    {
+      "id": "34696052:1:0x558d8c05140dcb1a5ea85f2f0468c5a54354ebd328e92a64557c668536328a35:10:10",
+      "txHash": "0x558d8c05140dcb1a5ea85f2f0468c5a54354ebd328e92a64557c668536328a35",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "103000000",
+      "timestamp": 1719587295
+    },
+    {
+      "id": "33519515:23:0x3d252d2c02e7ef1276747783fb2a5c016426c1f568b5dc1f4b395299560575ed:2114:2114",
+      "txHash": "0x3d252d2c02e7ef1276747783fb2a5c016426c1f568b5dc1f4b395299560575ed",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "207647660",
+      "timestamp": 1713512885
+    },
+    {
+      "id": "33220312:1:0x1ac226abd8574755397883a5c102f3dcc26a6a750deb1b1a769910f77269898d:21:21",
+      "txHash": "0x1ac226abd8574755397883a5c102f3dcc26a6a750deb1b1a769910f77269898d",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "2145520270146190724",
+      "timestamp": 1711958550
+    }
+  ]
+}

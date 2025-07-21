@@ -1,0 +1,74 @@
+{
+  "borrows": [
+    {
+      "id": "36380454:5:0x57afafc72d634d919b7292a7b208e3269866a805196c0aef67dfb6c11a9780bf:21:21",
+      "txHash": "0x57afafc72d634d919b7292a7b208e3269866a805196c0aef67dfb6c11a9780bf",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "60000000",
+      "borrowRate": "88259843562614113710773247",
+      "borrowRateMode": 2,
+      "timestamp": 1728289375
+    },
+    {
+      "id": "35925950:1:0x1646d6a91eef2fc4df49b5d1a77fe8c36c1bb58c25683940e5760ba20cf8c68d:4:4",
+      "txHash": "0x1646d6a91eef2fc4df49b5d1a77fe8c36c1bb58c25683940e5760ba20cf8c68d",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "100000000",
+      "borrowRate": "115133221320993730318579729",
+      "borrowRateMode": 2,
+      "timestamp": 1725954055
+    },
+    {
+      "id": "33569355:9:0x2a124c1584644660cf84c9d91c8a89266f3819d3d73f8c50b892646d5ab3427a:97:97",
+      "txHash": "0x2a124c1584644660cf84c9d91c8a89266f3819d3d73f8c50b892646d5ab3427a",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "5000000",
+      "borrowRate": "134733920371526272443747408",
+      "borrowRateMode": 2,
+      "timestamp": 1713772940
+    },
+    {
+      "id": "33569324:5:0xdfad9c8d64b016c9629456af28f1f1791c02306ee95655453f659b57798b5826:161:161",
+      "txHash": "0xdfad9c8d64b016c9629456af28f1f1791c02306ee95655453f659b57798b5826",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "250000000",
+      "borrowRate": "134731045547018539004139514",
+      "borrowRateMode": 2,
+      "timestamp": 1713772785
+    },
+    {
+      "id": "33339739:7:0x822b31697174028ee13b4737ae14b75b53e66f10e052857fb882a73be5363d2f:720:720",
+      "txHash": "0x822b31697174028ee13b4737ae14b75b53e66f10e052857fb882a73be5363d2f",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "2000000",
+      "borrowRate": "83169212987633996974883635",
+      "borrowRateMode": 2,
+      "timestamp": 1712583805
+    }
+  ]
+}

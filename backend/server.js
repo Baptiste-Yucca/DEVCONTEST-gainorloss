@@ -22,10 +22,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes API
-app.use('/api/rates', require('./routes/rates'));
-app.use('/api/transactions', require('./routes/transactions'));
-app.use('/api/balances', require('./routes/balances'));
 app.use('/api/health', require('./routes/health'));
+app.use('/api/rmm', require('./routes/rmm'));
 
 // Route racine
 app.get('/', (req, res) => {
@@ -34,12 +32,10 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     description: 'API pour analyser les données du protocole RMM',
     endpoints: {
-      rates: '/api/rates',
-      transactions: '/api/transactions',
-      balances: '/api/balances',
-      health: '/api/health'
+      health: '/api/health',
+      rmm: '/api/rmm/v3/:address1/:address2?/:address3?'
     },
-    documentation: '/api/docs'
+    example: 'GET /api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f'
   });
 });
 
@@ -50,10 +46,8 @@ app.use('*', (req, res) => {
     message: `L'endpoint ${req.originalUrl} n'existe pas`,
     availableEndpoints: [
       'GET /',
-      'POST /api/rates',
-      'GET /api/transactions/:address',
-      'GET /api/balances/:address',
-      'GET /api/health'
+      'GET /api/health',
+      'GET /api/rmm/v3/:address1/:address2?/:address3?'
     ]
   });
 });
@@ -74,7 +68,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Serveur RMM Gain API démarré sur le port ${PORT}`);
   console.log(`📊 Mode: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
-  console.log(`📚 Documentation: http://localhost:${PORT}/api/docs`);
+  console.log(`🔍 Test: curl http://localhost:${PORT}/api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f`);
 });
 
 module.exports = app; 

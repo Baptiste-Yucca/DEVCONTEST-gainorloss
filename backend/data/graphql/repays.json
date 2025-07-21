@@ -1,0 +1,40 @@
+{
+  "repays": [
+    {
+      "id": "34309374:1:0xa408502e062c475ab305d157029a1a2e6ba460c8f84efa60ac71c3fecc00cb28:304:304",
+      "txHash": "0xa408502e062c475ab305d157029a1a2e6ba460c8f84efa60ac71c3fecc00cb28",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "203438515",
+      "timestamp": 1717589750
+    },
+    {
+      "id": "33570039:3:0x51b174c177d5f36df23c7c765cc87be02316b07935527029a09760d6606b8c5c:11:11",
+      "txHash": "0x51b174c177d5f36df23c7c765cc87be02316b07935527029a09760d6606b8c5c",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "54439998",
+      "timestamp": 1713776475
+    },
+    {
+      "id": "33469601:6:0x807d0c8f4d5f5be601939c93391566974192ce36ecd8fc3009f586339c17c2eb:2407:2407",
+      "txHash": "0x807d0c8f4d5f5be601939c93391566974192ce36ecd8fc3009f586339c17c2eb",
+      "user": {
+        "id": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+      },
+      "reserve": {
+        "id": "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70"
+      },
+      "amount": "2005109",
+      "timestamp": 1713255155
+    }
+  ]
+}

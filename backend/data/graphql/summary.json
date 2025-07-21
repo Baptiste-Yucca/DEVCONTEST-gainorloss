@@ -1,0 +1,11 @@
+{
+  "userAddress": "0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f",
+  "timestamp": "2025-07-21T19:49:32.182Z",
+  "data": {
+    "borrows": 5,
+    "supplies": 21,
+    "withdraws": 0,
+    "repays": 3
+  },
+  "total": 29
+}
