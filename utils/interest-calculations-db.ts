@@ -268,37 +268,13 @@ export const calculateDailyDebtWithInterestFromDB = async (
   let totalInterest = 0;
   const dailyDebtDetails: any[] = [];
   
-  // Fonction pour utiliser le taux par défaut
-  const useDefaultRate = (
+  // Fonction pour gérer l'absence de taux
+  const handleMissingRate = (
     dateKey: string, 
     currentDate: number, 
-    currDebt: number, 
-    currTotalInterest: number, 
-    txAmount: number | null, 
-    txType: string | null
+    currDebt: number
   ): void => {
-    console.warn(`⚠️ Aucun taux alternatif proche trouvé, utilisation d'un taux fixe de secours: 7%`);
-    const backupRateValue = 0.07; // 7% annuel 
-    const aprPercentage = backupRateValue * 100; // 7.0%
-    const dailyRateValue = backupRateValue / 365;
-    const dailyInterest = currDebt * dailyRateValue;
-    
-    // Ajouter l'intérêt à la dette et au total
-    currDebt += dailyInterest;
-    currTotalInterest += dailyInterest;
-    
-    // Enregistrer les détails du jour avec le taux de secours
-    dailyDebtDetails.push({
-      date: dateKey,
-      timestamp: currentDate,
-      debt: currDebt,
-      dailyRate: dailyRateValue,
-      apr: aprPercentage,
-      dailyInterest,
-      totalInterest: currTotalInterest + dailyInterest,
-      transactionAmount: txAmount,
-      transactionType: txType
-    });
+    console.warn(`⚠️ Pas de taux disponible pour ${dateKey}, dette active: ${currDebt.toFixed(6)} - Aucun calcul d'intérêt effectué`);
   };
   
   // Calculer jour par jour
@@ -449,12 +425,12 @@ export const calculateDailyDebtWithInterestFromDB = async (
           });
         } else {
           console.error(`⚠️ Erreur inattendue: taux alternatif non trouvé pour ${nearestDate}`);
-          // Fallback sur le taux par défaut
-          useDefaultRate(dateKey, currentDate, currentDebt, totalInterest, transactionAmount, transactionType);
+          // Pas de taux disponible
+          handleMissingRate(dateKey, currentDate, currentDebt);
         }
       } else {
-        // Si aucun taux proche n'est trouvé, utiliser le taux par défaut
-        useDefaultRate(dateKey, currentDate, currentDebt, totalInterest, transactionAmount, transactionType);
+        // Si aucun taux proche n'est trouvé, pas de calcul d'intérêt
+        handleMissingRate(dateKey, currentDate, currentDebt);
       }
     }
   }

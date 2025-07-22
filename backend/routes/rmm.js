@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { fetchAllTransactions } = require('../services/graphql');
+const { calculateInterestForToken } = require('../services/interest-calculator');
 
 // Configuration des stablecoins
 const STABLECOINS = {
@@ -151,17 +152,56 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           };
         });
 
+        // Calculer les intérêts pour chaque stablecoin
+        const interestCalculations = {};
+        for (const stablecoin of Object.keys(transactionsByStablecoin)) {
+          try {
+            // Combiner toutes les transactions du stablecoin
+            const allTokenTransactions = [
+              ...transactionsByStablecoin[stablecoin].borrows.map(tx => ({ ...tx, transactionType: 'borrow' })),
+              ...transactionsByStablecoin[stablecoin].supplies.map(tx => ({ ...tx, transactionType: 'supply' })),
+              ...transactionsByStablecoin[stablecoin].withdraws.map(tx => ({ ...tx, transactionType: 'withdraw' })),
+              ...transactionsByStablecoin[stablecoin].repays.map(tx => ({ ...tx, transactionType: 'repay' }))
+            ];
+
+            if (allTokenTransactions.length > 0) {
+              console.log(`💰 Calcul des intérêts pour ${stablecoin} (${allTokenTransactions.length} transactions)`);
+              const interestResult = await calculateInterestForToken(allTokenTransactions, stablecoin);
+              interestCalculations[stablecoin] = interestResult;
+            } else {
+              console.log(`💰 Aucune transaction pour ${stablecoin}, pas de calcul d'intérêts`);
+              interestCalculations[stablecoin] = {
+                token: stablecoin,
+                borrow: { totalInterest: 0, summary: { totalBorrows: 0, totalRepays: 0, currentDebt: 0, totalInterest: 0 } },
+                supply: { totalInterest: 0, summary: { totalSupplies: 0, totalWithdraws: 0, currentSupply: 0, totalInterest: 0 } },
+                summary: { totalBorrowInterest: 0, totalSupplyInterest: 0, netInterest: 0 }
+              };
+            }
+          } catch (error) {
+            console.error(`Erreur lors du calcul des intérêts pour ${stablecoin}:`, error);
+            interestCalculations[stablecoin] = {
+              token: stablecoin,
+              error: error.message,
+              borrow: { totalInterest: 0, summary: { totalBorrows: 0, totalRepays: 0, currentDebt: 0, totalInterest: 0 } },
+              supply: { totalInterest: 0, summary: { totalSupplies: 0, totalWithdraws: 0, currentSupply: 0, totalInterest: 0 } },
+              summary: { totalBorrowInterest: 0, totalSupplyInterest: 0, netInterest: 0 }
+            };
+          }
+        }
+
         results.push({ 
           address, 
           success: true, 
           data: {
             address,
             transactions: transactionsByStablecoin,
+            interests: interestCalculations,
             summary: {
               totalTransactions: allTransactions.total,
               stablecoins: Object.keys(transactionsByStablecoin).map(stablecoin => ({
                 symbol: stablecoin,
-                ...transactionsByStablecoin[stablecoin].summary
+                ...transactionsByStablecoin[stablecoin].summary,
+                interests: interestCalculations[stablecoin]?.summary || { totalBorrowInterest: 0, totalSupplyInterest: 0, netInterest: 0 }
               }))
             }
           }
