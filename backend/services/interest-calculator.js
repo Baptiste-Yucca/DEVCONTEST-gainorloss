@@ -19,6 +19,25 @@ const STABLECOINS = {
 const DB_PATH = path.join(__dirname, '../../data/rates.db');
 
 /**
+ * Calcule l'intérêt quotidien sur un montant supply donné un taux journalier (ex: 0.00015).
+ *
+ * @param supply - montant du token en base units (BigInt)
+ * @param dailyRate - taux quotidien (float, ex: 0.0001515)
+ * @param decimals - nombre de décimales du token (ex: 18 pour WXDAI, 6 pour USDC)
+ * @returns BigInt - montant de l'intérêt quotidien (en base units)
+ */
+function computeDailyInterest(supply, dailyRate, decimals) {
+  // On convertit dailyRate en ray (fixé à 27 décimales pour la précision des calculs)
+  const RAY = BigInt(1e27);
+  const scaledRate = BigInt(Math.floor(dailyRate * 1e27)); // dailyRate en ray
+
+  // L'intérêt est : supply * rate / 1e27
+  const interest = (supply * scaledRate) / RAY;
+
+  return interest;
+}
+
+/**
  * Initialise la connexion à la base de données
  */
 function initDatabase() {
@@ -107,6 +126,8 @@ async function calculateBorrowInterest(transactions, token) {
     tx.transactionType === 'borrow' || tx.transactionType === 'repay'
   ).sort((a, b) => a.timestamp - b.timestamp);
   
+
+  
   if (debtTransactions.length === 0) {
     console.log(`Aucune transaction d'emprunt/remboursement pour ${token}`);
     return {
@@ -122,7 +143,8 @@ async function calculateBorrowInterest(transactions, token) {
   }
   
   // Déterminer la période de calcul
-  const startTimestamp = getPreviousDayMidnight(debtTransactions[0].timestamp);
+  const firstTxTimestamp = debtTransactions[0].timestamp;
+  const startTimestamp = getPreviousDayMidnight(firstTxTimestamp);
   const endTimestamp = Math.floor(Date.now() / 1000);
   
   console.log(`📅 Période de calcul: ${new Date(startTimestamp * 1000).toISOString()} → ${new Date(endTimestamp * 1000).toISOString()}`);
@@ -175,28 +197,24 @@ async function calculateBorrowInterest(transactions, token) {
     // Cas particulier: Premier jour avec emprunt
     if (currentDate === startTimestamp && dayTransactions.length > 0 && dayTransactions[0].transactionType === 'borrow') {
       const firstBorrow = dayTransactions[0];
-      // Convertir en BigInt selon les décimales du token
+      
       let amount = 0n;
-      if (token === 'USDC') {
-        amount = BigInt(Math.floor(parseFloat(firstBorrow.amount) * 1e6)); // USDC: 6 décimales
-      } else {
-        amount = BigInt(firstBorrow.amount); // WXDAI: déjà en wei
-      }
+      amount = BigInt(firstBorrow.amount);
       
       currentDebt = amount;
       totalBorrows += amount;
-      transactionAmount = Number(amount) / (token === 'USDC' ? 1e6 : 1e18);
+      transactionAmount = amount.toString();
       transactionType = 'borrow';
       
       // Pas d'intérêts pour le jour initial d'emprunt
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
-        debt: Number(currentDebt) / (token === 'USDC' ? 1e6 : 1e18),
+        debt: currentDebt.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.variable_borrow_rate_avg * 100 : 0,
-        dailyInterest: 0,
-        totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+        dailyInterest: "0",
+        totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
@@ -205,7 +223,7 @@ async function calculateBorrowInterest(transactions, token) {
       for (let i = 1; i < dayTransactions.length; i++) {
         const tx = dayTransactions[i];
         const txAmount = token === 'USDC' ? 
-          BigInt(Math.floor(parseFloat(tx.amount) * 1e6)) : 
+          BigInt(tx.amount) : 
           BigInt(tx.amount);
         
         if (tx.transactionType === 'borrow') {
@@ -222,7 +240,7 @@ async function calculateBorrowInterest(transactions, token) {
     else if (dayTransactions.length === 0) {
       // Pas de transactions ce jour-là, calcul simple des intérêts sur le montant actuel
       if (currentDebt > 0n && dailyRate) {
-        const dayInterest = currentDebt * BigInt(Math.floor(dailyInterestRate * 1e18)) / BigInt(1e18);
+        const dayInterest = computeDailyInterest(currentDebt, dailyInterestRate, token === 'USDC' ? 6 : 18);
         dayTotalInterest = dayInterest;
         totalInterest += dayInterest;
         currentDebt += dayInterest;
@@ -231,11 +249,11 @@ async function calculateBorrowInterest(transactions, token) {
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
-        debt: Number(currentDebt) / (token === 'USDC' ? 1e6 : 1e18),
+        debt: currentDebt.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.variable_borrow_rate_avg * 100 : 0,
-        dailyInterest: Number(dayTotalInterest) / (token === 'USDC' ? 1e6 : 1e18),
-        totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+        dailyInterest: dayTotalInterest.toString(),
+        totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
@@ -260,7 +278,8 @@ async function calculateBorrowInterest(transactions, token) {
         if (runningAmount > 0n && dailyRate) {
           const periodSeconds = currentTransactionTime - lastTransactionTime;
           const periodRatio = periodSeconds / secondsInDay;
-          const periodInterest = runningAmount * BigInt(Math.floor(dailyInterestRate * periodRatio * 1e18)) / BigInt(1e18);
+          const periodRate = dailyInterestRate * periodRatio;
+          const periodInterest = computeDailyInterest(runningAmount, periodRate, token === 'USDC' ? 6 : 18);
           
           dayTotalInterest += periodInterest;
           runningAmount += periodInterest;
@@ -269,7 +288,7 @@ async function calculateBorrowInterest(transactions, token) {
         // Appliquer la transaction (borrow ou repay)
         let txAmount = 0n;
         if (token === 'USDC') {
-          txAmount = BigInt(Math.floor(parseFloat(tx.amount) * 1e6));
+          txAmount = BigInt(tx.amount);
         } else {
           txAmount = BigInt(tx.amount);
         }
@@ -277,12 +296,12 @@ async function calculateBorrowInterest(transactions, token) {
         if (tx.transactionType === 'borrow') {
           runningAmount += txAmount;
           totalBorrows += txAmount;
-          transactionAmount = Number(txAmount) / (token === 'USDC' ? 1e6 : 1e18);
+          transactionAmount = txAmount.toString();
           transactionType = 'borrow';
         } else if (tx.transactionType === 'repay') {
           runningAmount -= txAmount;
           totalRepays += txAmount;
-          transactionAmount = Number(txAmount) / (token === 'USDC' ? 1e6 : 1e18);
+          transactionAmount = txAmount.toString();
           transactionType = 'repay';
           if (runningAmount < 0n) runningAmount = 0n;
         }
@@ -294,7 +313,8 @@ async function calculateBorrowInterest(transactions, token) {
       if (runningAmount > 0n && dailyRate) {
         const remainingSeconds = secondsInDay - lastTransactionTime;
         const remainingRatio = remainingSeconds / secondsInDay;
-        const remainingInterest = runningAmount * BigInt(Math.floor(dailyInterestRate * remainingRatio * 1e18)) / BigInt(1e18);
+        const remainingRate = dailyInterestRate * remainingRatio;
+        const remainingInterest = computeDailyInterest(runningAmount, remainingRate, token === 'USDC' ? 6 : 18);
         
         dayTotalInterest += remainingInterest;
         runningAmount += remainingInterest;
@@ -306,27 +326,27 @@ async function calculateBorrowInterest(transactions, token) {
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
-        debt: Number(currentDebt) / (token === 'USDC' ? 1e6 : 1e18),
+        debt: currentDebt.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.variable_borrow_rate_avg * 100 : 0,
-        dailyInterest: Number(dayTotalInterest) / (token === 'USDC' ? 1e6 : 1e18),
-        totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+        dailyInterest: dayTotalInterest.toString(),
+        totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
     }
   }
   
-  console.log(`💰 Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18).toFixed(6)} ${token}`);
+  console.log(`💰 Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
   
   return {
-    totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+    totalInterest: totalInterest.toString(),
     dailyDetails,
     summary: {
-      totalBorrows: Number(totalBorrows) / (token === 'USDC' ? 1e6 : 1e18),
-      totalRepays: Number(totalRepays) / (token === 'USDC' ? 1e6 : 1e18),
-      currentDebt: Number(currentDebt) / (token === 'USDC' ? 1e6 : 1e18),
-      totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18)
+      totalBorrows: totalBorrows.toString(),
+      totalRepays: totalRepays.toString(),
+      currentDebt: currentDebt.toString(),
+      totalInterest: totalInterest.toString()
     }
   };
 }
@@ -410,28 +430,23 @@ async function calculateSupplyInterest(transactions, token) {
     // Cas particulier: Premier jour avec dépôt
     if (currentDate === startTimestamp && dayTransactions.length > 0 && dayTransactions[0].transactionType === 'supply') {
       const firstSupply = dayTransactions[0];
-      // Convertir en BigInt selon les décimales du token
       let amount = 0n;
-      if (token === 'USDC') {
-        amount = BigInt(Math.floor(parseFloat(firstSupply.amount) * 1e6)); // USDC: 6 décimales
-      } else {
-        amount = BigInt(firstSupply.amount); // WXDAI: déjà en wei
-      }
+      amount = BigInt(firstSupply.amount);
       
       currentSupply = amount;
       totalSupplies += amount;
-      transactionAmount = Number(amount) / (token === 'USDC' ? 1e6 : 1e18);
+      transactionAmount = amount.toString();
       transactionType = 'supply';
       
       // Pas d'intérêts pour le jour initial de dépôt
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
-        supply: Number(currentSupply) / (token === 'USDC' ? 1e6 : 1e18),
+        supply: currentSupply.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.liquidity_rate_avg * 100 : 0,
-        dailyInterest: 0,
-        totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+        dailyInterest: "0",
+        totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
@@ -440,7 +455,7 @@ async function calculateSupplyInterest(transactions, token) {
       for (let i = 1; i < dayTransactions.length; i++) {
         const tx = dayTransactions[i];
         const txAmount = token === 'USDC' ? 
-          BigInt(Math.floor(parseFloat(tx.amount) * 1e6)) : 
+          BigInt(tx.amount) : 
           BigInt(tx.amount);
         
         if (tx.transactionType === 'supply') {
@@ -457,7 +472,7 @@ async function calculateSupplyInterest(transactions, token) {
     else if (dayTransactions.length === 0) {
       // Pas de transactions ce jour-là, calcul simple des intérêts sur le montant actuel
       if (currentSupply > 0n && dailyRate) {
-        const dayInterest = currentSupply * BigInt(Math.floor(dailyInterestRate * 1e18)) / BigInt(1e18);
+        const dayInterest = computeDailyInterest(currentSupply, dailyInterestRate, token === 'USDC' ? 6 : 18);
         dayTotalInterest = dayInterest;
         totalInterest += dayInterest;
         currentSupply += dayInterest;
@@ -466,11 +481,11 @@ async function calculateSupplyInterest(transactions, token) {
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
-        supply: Number(currentSupply) / (token === 'USDC' ? 1e6 : 1e18),
+        supply: currentSupply.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.liquidity_rate_avg * 100 : 0,
-        dailyInterest: Number(dayTotalInterest) / (token === 'USDC' ? 1e6 : 1e18),
-        totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+        dailyInterest: dayTotalInterest.toString(),
+        totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
@@ -495,7 +510,8 @@ async function calculateSupplyInterest(transactions, token) {
         if (runningAmount > 0n && dailyRate) {
           const periodSeconds = currentTransactionTime - lastTransactionTime;
           const periodRatio = periodSeconds / secondsInDay;
-          const periodInterest = runningAmount * BigInt(Math.floor(dailyInterestRate * periodRatio * 1e18)) / BigInt(1e18);
+          const periodRate = dailyInterestRate * periodRatio;
+          const periodInterest = computeDailyInterest(runningAmount, periodRate, token === 'USDC' ? 6 : 18);
           
           dayTotalInterest += periodInterest;
           runningAmount += periodInterest;
@@ -504,7 +520,7 @@ async function calculateSupplyInterest(transactions, token) {
         // Appliquer la transaction (supply ou withdraw)
         let txAmount = 0n;
         if (token === 'USDC') {
-          txAmount = BigInt(Math.floor(parseFloat(tx.amount) * 1e6));
+          txAmount = BigInt(tx.amount);
         } else {
           txAmount = BigInt(tx.amount);
         }
@@ -512,12 +528,12 @@ async function calculateSupplyInterest(transactions, token) {
         if (tx.transactionType === 'supply') {
           runningAmount += txAmount;
           totalSupplies += txAmount;
-          transactionAmount = Number(txAmount) / (token === 'USDC' ? 1e6 : 1e18);
+          transactionAmount = txAmount.toString();
           transactionType = 'supply';
         } else if (tx.transactionType === 'withdraw') {
           runningAmount -= txAmount;
           totalWithdraws += txAmount;
-          transactionAmount = Number(txAmount) / (token === 'USDC' ? 1e6 : 1e18);
+          transactionAmount = txAmount.toString();
           transactionType = 'withdraw';
           if (runningAmount < 0n) runningAmount = 0n;
         }
@@ -529,7 +545,8 @@ async function calculateSupplyInterest(transactions, token) {
       if (runningAmount > 0n && dailyRate) {
         const remainingSeconds = secondsInDay - lastTransactionTime;
         const remainingRatio = remainingSeconds / secondsInDay;
-        const remainingInterest = runningAmount * BigInt(Math.floor(dailyInterestRate * remainingRatio * 1e18)) / BigInt(1e18);
+        const remainingRate = dailyInterestRate * remainingRatio;
+        const remainingInterest = computeDailyInterest(runningAmount, remainingRate, token === 'USDC' ? 6 : 18);
         
         dayTotalInterest += remainingInterest;
         runningAmount += remainingInterest;
@@ -541,27 +558,27 @@ async function calculateSupplyInterest(transactions, token) {
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
-        supply: Number(currentSupply) / (token === 'USDC' ? 1e6 : 1e18),
+        supply: currentSupply.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.liquidity_rate_avg * 100 : 0,
-        dailyInterest: Number(dayTotalInterest) / (token === 'USDC' ? 1e6 : 1e18),
-        totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+        dailyInterest: dayTotalInterest.toString(),
+        totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
     }
   }
   
-  console.log(`💰 Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18).toFixed(6)} ${token}`);
+  console.log(`💰 Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
   
   return {
-    totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18),
+    totalInterest: totalInterest.toString(),
     dailyDetails,
     summary: {
-      totalSupplies: Number(totalSupplies) / (token === 'USDC' ? 1e6 : 1e18),
-      totalWithdraws: Number(totalWithdraws) / (token === 'USDC' ? 1e6 : 1e18),
-      currentSupply: Number(currentSupply) / (token === 'USDC' ? 1e6 : 1e18),
-      totalInterest: Number(totalInterest) / (token === 'USDC' ? 1e6 : 1e18)
+      totalSupplies: totalSupplies.toString(),
+      totalWithdraws: totalWithdraws.toString(),
+      currentSupply: currentSupply.toString(),
+      totalInterest: totalInterest.toString()
     }
   };
 }
@@ -590,7 +607,7 @@ async function calculateInterestForToken(transactions, token) {
       summary: {
         totalBorrowInterest: borrowInterest.totalInterest,
         totalSupplyInterest: supplyInterest.totalInterest,
-        netInterest: supplyInterest.totalInterest - borrowInterest.totalInterest
+        netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
       }
     };
     
