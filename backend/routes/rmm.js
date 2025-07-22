@@ -3,27 +3,16 @@ const router = express.Router();
 const { fetchAllTransactions } = require('../services/graphql');
 const { calculateInterestForToken } = require('../services/interest-calculator');
 
-// Configuration des stablecoins
-const STABLECOINS = {
-  USDC: {
-    symbol: 'USDC',
-    reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    decimals: 6
-  },
-  WXDAI: {
-    symbol: 'WXDAI',
-    reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    decimals: 18
-  }
-};
+// Import depuis les constantes centralisées
+const { TOKENS } = require('../../utils/constants.js');
 
 /**
  * Identifie le stablecoin basé sur le reserve.id
  */
 function identifyStablecoin(reserveId) {
-  if (reserveId === STABLECOINS.USDC.reserveId) {
+  if (reserveId === TOKENS.USDC.reserveId) {
     return 'USDC';
-  } else if (reserveId === STABLECOINS.WXDAI.reserveId) {
+  } else if (reserveId === TOKENS.WXDAI.reserveId) {
     return 'WXDAI';
   }
   return 'UNKNOWN';
@@ -78,17 +67,19 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
             symbol: 'USDC',
             decimals: 6,
             borrows: [],
+            repays: [],
             supplies: [],
             withdraws: [],
-            repays: []
+            others: []
           },
           WXDAI: {
             symbol: 'WXDAI',
             decimals: 18,
             borrows: [],
+            repays: [],
             supplies: [],
             withdraws: [],
-            repays: []
+            others: []
           }
         };
 
@@ -140,15 +131,50 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           });
         }
 
+        // Traiter les transferts de tokens (others)
+        if (allTransactions.tokenTransfers) {
+          // Traiter les transferts USDC
+          if (allTransactions.tokenTransfers.usdc) {
+            allTransactions.tokenTransfers.usdc.forEach(transfer => {
+              transactionsByStablecoin.USDC.others.push({
+                ...transfer,
+                transactionType: 'token_transfer'
+              });
+            });
+          }
+
+          // Traiter les transferts WXDAI
+          if (allTransactions.tokenTransfers.armmwxdai) {
+            allTransactions.tokenTransfers.armmwxdai.forEach(transfer => {
+              transactionsByStablecoin.WXDAI.others.push({
+                ...transfer,
+                transactionType: 'token_transfer'
+              });
+            });
+          }
+
+          // Traiter les autres transferts (les ajouter aux deux stablecoins ou créer une section générale)
+          if (allTransactions.tokenTransfers.others) {
+            allTransactions.tokenTransfers.others.forEach(transfer => {
+              // Pour l'instant, on les ajoute à USDC par défaut, ou on pourrait créer une section "unknown"
+              transactionsByStablecoin.USDC.others.push({
+                ...transfer,
+                transactionType: 'token_transfer'
+              });
+            });
+          }
+        }
+
         // Calculer les résumés par stablecoin
         Object.keys(transactionsByStablecoin).forEach(stablecoin => {
           const data = transactionsByStablecoin[stablecoin];
           data.summary = {
             borrows: data.borrows.length,
+            repays: data.repays.length,
             supplies: data.supplies.length,
             withdraws: data.withdraws.length,
-            repays: data.repays.length,
-            total: data.borrows.length + data.supplies.length + data.withdraws.length + data.repays.length
+            others: data.others.length,
+            total: data.borrows.length + data.repays.length + data.supplies.length + data.withdraws.length + data.others.length
           };
         });
 
@@ -156,12 +182,13 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         const interestCalculations = {};
         for (const stablecoin of Object.keys(transactionsByStablecoin)) {
           try {
-            // Combiner toutes les transactions du stablecoin
+            // Combiner toutes les transactions du stablecoin dans l'ordre demandé: Borrow, Repay, Supply, Withdraw, Others
             const allTokenTransactions = [
               ...transactionsByStablecoin[stablecoin].borrows.map(tx => ({ ...tx, transactionType: 'borrow' })),
+              ...transactionsByStablecoin[stablecoin].repays.map(tx => ({ ...tx, transactionType: 'repay' })),
               ...transactionsByStablecoin[stablecoin].supplies.map(tx => ({ ...tx, transactionType: 'supply' })),
               ...transactionsByStablecoin[stablecoin].withdraws.map(tx => ({ ...tx, transactionType: 'withdraw' })),
-              ...transactionsByStablecoin[stablecoin].repays.map(tx => ({ ...tx, transactionType: 'repay' }))
+              ...transactionsByStablecoin[stablecoin].others
             ];
 
             if (allTokenTransactions.length > 0) {
@@ -172,9 +199,9 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
               console.log(`💰 Aucune transaction pour ${stablecoin}, pas de calcul d'intérêts`);
               interestCalculations[stablecoin] = {
                 token: stablecoin,
-                borrow: { totalInterest: 0, summary: { totalBorrows: 0, totalRepays: 0, currentDebt: 0, totalInterest: 0 } },
-                supply: { totalInterest: 0, summary: { totalSupplies: 0, totalWithdraws: 0, currentSupply: 0, totalInterest: 0 } },
-                summary: { totalBorrowInterest: 0, totalSupplyInterest: 0, netInterest: 0 }
+                borrow: { totalInterest: "0", summary: { totalBorrows: "0", totalRepays: "0", currentDebt: "0", totalInterest: "0" } },
+                supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", currentSupply: "0", totalInterest: "0" } },
+                summary: { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
               };
             }
           } catch (error) {
@@ -182,9 +209,9 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
             interestCalculations[stablecoin] = {
               token: stablecoin,
               error: error.message,
-              borrow: { totalInterest: 0, summary: { totalBorrows: 0, totalRepays: 0, currentDebt: 0, totalInterest: 0 } },
-              supply: { totalInterest: 0, summary: { totalSupplies: 0, totalWithdraws: 0, currentSupply: 0, totalInterest: 0 } },
-              summary: { totalBorrowInterest: 0, totalSupplyInterest: 0, netInterest: 0 }
+              borrow: { totalInterest: "0", summary: { totalBorrows: "0", totalRepays: "0", currentDebt: "0", totalInterest: "0" } },
+              supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", currentSupply: "0", totalInterest: "0" } },
+              summary: { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
             };
           }
         }
@@ -201,7 +228,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
               stablecoins: Object.keys(transactionsByStablecoin).map(stablecoin => ({
                 symbol: stablecoin,
                 ...transactionsByStablecoin[stablecoin].summary,
-                interests: interestCalculations[stablecoin]?.summary || { totalBorrowInterest: 0, totalSupplyInterest: 0, netInterest: 0 }
+                interests: interestCalculations[stablecoin]?.summary || { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
               }))
             }
           }

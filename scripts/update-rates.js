@@ -3,17 +3,8 @@
 const fetch = require('node-fetch');
 const { insertRates, getLastDate, getStats } = require('./database');
 
-// Configuration des tokens (même que dans init-rates.js)
-const TOKENS = {
-  USDC: {
-    reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    symbol: 'USDC'
-  },
-  WXDAI: {
-    reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    symbol: 'WXDAI'
-  }
-};
+// Import depuis les constantes centralisées
+const { TOKENS } = require('../utils/constants.js');
 
 /**
  * Récupère les taux depuis l'API RMM

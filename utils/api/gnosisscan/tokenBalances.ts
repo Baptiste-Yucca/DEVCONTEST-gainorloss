@@ -52,7 +52,7 @@ const fetchERC20Balance = async (tokenAddress: string, userAddress: string): Pro
  */
 export const fetchArmmUSDCBalance = async (userAddress: string): Promise<string> => {
   try {
-    const tokenAddress = TOKENS.armmUSDC.address;
+    const tokenAddress = TOKENS.USDC.supplyAddress;
     return await fetchERC20Balance(tokenAddress, userAddress);
   } catch (error) {
     console.error('Erreur lors de la récupération du solde armmUSDC:', error);
@@ -67,7 +67,7 @@ export const fetchArmmUSDCBalance = async (userAddress: string): Promise<string>
  */
 export const fetchArmmWXDAIBalance = async (userAddress: string): Promise<string> => {
   try {
-    const tokenAddress = TOKENS.armmWXDAI.address;
+    const tokenAddress = TOKENS.WXDAI.supplyAddress;
     return await fetchERC20Balance(tokenAddress, userAddress);
   } catch (error) {
     console.error('Erreur lors de la récupération du solde armmWXDAI:', error);
@@ -82,7 +82,7 @@ export const fetchArmmWXDAIBalance = async (userAddress: string): Promise<string
  */
 export const fetchDebtUSDCBalance = async (userAddress: string): Promise<string> => {
   try {
-    const tokenAddress = TOKENS.debtUSDC.address;
+    const tokenAddress = TOKENS.USDC.debtAddress;
     return await fetchERC20Balance(tokenAddress, userAddress);
   } catch (error) {
     console.error('Erreur lors de la récupération du solde debtUSDC:', error);
@@ -97,7 +97,7 @@ export const fetchDebtUSDCBalance = async (userAddress: string): Promise<string>
  */
 export const fetchDebtWXDAIBalance = async (userAddress: string): Promise<string> => {
   try {
-    const tokenAddress = TOKENS.debtWXDAI.address;
+    const tokenAddress = TOKENS.WXDAI.debtAddress;
     return await fetchERC20Balance(tokenAddress, userAddress);
   } catch (error) {
     console.error('Erreur lors de la récupération du solde debtWXDAI:', error);

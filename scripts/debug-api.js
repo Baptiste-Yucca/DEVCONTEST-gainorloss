@@ -2,13 +2,8 @@
 
 const fetch = require('node-fetch');
 
-// Configuration des tokens
-const TOKENS = {
-  USDC: {
-    reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    symbol: 'USDC'
-  }
-};
+// Import depuis les constantes centralisées
+const { TOKENS } = require('../utils/constants.js');
 
 async function debugAPI() {
   console.log('🔍 Test de l\'API RMM pour déboguer...');

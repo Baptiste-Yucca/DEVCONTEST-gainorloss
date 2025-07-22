@@ -1,4 +1,5 @@
 const { GraphQLClient } = require('graphql-request');
+const { fetchTokenTransfers } = require('./gnosisscan');
 
 // Configuration TheGraph
 const THEGRAPH_URL = 'https://api.thegraph.com/subgraphs/id/QmVH7ota6caVV2ceLY91KYYh6BJs2zeMScTTYgKDpt7VRg';
@@ -157,6 +158,7 @@ async function fetchRepays(userAddress) {
  */
 async function fetchAllTransactions(userAddress) {
   try {
+    // Récupérer toutes les transactions via TheGraph
     const [borrows, supplies, withdraws, repays] = await Promise.all([
       fetchBorrows(userAddress),
       fetchSupplies(userAddress),
@@ -164,12 +166,26 @@ async function fetchAllTransactions(userAddress) {
       fetchRepays(userAddress)
     ]);
     
+    // Récupérer tous les hashes des transactions déjà obtenues
+    const existingTxHashes = [
+      ...borrows.map(tx => tx.txHash),
+      ...supplies.map(tx => tx.txHash),
+      ...withdraws.map(tx => tx.txHash),
+      ...repays.map(tx => tx.txHash)
+    ];
+    
+    console.log(`📊 ${existingTxHashes.length} transactions TheGraph récupérées`);
+    
+    // Récupérer les transferts de tokens via Gnosisscan (en excluant ceux déjà trouvés)
+    const tokenTransfers = await fetchTokenTransfers(userAddress, existingTxHashes);
+    
     return {
       borrows,
       supplies,
       withdraws,
       repays,
-      total: borrows.length + supplies.length + withdraws.length + repays.length
+      tokenTransfers,
+      total: borrows.length + supplies.length + withdraws.length + repays.length + tokenTransfers.total
     };
     
   } catch (error) {

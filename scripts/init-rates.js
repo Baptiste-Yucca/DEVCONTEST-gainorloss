@@ -3,17 +3,8 @@
 const fetch = require('node-fetch');
 const { initializeDatabase, insertRates, getStats } = require('./database');
 
-// Configuration des tokens
-const TOKENS = {
-  USDC: {
-    reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    symbol: 'USDC'
-  },
-  WXDAI: {
-    reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    symbol: 'WXDAI'
-  }
-};
+// Import depuis les constantes centralisées
+const { TOKENS } = require('../utils/constants.js');
 
 // Date de lancement du RMM : 24 janvier 2024
 const RMM_LAUNCH_DATE = 1706061525; // Timestamp du 24 janvier 2024

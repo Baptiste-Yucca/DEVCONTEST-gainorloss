@@ -1,19 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// Configuration des stablecoins
-const STABLECOINS = {
-  USDC: {
-    symbol: 'USDC',
-    reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    decimals: 6
-  },
-  WXDAI: {
-    symbol: 'WXDAI',
-    reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70',
-    decimals: 18
-  }
-};
+// Import depuis les constantes centralisées
+const { TOKENS } = require('../../utils/constants.js');
 
 // Chemin vers la base de données
 const DB_PATH = path.join(__dirname, '../../data/rates.db');

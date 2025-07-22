@@ -4,13 +4,8 @@ const fetch = require('node-fetch');
 const GNOSISSCAN_API_URL = 'https://api.gnosisscan.io/api';
 const API_KEY = process.env.GNOSISSCAN_API_KEY;
 
-// Adresses des tokens RMM
-const TOKEN_ADDRESSES = {
-  armmUSDC: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a83',
-  armmWXDAI: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d',
-  debtUSDC: '0xdaa06cf7adceb69fcfde68d896818b9938984a70',
-  debtWXDAI: '0xdaa06cf7adceb69fcfde68d896818b9938984a70'
-};
+// Import depuis les constantes centralisées
+const { TOKENS, getSupplyTokenAddresses } = require('../../utils/constants.js');
 
 /**
  * Récupère le solde d'un token pour une adresse
@@ -58,8 +53,18 @@ async function fetchTokenBalances(address) {
   try {
     console.log(`Gnosisscan: Récupération des soldes pour ${address}`);
     
+    // Obtenir toutes les adresses des tokens
+    const allTokenAddresses = {
+      USDC: TOKENS.USDC.address,
+      WXDAI: TOKENS.WXDAI.address,
+      armmUSDC: TOKENS.USDC.supplyAddress,
+      armmWXDAI: TOKENS.WXDAI.supplyAddress,
+      debtUSDC: TOKENS.USDC.debtAddress,
+      debtWXDAI: TOKENS.WXDAI.debtAddress
+    };
+    
     // Récupérer tous les soldes en parallèle
-    const balancePromises = Object.entries(TOKEN_ADDRESSES).map(async ([tokenName, tokenAddress]) => {
+    const balancePromises = Object.entries(allTokenAddresses).map(async ([tokenName, tokenAddress]) => {
       const balance = await fetchTokenBalance(address, tokenAddress);
       return [tokenName, balance];
     });
@@ -160,10 +165,140 @@ async function fetchAddressTransactions(address, startBlock = 0, endBlock = 9999
   }
 }
 
+/**
+ * Récupère les transactions de transfert des tokens de supply pour une adresse
+ */
+async function fetchTokenTransfers(userAddress, existingTxHashes = []) {
+  try {
+    console.log(`🔄 Récupération des transferts de tokens pour ${userAddress}`);
+    
+    const existingHashSet = new Set(existingTxHashes);
+    const allTransfers = [];
+    
+    // Récupérer les transferts pour armmUSDC et armmWXDAI
+    const supplyTokenAddresses = getSupplyTokenAddresses();
+    for (const [tokenSymbol, contractAddress] of Object.entries(supplyTokenAddresses)) {
+      
+      console.log(`📊 Récupération des transferts ${tokenSymbol}...`);
+      
+      const params = new URLSearchParams({
+        module: 'account',
+        action: 'tokentx',
+        contractaddress: contractAddress,
+        address: userAddress,
+        page: 1,
+        offset: 10000,
+        sort: 'asc'
+      });
+      
+      if (API_KEY) {
+        params.append('apikey', API_KEY);
+      }
+      
+      const response = await fetch(`${GNOSISSCAN_API_URL}?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === '1' && data.result) {
+        // Filtrer les transactions déjà récupérées par TheGraph
+        const newTransfers = data.result.filter(tx => !existingHashSet.has(tx.hash));
+        
+        // Grouper par hash pour gérer les doublons (même tx avec from différents)
+        const transfersByHash = new Map();
+        newTransfers.forEach(tx => {
+          const hash = tx.hash;
+          if (!transfersByHash.has(hash)) {
+            transfersByHash.set(hash, []);
+          }
+          transfersByHash.get(hash).push(tx);
+        });
+        
+        // Transformer les données en choisissant la meilleure transaction par hash
+        const transformedTransfers = Array.from(transfersByHash.values()).map(txGroup => {
+          // Priorité : prendre la transaction avec from != adresse nulle
+          const bestTx = txGroup.find(tx => tx.from !== '0x0000000000000000000000000000000000000000') || txGroup[0];
+          
+          // Déterminer la direction du transfert
+          const isIncoming = bestTx.to.toLowerCase() === userAddress.toLowerCase();
+          const transfer = isIncoming ? 'in' : 'out';
+          
+          // Simplifier le nom de la fonction
+          let simplifiedFunction = null;
+          if (bestTx.functionName) {
+            const match = bestTx.functionName.match(/^([^(]+)/);
+            simplifiedFunction = match ? match[1] : bestTx.functionName;
+          }
+          
+          return {
+            timestamp: parseInt(bestTx.timeStamp),
+            hash: bestTx.hash,
+            from: bestTx.from,
+            to: bestTx.to,
+            value: bestTx.value,
+            tokenSymbol: bestTx.tokenSymbol, // Temporaire pour le tri
+            contractAddress: bestTx.contractAddress,
+            functionName: simplifiedFunction,
+            transfer
+          };
+        });
+        
+        allTransfers.push(...transformedTransfers);
+        console.log(`📊 ${transformedTransfers.length} nouveaux transferts ${tokenSymbol} récupérés`);
+      }
+      
+      // Attendre 200ms entre les requêtes pour respecter les limites d'API
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    // Séparer les transactions par type et retirer tokenSymbol
+    const usdcTransfers = allTransfers
+      .filter(tx => tx.tokenSymbol.includes('USDC'))
+      .map(tx => {
+        const { tokenSymbol, ...txWithoutSymbol } = tx;
+        return txWithoutSymbol;
+      });
+    
+    const wxdaiTransfers = allTransfers
+      .filter(tx => tx.tokenSymbol.includes('WXDAI'))
+      .map(tx => {
+        const { tokenSymbol, ...txWithoutSymbol } = tx;
+        return txWithoutSymbol;
+      });
+    
+    const otherTransfers = allTransfers
+      .filter(tx => !tx.tokenSymbol.includes('USDC') && !tx.tokenSymbol.includes('WXDAI'))
+      .map(tx => {
+        const { tokenSymbol, ...txWithoutSymbol } = tx;
+        return txWithoutSymbol;
+      });
+    
+    console.log(`✅ Total: ${usdcTransfers.length} USDC, ${wxdaiTransfers.length} WXDAI, ${otherTransfers.length} autres`);
+    
+    return {
+      usdc: usdcTransfers,
+      armmwxdai: wxdaiTransfers,
+      others: otherTransfers,
+      total: allTransfers.length
+    };
+    
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des transferts de tokens:`, error);
+    return {
+      usdcWxdai: [],
+      others: [],
+      total: 0
+    };
+  }
+}
+
 module.exports = {
   fetchTokenBalances,
   fetchTokenBalance,
   fetchTokenInfo,
   fetchAddressTransactions,
-  TOKEN_ADDRESSES
+  fetchTokenTransfers
 }; 

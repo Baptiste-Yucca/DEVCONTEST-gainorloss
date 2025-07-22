@@ -2,7 +2,7 @@ import { fetchBorrows, fetchSupplies, fetchWithdraws, fetchRepays, Transaction, 
 import { TransactionWithType } from '../../types/transaction';
 import { DailyRate } from '../../types/interest';
 import { fetchRmmRates } from '../api/rmm-api/rates';
-import { TOKENS, ADDRESS_SC_TO_TOKEN, RESERVE_TO_TICKER, TokenTicker} from '../constants';
+import { TOKENS, ADDRESS_TO_TOKEN, RESERVE_TO_TICKER, TokenTicker} from '../constants';
 import { DailyData, DailyTransaction } from '../../types/dailyData';
 import { fetchAllTransactions , getUsdcTransactions} from './fetchAllTransactions';
 import { TokenBalances } from '../api/types';
@@ -38,7 +38,8 @@ export const fetchAddressData = async (address: string): Promise<AddressData> =>
         }
 
         // Utiliser l'API RMM directement pour l'instant
-        const reserveId = '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'; // USDC
+        const { TOKENS } = await import('../constants');
+        const reserveId = TOKENS.USDC.reserveId;
         const ratesResponse = await fetch(`https://rmm-api.realtoken.network/data/rates-history?reserveId=${reserveId}&from=${fromTimestamp}&resolutionInHours=24`);
         
         if (!ratesResponse.ok) {

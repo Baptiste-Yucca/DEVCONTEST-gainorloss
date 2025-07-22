@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { getRates, getStats } = require('../../scripts/database');
 
+// Import depuis les constantes centralisées
+const { TOKENS } = require('../../utils/constants.js');
+
 /**
  * @route POST /api/rates
  * @desc Récupérer les taux d'intérêt pour un token et une période
@@ -25,7 +28,7 @@ router.post('/', async (req, res) => {
     }
 
     // Validation du token
-    const validTokens = ['USDC', 'WXDAI'];
+    const validTokens = Object.keys(TOKENS);
     if (!validTokens.includes(token)) {
       return res.status(400).json({
         error: 'Token invalide',
@@ -117,20 +120,12 @@ router.get('/tokens', (req, res) => {
   res.json({
     success: true,
     data: {
-      tokens: [
-        {
-          symbol: 'USDC',
-          name: 'USD Coin',
-          reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70',
-          decimals: 6
-        },
-        {
-          symbol: 'WXDAI',
-          name: 'Wrapped XDAI',
-          reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70',
-          decimals: 18
-        }
-      ]
+      tokens: Object.values(TOKENS).map(token => ({
+        symbol: token.symbol,
+        name: token.symbol === 'USDC' ? 'USD Coin' : 'Wrapped XDAI',
+        reserveId: token.reserveId,
+        decimals: token.decimals
+      }))
     }
   });
 });
