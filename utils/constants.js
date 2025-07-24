@@ -5,8 +5,12 @@ const TOKENS = {
     symbol: 'USDC',
     supplyAddress: '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1',
     supplySymbol: 'armmUSDC',
+    supplyV2Address: '0x05d909006cD38ba9E73db72C083081726B67971D',
+    supplyV2Symbol: 'armmUSDC_V2',
     debtAddress: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
     debtSymbol: 'debtUSDC',
+    debtV2Address: '0xefEA0b5a48f1B936759a3279dcC3BA252884C764',
+    debtV2Symbol: 'debtUSDC_V2',
     reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'
   },
   WXDAI: {
@@ -15,8 +19,12 @@ const TOKENS = {
     symbol: 'WXDAI',
     supplyAddress: '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b',
     supplySymbol: 'armmWXDAI',
+    supplyV2Address: '0x7349C9eaA538e118725a6130e0f8341509b9f8A0',
+    supplyV2Symbol: 'armmWXDAI_V2',
     debtAddress: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34',
     debtSymbol: 'debtWXDAI',
+    debtV2Address: '0x6a7CeD66902D07066Ad08c81179d17d0fbE36829',
+    debtV2Symbol: 'debtWXDAI_V2',
     reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70'
   }
 };

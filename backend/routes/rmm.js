@@ -67,6 +67,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
             symbol: 'USDC',
             decimals: 6,
             debt: [], // Tableau consolidé pour borrows + repays
+            supply: [], // Tableau consolidé pour supplies + withdraws + others
             supplies: [],
             withdraws: [],
             others: []
@@ -75,6 +76,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
             symbol: 'WXDAI',
             decimals: 18,
             debt: [], // Tableau consolidé pour borrows + repays
+            supply: [], // Tableau consolidé pour supplies + withdraws + others
             supplies: [],
             withdraws: [],
             others: []
@@ -99,9 +101,11 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           allTransactions.supplies.forEach(supply => {
             const stablecoin = identifyStablecoin(supply.reserve.id);
             if (stablecoin !== 'UNKNOWN') {
-              // Supprimer reserve.id de la réponse
+              // Supprimer reserve.id de la réponse et ajouter le type
               const { reserve, ...supplyWithoutReserve } = supply;
+              const supplyWithType = { ...supplyWithoutReserve, type: 'supply' };
               transactionsByStablecoin[stablecoin].supplies.push(supplyWithoutReserve);
+              transactionsByStablecoin[stablecoin].supply.push(supplyWithType);
             }
           });
         }
@@ -111,9 +115,11 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           allTransactions.withdraws.forEach(withdraw => {
             const stablecoin = identifyStablecoin(withdraw.reserve.id);
             if (stablecoin !== 'UNKNOWN') {
-              // Supprimer reserve.id de la réponse
+              // Supprimer reserve.id de la réponse et ajouter le type
               const { reserve, ...withdrawWithoutReserve } = withdraw;
+              const withdrawWithType = { ...withdrawWithoutReserve, type: 'withdraw' };
               transactionsByStablecoin[stablecoin].withdraws.push(withdrawWithoutReserve);
+              transactionsByStablecoin[stablecoin].supply.push(withdrawWithType);
             }
           });
         }
@@ -136,54 +142,82 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           // Traiter les transferts USDC
           if (allTransactions.tokenTransfers.usdc) {
             allTransactions.tokenTransfers.usdc.forEach(transfer => {
+              const transferWithType = {
+                ...transfer,
+                transactionType: 'token_transfer',
+                type: transfer.transfer === 'in' ? 'other_in' : 'other_out'
+              };
               transactionsByStablecoin.USDC.others.push({
                 ...transfer,
                 transactionType: 'token_transfer'
               });
+              transactionsByStablecoin.USDC.supply.push(transferWithType);
             });
           }
 
           // Traiter les transferts WXDAI
           if (allTransactions.tokenTransfers.armmwxdai) {
             allTransactions.tokenTransfers.armmwxdai.forEach(transfer => {
+              const transferWithType = {
+                ...transfer,
+                transactionType: 'token_transfer',
+                type: transfer.transfer === 'in' ? 'other_in' : 'other_out'
+              };
               transactionsByStablecoin.WXDAI.others.push({
                 ...transfer,
                 transactionType: 'token_transfer'
               });
+              transactionsByStablecoin.WXDAI.supply.push(transferWithType);
             });
           }
 
           // Traiter les autres transferts (les ajouter aux deux stablecoins ou créer une section générale)
           if (allTransactions.tokenTransfers.others) {
             allTransactions.tokenTransfers.others.forEach(transfer => {
+              const transferWithType = {
+                ...transfer,
+                transactionType: 'token_transfer',
+                type: transfer.transfer === 'in' ? 'other_in' : 'other_out'
+              };
               // Pour l'instant, on les ajoute à USDC par défaut, ou on pourrait créer une section "unknown"
               transactionsByStablecoin.USDC.others.push({
                 ...transfer,
                 transactionType: 'token_transfer'
               });
+              transactionsByStablecoin.USDC.supply.push(transferWithType);
             });
           }
         }
 
-        // Trier les transactions de dette par timestamp (plus ancien → plus récent) et calculer les résumés
+        // Trier les transactions par timestamp (plus ancien → plus récent) et calculer les résumés
         Object.keys(transactionsByStablecoin).forEach(stablecoin => {
           const data = transactionsByStablecoin[stablecoin];
           
           // Trier le tableau debt par timestamp croissant
           data.debt.sort((a, b) => a.timestamp - b.timestamp);
           
-          // Calculer les compteurs depuis le tableau debt
+          // Trier le tableau supply par timestamp croissant
+          data.supply.sort((a, b) => a.timestamp - b.timestamp);
+          
+          // Calculer les compteurs depuis les tableaux consolidés
           const borrowsCount = data.debt.filter(tx => tx.type === 'borrow').length;
           const repaysCount = data.debt.filter(tx => tx.type === 'repay').length;
+          const suppliesCount = data.supply.filter(tx => tx.type === 'supply').length;
+          const withdrawsCount = data.supply.filter(tx => tx.type === 'withdraw').length;
+          const otherInCount = data.supply.filter(tx => tx.type === 'other_in').length;
+          const otherOutCount = data.supply.filter(tx => tx.type === 'other_out').length;
           
           data.summary = {
             borrows: borrowsCount,
             repays: repaysCount,
             debt: data.debt.length, // Nombre total de transactions de dette
-            supplies: data.supplies.length,
-            withdraws: data.withdraws.length,
-            others: data.others.length,
-            total: data.debt.length + data.supplies.length + data.withdraws.length + data.others.length
+            supplies: suppliesCount,
+            withdraws: withdrawsCount,
+            supply: data.supply.length, // Nombre total de transactions de supply
+            other_in: otherInCount,
+            other_out: otherOutCount,
+            others: data.others.length, // Maintenu pour compatibilité
+            total: data.debt.length + data.supply.length + data.others.length
           };
         });
 
@@ -191,12 +225,23 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         const interestCalculations = {};
         for (const stablecoin of Object.keys(transactionsByStablecoin)) {
           try {
-            // Utiliser le nouveau tableau debt déjà trié chronologiquement, plus les autres types de transactions
+            // Utiliser les nouveaux tableaux debt et supply déjà triés chronologiquement, plus les autres types de transactions
             const allTokenTransactions = [
-              ...transactionsByStablecoin[stablecoin].debt.map(tx => ({ ...tx, transactionType: tx.type })),
-              ...transactionsByStablecoin[stablecoin].supplies.map(tx => ({ ...tx, transactionType: 'supply' })),
-              ...transactionsByStablecoin[stablecoin].withdraws.map(tx => ({ ...tx, transactionType: 'withdraw' })),
-              ...transactionsByStablecoin[stablecoin].others
+              ...transactionsByStablecoin[stablecoin].debt.map(tx => ({ 
+                ...tx, 
+                transactionType: tx.type,
+                amount: tx.amount || '0' // S'assurer que amount existe
+              })),
+              ...transactionsByStablecoin[stablecoin].supply.map(tx => ({ 
+                ...tx, 
+                transactionType: tx.type,
+                amount: tx.amount || '0' // S'assurer que amount existe
+              })),
+              ...transactionsByStablecoin[stablecoin].others.filter(tx => !transactionsByStablecoin[stablecoin].supply.some(s => s.hash === tx.hash)).map(tx => ({
+                ...tx,
+                transactionType: tx.transactionType || 'other',
+                amount: tx.amount || '0' // S'assurer que amount existe
+              }))
             ];
 
             if (allTokenTransactions.length > 0) {
@@ -208,7 +253,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
               interestCalculations[stablecoin] = {
                 token: stablecoin,
                 borrow: { totalInterest: "0", summary: { totalBorrows: "0", totalRepays: "0", currentDebt: "0", totalInterest: "0" } },
-                supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", currentSupply: "0", totalInterest: "0" } },
+                supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", totalOtherIn: "0", totalOtherOut: "0", currentSupply: "0", totalInterest: "0" } },
                 summary: { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
               };
             }
@@ -218,7 +263,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
               token: stablecoin,
               error: error.message,
               borrow: { totalInterest: "0", summary: { totalBorrows: "0", totalRepays: "0", currentDebt: "0", totalInterest: "0" } },
-              supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", currentSupply: "0", totalInterest: "0" } },
+              supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", totalOtherIn: "0", totalOtherOut: "0", currentSupply: "0", totalInterest: "0" } },
               summary: { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
             };
           }

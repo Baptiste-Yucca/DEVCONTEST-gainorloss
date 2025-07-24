@@ -307,6 +307,13 @@ async function calculateBorrowInterest(transactions, token) {
         
         // Appliquer la transaction (borrow ou repay)
         let txAmount = 0n;
+        
+        // Vérifier que tx.amount existe et n'est pas undefined
+        if (!tx.amount) {
+          console.warn(`⚠️ Transaction sans montant détectée:`, tx);
+          continue; // Passer à la transaction suivante
+        }
+        
         if (token === 'USDC') {
           txAmount = BigInt(tx.amount);
         } else {
@@ -377,9 +384,12 @@ async function calculateBorrowInterest(transactions, token) {
 async function calculateSupplyInterest(transactions, token) {
   console.log(`💰 Calcul des intérêts de dépôt pour ${token} (précision intra-journalière)`);
   
-  // Filtrer seulement les transactions de dépôt et de retrait
+  // Filtrer seulement les transactions de dépôt et de retrait (y compris les transferts autres)
   const supplyTransactions = transactions.filter(tx => 
-    tx.transactionType === 'supply' || tx.transactionType === 'withdraw'
+    tx.transactionType === 'supply' || 
+    tx.transactionType === 'withdraw' || 
+    tx.transactionType === 'other_in' || 
+    tx.transactionType === 'other_out'
   ).sort((a, b) => a.timestamp - b.timestamp);
   
   if (supplyTransactions.length === 0) {
@@ -390,6 +400,8 @@ async function calculateSupplyInterest(transactions, token) {
       summary: {
         totalSupplies: 0,
         totalWithdraws: 0,
+        totalOtherIn: 0,
+        totalOtherOut: 0,
         currentSupply: 0,
         totalInterest: 0
       }
@@ -416,6 +428,8 @@ async function calculateSupplyInterest(transactions, token) {
   let totalInterest = 0n;
   let totalSupplies = 0n;
   let totalWithdraws = 0n;
+  let totalOtherIn = 0n;
+  let totalOtherOut = 0n;
   const dailyDetails = [];
   
   // Regrouper les transactions par jour
@@ -474,8 +488,15 @@ async function calculateSupplyInterest(transactions, token) {
           runningAmount += periodInterest;
         }
         
-        // Appliquer la transaction (supply ou withdraw)
+        // Appliquer la transaction (supply, withdraw ou transfert)
         let txAmount = 0n;
+        
+        // Vérifier que tx.amount existe et n'est pas undefined
+        if (!tx.amount) {
+          console.warn(`⚠️ Transaction sans montant détectée:`, tx);
+          continue; // Passer à la transaction suivante
+        }
+        
         txAmount = BigInt(tx.amount);
         
         if (tx.transactionType === 'supply') {
@@ -488,6 +509,17 @@ async function calculateSupplyInterest(transactions, token) {
           totalWithdraws += txAmount;
           transactionAmount = txAmount.toString();
           transactionType = 'withdraw';
+          if (runningAmount < 0n) runningAmount = 0n;
+        } else if (tx.transactionType === 'other_in') {
+          runningAmount += txAmount;
+          totalOtherIn += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'other_in';
+        } else if (tx.transactionType === 'other_out') {
+          runningAmount -= txAmount;
+          totalOtherOut += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'other_out';
           if (runningAmount < 0n) runningAmount = 0n;
         }
         
@@ -569,8 +601,15 @@ async function calculateSupplyInterest(transactions, token) {
           runningAmount += periodInterest;
         }
         
-        // Appliquer la transaction (supply ou withdraw)
+        // Appliquer la transaction (supply, withdraw ou transfert)
         let txAmount = 0n;
+        
+        // Vérifier que tx.amount existe et n'est pas undefined
+        if (!tx.amount) {
+          console.warn(`⚠️ Transaction sans montant détectée:`, tx);
+          continue; // Passer à la transaction suivante
+        }
+        
         if (token === 'USDC') {
           txAmount = BigInt(tx.amount);
         } else {
@@ -587,6 +626,17 @@ async function calculateSupplyInterest(transactions, token) {
           totalWithdraws += txAmount;
           transactionAmount = txAmount.toString();
           transactionType = 'withdraw';
+          if (runningAmount < 0n) runningAmount = 0n;
+        } else if (tx.transactionType === 'other_in') {
+          runningAmount += txAmount;
+          totalOtherIn += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'other_in';
+        } else if (tx.transactionType === 'other_out') {
+          runningAmount -= txAmount;
+          totalOtherOut += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'other_out';
           if (runningAmount < 0n) runningAmount = 0n;
         }
         
@@ -629,6 +679,8 @@ async function calculateSupplyInterest(transactions, token) {
     summary: {
       totalSupplies: totalSupplies.toString(),
       totalWithdraws: totalWithdraws.toString(),
+      totalOtherIn: totalOtherIn.toString(),
+      totalOtherOut: totalOtherOut.toString(),
       currentSupply: currentSupply.toString(),
       totalInterest: totalInterest.toString()
     }
