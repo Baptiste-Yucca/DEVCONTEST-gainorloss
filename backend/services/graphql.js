@@ -19,7 +19,7 @@ const BORROWS_QUERY = `
       first: 1000, 
       where: { user_: { id: $userAddress } }, 
       orderBy: timestamp, 
-      orderDirection: desc
+      orderDirection: asc
     ) {
       # id - inutile, redondant avec txHash
       txHash
@@ -45,7 +45,7 @@ const SUPPLIES_QUERY = `
         ]
       }
       orderBy: timestamp, 
-      orderDirection: desc
+      orderDirection: asc
     ) {
       # id - inutile, redondant avec txHash
       txHash
@@ -63,7 +63,7 @@ const WITHDRAWS_QUERY = `
       first: 1000, 
       where: { user_: { id: $userAddress } }, 
       orderBy: timestamp, 
-      orderDirection: desc
+      orderDirection: asc
     ) {
       # id - inutile, redondant avec txHash
       txHash
@@ -81,7 +81,7 @@ const REPAYS_QUERY = `
       first: 1000, 
       where: { user_: { id: $userAddress } }, 
       orderBy: timestamp, 
-      orderDirection: desc
+      orderDirection: asc
     ) {
       # id - inutile, redondant avec txHash
       txHash

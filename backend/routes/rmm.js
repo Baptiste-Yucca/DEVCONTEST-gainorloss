@@ -66,8 +66,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           USDC: {
             symbol: 'USDC',
             decimals: 6,
-            borrows: [],
-            repays: [],
+            debt: [], // Tableau consolidé pour borrows + repays
             supplies: [],
             withdraws: [],
             others: []
@@ -75,8 +74,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           WXDAI: {
             symbol: 'WXDAI',
             decimals: 18,
-            borrows: [],
-            repays: [],
+            debt: [], // Tableau consolidé pour borrows + repays
             supplies: [],
             withdraws: [],
             others: []
@@ -88,9 +86,10 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           allTransactions.borrows.forEach(borrow => {
             const stablecoin = identifyStablecoin(borrow.reserve.id);
             if (stablecoin !== 'UNKNOWN') {
-              // Supprimer reserve.id de la réponse
+              // Supprimer reserve.id de la réponse et ajouter le type
               const { reserve, ...borrowWithoutReserve } = borrow;
-              transactionsByStablecoin[stablecoin].borrows.push(borrowWithoutReserve);
+              const borrowWithType = { ...borrowWithoutReserve, type: 'borrow' };
+              transactionsByStablecoin[stablecoin].debt.push(borrowWithType);
             }
           });
         }
@@ -124,9 +123,10 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           allTransactions.repays.forEach(repay => {
             const stablecoin = identifyStablecoin(repay.reserve.id);
             if (stablecoin !== 'UNKNOWN') {
-              // Supprimer reserve.id de la réponse
+              // Supprimer reserve.id de la réponse et ajouter le type
               const { reserve, ...repayWithoutReserve } = repay;
-              transactionsByStablecoin[stablecoin].repays.push(repayWithoutReserve);
+              const repayWithType = { ...repayWithoutReserve, type: 'repay' };
+              transactionsByStablecoin[stablecoin].debt.push(repayWithType);
             }
           });
         }
@@ -165,16 +165,25 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           }
         }
 
-        // Calculer les résumés par stablecoin
+        // Trier les transactions de dette par timestamp (plus ancien → plus récent) et calculer les résumés
         Object.keys(transactionsByStablecoin).forEach(stablecoin => {
           const data = transactionsByStablecoin[stablecoin];
+          
+          // Trier le tableau debt par timestamp croissant
+          data.debt.sort((a, b) => a.timestamp - b.timestamp);
+          
+          // Calculer les compteurs depuis le tableau debt
+          const borrowsCount = data.debt.filter(tx => tx.type === 'borrow').length;
+          const repaysCount = data.debt.filter(tx => tx.type === 'repay').length;
+          
           data.summary = {
-            borrows: data.borrows.length,
-            repays: data.repays.length,
+            borrows: borrowsCount,
+            repays: repaysCount,
+            debt: data.debt.length, // Nombre total de transactions de dette
             supplies: data.supplies.length,
             withdraws: data.withdraws.length,
             others: data.others.length,
-            total: data.borrows.length + data.repays.length + data.supplies.length + data.withdraws.length + data.others.length
+            total: data.debt.length + data.supplies.length + data.withdraws.length + data.others.length
           };
         });
 
@@ -182,10 +191,9 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         const interestCalculations = {};
         for (const stablecoin of Object.keys(transactionsByStablecoin)) {
           try {
-            // Combiner toutes les transactions du stablecoin dans l'ordre demandé: Borrow, Repay, Supply, Withdraw, Others
+            // Utiliser le nouveau tableau debt déjà trié chronologiquement, plus les autres types de transactions
             const allTokenTransactions = [
-              ...transactionsByStablecoin[stablecoin].borrows.map(tx => ({ ...tx, transactionType: 'borrow' })),
-              ...transactionsByStablecoin[stablecoin].repays.map(tx => ({ ...tx, transactionType: 'repay' })),
+              ...transactionsByStablecoin[stablecoin].debt.map(tx => ({ ...tx, transactionType: tx.type })),
               ...transactionsByStablecoin[stablecoin].supplies.map(tx => ({ ...tx, transactionType: 'supply' })),
               ...transactionsByStablecoin[stablecoin].withdraws.map(tx => ({ ...tx, transactionType: 'withdraw' })),
               ...transactionsByStablecoin[stablecoin].others

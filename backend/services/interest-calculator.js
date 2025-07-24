@@ -185,45 +185,76 @@ async function calculateBorrowInterest(transactions, token) {
     
     // Cas particulier: Premier jour avec emprunt
     if (currentDate === startTimestamp && dayTransactions.length > 0 && dayTransactions[0].transactionType === 'borrow') {
-      const firstBorrow = dayTransactions[0];
+      // Calculer les intérêts depuis la première transaction jusqu'à la fin de la journée
+      const secondsInDay = 86400; // 24 * 60 * 60
+      let lastTransactionTime = 0; // Début de la journée en secondes depuis minuit
+      let runningAmount = 0n; // Commencer avec 0 dette
       
-      let amount = 0n;
-      amount = BigInt(firstBorrow.amount);
+      // Pour chaque transaction du jour
+      for (const tx of dayTransactions) {
+        // Extraire l'heure, minute, seconde du timestamp
+        const txDate = new Date(tx.timestamp * 1000);
+        const hours = txDate.getHours();
+        const minutes = txDate.getMinutes();
+        const seconds = txDate.getSeconds();
+        const currentTransactionTime = hours * 3600 + minutes * 60 + seconds;
+        
+        // Calculer les intérêts pour la période entre la dernière transaction et celle-ci
+        if (runningAmount > 0n && dailyRate) {
+          const periodSeconds = currentTransactionTime - lastTransactionTime;
+          const periodRatio = periodSeconds / secondsInDay;
+          const periodRate = dailyInterestRate * periodRatio;
+          const periodInterest = computeDailyInterest(runningAmount, periodRate, token === 'USDC' ? 6 : 18);
+          
+          dayTotalInterest += periodInterest;
+          runningAmount += periodInterest;
+        }
+        
+        // Appliquer la transaction (borrow ou repay)
+        let txAmount = 0n;
+        txAmount = BigInt(tx.amount);
+        
+        if (tx.transactionType === 'borrow') {
+          runningAmount += txAmount;
+          totalBorrows += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'borrow';
+        } else if (tx.transactionType === 'repay') {
+          runningAmount -= txAmount;
+          totalRepays += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'repay';
+          if (runningAmount < 0n) runningAmount = 0n;
+        }
+        
+        lastTransactionTime = currentTransactionTime;
+      }
       
-      currentDebt = amount;
-      totalBorrows += amount;
-      transactionAmount = amount.toString();
-      transactionType = 'borrow';
+      // Calculer les intérêts pour la période entre la dernière transaction et la fin de la journée
+      if (runningAmount > 0n && dailyRate) {
+        const remainingSeconds = secondsInDay - lastTransactionTime;
+        const remainingRatio = remainingSeconds / secondsInDay;
+        const remainingRate = dailyInterestRate * remainingRatio;
+        const remainingInterest = computeDailyInterest(runningAmount, remainingRate, token === 'USDC' ? 6 : 18);
+        
+        dayTotalInterest += remainingInterest;
+        runningAmount += remainingInterest;
+      }
       
-      // Pas d'intérêts pour le jour initial d'emprunt
+      totalInterest += dayTotalInterest;
+      currentDebt = runningAmount;
+      
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
         debt: currentDebt.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.variable_borrow_rate_avg * 100 : 0,
-        dailyInterest: "0",
+        dailyInterest: dayTotalInterest.toString(),
         totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
-      
-      // Traiter les autres transactions du jour si il y en a
-      for (let i = 1; i < dayTransactions.length; i++) {
-        const tx = dayTransactions[i];
-        const txAmount = token === 'USDC' ? 
-          BigInt(tx.amount) : 
-          BigInt(tx.amount);
-        
-        if (tx.transactionType === 'borrow') {
-          currentDebt += txAmount;
-          totalBorrows += txAmount;
-        } else if (tx.transactionType === 'repay') {
-          currentDebt -= txAmount;
-          totalRepays += txAmount;
-          if (currentDebt < 0n) currentDebt = 0n;
-        }
-      }
     }
     // Jours ordinaires
     else if (dayTransactions.length === 0) {
@@ -418,44 +449,76 @@ async function calculateSupplyInterest(transactions, token) {
     
     // Cas particulier: Premier jour avec dépôt
     if (currentDate === startTimestamp && dayTransactions.length > 0 && dayTransactions[0].transactionType === 'supply') {
-      const firstSupply = dayTransactions[0];
-      let amount = 0n;
-      amount = BigInt(firstSupply.amount);
+      // Calculer les intérêts depuis la première transaction jusqu'à la fin de la journée
+      const secondsInDay = 86400; // 24 * 60 * 60
+      let lastTransactionTime = 0; // Début de la journée en secondes depuis minuit
+      let runningAmount = 0n; // Commencer avec 0 supply
       
-      currentSupply = amount;
-      totalSupplies += amount;
-      transactionAmount = amount.toString();
-      transactionType = 'supply';
+      // Pour chaque transaction du jour
+      for (const tx of dayTransactions) {
+        // Extraire l'heure, minute, seconde du timestamp
+        const txDate = new Date(tx.timestamp * 1000);
+        const hours = txDate.getHours();
+        const minutes = txDate.getMinutes();
+        const seconds = txDate.getSeconds();
+        const currentTransactionTime = hours * 3600 + minutes * 60 + seconds;
+        
+        // Calculer les intérêts pour la période entre la dernière transaction et celle-ci
+        if (runningAmount > 0n && dailyRate) {
+          const periodSeconds = currentTransactionTime - lastTransactionTime;
+          const periodRatio = periodSeconds / secondsInDay;
+          const periodRate = dailyInterestRate * periodRatio;
+          const periodInterest = computeDailyInterest(runningAmount, periodRate, token === 'USDC' ? 6 : 18);
+          
+          dayTotalInterest += periodInterest;
+          runningAmount += periodInterest;
+        }
+        
+        // Appliquer la transaction (supply ou withdraw)
+        let txAmount = 0n;
+        txAmount = BigInt(tx.amount);
+        
+        if (tx.transactionType === 'supply') {
+          runningAmount += txAmount;
+          totalSupplies += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'supply';
+        } else if (tx.transactionType === 'withdraw') {
+          runningAmount -= txAmount;
+          totalWithdraws += txAmount;
+          transactionAmount = txAmount.toString();
+          transactionType = 'withdraw';
+          if (runningAmount < 0n) runningAmount = 0n;
+        }
+        
+        lastTransactionTime = currentTransactionTime;
+      }
       
-      // Pas d'intérêts pour le jour initial de dépôt
+      // Calculer les intérêts pour la période entre la dernière transaction et la fin de la journée
+      if (runningAmount > 0n && dailyRate) {
+        const remainingSeconds = secondsInDay - lastTransactionTime;
+        const remainingRatio = remainingSeconds / secondsInDay;
+        const remainingRate = dailyInterestRate * remainingRatio;
+        const remainingInterest = computeDailyInterest(runningAmount, remainingRate, token === 'USDC' ? 6 : 18);
+        
+        dayTotalInterest += remainingInterest;
+        runningAmount += remainingInterest;
+      }
+      
+      totalInterest += dayTotalInterest;
+      currentSupply = runningAmount;
+      
       dailyDetails.push({
         date: dateKey,
         timestamp: currentDate,
         supply: currentSupply.toString(),
         dailyRate: dailyInterestRate,
         apr: dailyRate ? dailyRate.liquidity_rate_avg * 100 : 0,
-        dailyInterest: "0",
+        dailyInterest: dayTotalInterest.toString(),
         totalInterest: totalInterest.toString(),
         transactionAmount,
         transactionType
       });
-      
-      // Traiter les autres transactions du jour si il y en a
-      for (let i = 1; i < dayTransactions.length; i++) {
-        const tx = dayTransactions[i];
-        const txAmount = token === 'USDC' ? 
-          BigInt(tx.amount) : 
-          BigInt(tx.amount);
-        
-        if (tx.transactionType === 'supply') {
-          currentSupply += txAmount;
-          totalSupplies += txAmount;
-        } else if (tx.transactionType === 'withdraw') {
-          currentSupply -= txAmount;
-          totalWithdraws += txAmount;
-          if (currentSupply < 0n) currentSupply = 0n;
-        }
-      }
     }
     // Jours ordinaires
     else if (dayTransactions.length === 0) {
