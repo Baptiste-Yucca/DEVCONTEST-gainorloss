@@ -1,0 +1,44 @@
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: armmUSDC
+    network: gnosis
+    source:
+      address: "0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1"  # Adresse armmUSDC
+      abi: ERC20
+      startBlock: 32074630
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Transfer
+      abis:
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: armmWXDAI
+    network: gnosis
+    source:
+      address: "0x0ca4f5554dd9da6217d62d8df2816c82bba4157b"  # Adresse armmWXDAI
+      abi: ERC20
+      startBlock: 32074630
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - Transfer
+      abis:
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+      file: ./src/mapping.ts 

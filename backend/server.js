@@ -24,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes API
 app.use('/api/health', require('./routes/health'));
 app.use('/api/rmm', require('./routes/rmm'));
+app.use('/api/balances', require('./routes/balances'));
 
 // Route racine
 app.get('/', (req, res) => {
@@ -33,7 +34,8 @@ app.get('/', (req, res) => {
     description: 'API pour analyser les données du protocole RMM',
     endpoints: {
       health: '/api/health',
-      rmm: '/api/rmm/v3/:address1/:address2?/:address3?'
+      rmm: '/api/rmm/v3/:address1/:address2?/:address3?',
+      balances: '/api/balances/v3/:address'
     },
     example: 'GET /api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f'
   });
@@ -47,7 +49,9 @@ app.use('*', (req, res) => {
     availableEndpoints: [
       'GET /',
       'GET /api/health',
-      'GET /api/rmm/v3/:address1/:address2?/:address3?'
+      'GET /api/rmm/v3/:address1/:address2?/:address3?',
+      'GET /api/balances/v3/:address',
+      'POST /api/balances/v3/batch'
     ]
   });
 });

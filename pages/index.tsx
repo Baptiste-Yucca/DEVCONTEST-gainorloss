@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
+import Chart from '../components/Chart';
 
 // Types pour les données de l'API
 interface DailyDetail {
@@ -13,6 +14,23 @@ interface DailyDetail {
   totalInterest: string;
   transactionAmount?: string;
   transactionType?: string;
+}
+
+// Types pour les balances des tokens
+interface TokenBalance {
+  token: string;
+  balance: string;
+  symbol: string;
+  decimals: number;
+}
+
+interface TokenBalances {
+  // SupplyTokens
+  armmUSDC: TokenBalance;
+  armmWXDAI: TokenBalance;
+  // DebtTokens
+  debtUSDC: TokenBalance;
+  debtWXDAI: TokenBalance;
 }
 
 interface ApiResponse {
@@ -61,57 +79,12 @@ interface ApiResponse {
   };
 }
 
-// Fonction pour générer des dates lisibles (max 10)
-const generateReadableDates = (dailyDetails: DailyDetail[]): DailyDetail[] => {
-  if (dailyDetails.length <= 10) return dailyDetails;
-  
-  const step = Math.floor(dailyDetails.length / 9);
-  const readableDates: DailyDetail[] = [];
-  
-  for (let i = 0; i < dailyDetails.length; i += step) {
-    readableDates.push(dailyDetails[i]);
-    if (readableDates.length >= 10) break;
-  }
-  
-  // Ajouter la dernière date si elle n'est pas incluse
-  if (readableDates[readableDates.length - 1] !== dailyDetails[dailyDetails.length - 1]) {
-    readableDates.push(dailyDetails[dailyDetails.length - 1]);
-  }
-  
-  return readableDates;
-};
-
-// Fonction pour générer des valeurs Y lisibles (max 5 + 0 si négatif)
-const generateReadableValues = (values: number[]): number[] => {
-  if (values.length === 0) return [0];
-  
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min;
-  
-  if (range === 0) return [min];
-  
-  const step = range / 4;
-  const readableValues: number[] = [];
-  
-  for (let i = 0; i <= 4; i++) {
-    readableValues.push(min + (step * i));
-  }
-  
-  // Ajouter 0 si il y a des valeurs négatives et que 0 n'est pas déjà inclus
-  if (min < 0 && !readableValues.includes(0)) {
-    readableValues.push(0);
-    readableValues.sort((a, b) => a - b);
-  }
-  
-  return readableValues;
-};
-
 export default function Home() {
   const [address, setAddress] = useState('');
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tokenBalances, setTokenBalances] = useState<TokenBalances | null>(null);
 
   // Fonction pour formater les montants (conversion depuis base units)
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -126,15 +99,13 @@ export default function Home() {
     return `${day}/${month}/${year}`;
   };
 
-  // Fonction pour formater les montants pour l'affichage
-  const formatDisplayAmount = (amount: number): string => {
-    if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(1)}M`;
-    } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(1)}K`;
-    } else {
-      return amount.toFixed(2);
-    }
+  // Fonction pour préparer les données pour Recharts
+  const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6) => {
+    return dailyDetails.map(detail => ({
+      date: detail.date,
+      value: formatAmount(detail[valueKey] || '0', decimals),
+      formattedDate: formatDate(detail.date)
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,6 +140,14 @@ export default function Home() {
       const result = await response.json();
       console.log('✅ Données reçues:', result);
       setData(result);
+      
+      // Si on a des données, récupérer les balances des tokens
+      if (result?.data?.results?.[0]?.success) {
+        console.log('💰 Récupération des balances des tokens...');
+        const balances = await fetchTokenBalances(address.trim());
+        setTokenBalances(balances);
+        console.log('✅ Balances récupérées:', balances);
+      }
     } catch (err) {
       console.error('❌ Erreur lors de la récupération des données:', err);
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -177,11 +156,90 @@ export default function Home() {
     }
   };
 
+  // Fonction pour récupérer les balances des tokens via l'API backend
+  const fetchTokenBalances = async (userAddress: string): Promise<TokenBalances> => {
+    try {
+      console.log('💰 Récupération des balances via API backend...');
+      
+      const response = await fetch(`http://localhost:3001/api/balances/v3/${userAddress}`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API backend: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Erreur lors de la récupération des balances');
+      }
+      
+      // Convertir le format de réponse du backend vers le format attendu par le frontend
+      const backendBalances = result.data.balances;
+      
+      return {
+        armmUSDC: {
+          token: backendBalances.armmUSDC.token,
+          balance: backendBalances.armmUSDC.formatted,
+          symbol: backendBalances.armmUSDC.symbol,
+          decimals: backendBalances.armmUSDC.decimals
+        },
+        armmWXDAI: {
+          token: backendBalances.armmWXDAI.token,
+          balance: backendBalances.armmWXDAI.formatted,
+          symbol: backendBalances.armmWXDAI.symbol,
+          decimals: backendBalances.armmWXDAI.decimals
+        },
+        debtUSDC: {
+          token: backendBalances.debtUSDC.token,
+          balance: backendBalances.debtUSDC.formatted,
+          symbol: backendBalances.debtUSDC.symbol,
+          decimals: backendBalances.debtUSDC.decimals
+        },
+        debtWXDAI: {
+          token: backendBalances.debtWXDAI.token,
+          balance: backendBalances.debtWXDAI.formatted,
+          symbol: backendBalances.debtWXDAI.symbol,
+          decimals: backendBalances.debtWXDAI.decimals
+        }
+      };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des balances:', error);
+      // Retourner des balances à 0 en cas d'erreur
+      return {
+        armmUSDC: {
+          token: '0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1',
+          balance: '0',
+          symbol: 'armmUSDC',
+          decimals: 6
+        },
+        armmWXDAI: {
+          token: '0x0ca4f5554dd9da6217d62d8df2816c82bba4157b',
+          balance: '0',
+          symbol: 'armmWXDAI',
+          decimals: 18
+        },
+        debtUSDC: {
+          token: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
+          balance: '0',
+          symbol: 'debtUSDC',
+          decimals: 6
+        },
+        debtWXDAI: {
+          token: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34',
+          balance: '0',
+          symbol: 'debtWXDAI',
+          decimals: 18
+        }
+      };
+    }
+  };
+
   const resetForm = () => {
     setAddress('');
     setData(null);
     setError(null);
     setLoading(false);
+    setTokenBalances(null);
   };
 
   // Écran de chargement
@@ -189,13 +247,13 @@ export default function Home() {
     return (
       <>
         <Head>
-          <title>RMM Calculator - Analyse en cours</title>
+          <title>RMM Analytics - Analyse en cours</title>
         </Head>
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold text-gray-900">Analyse en cours...</h2>
-            <p className="text-gray-600 mt-2">Récupération des données RMM pour {address}</p>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center max-w-md">
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-blue-500 mx-auto mb-6"></div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Analyse en cours</h2>
+            <p className="text-gray-600 text-sm">Récupération des données RMM pour {address}</p>
           </div>
         </div>
       </>
@@ -219,23 +277,23 @@ export default function Home() {
     return (
       <>
         <Head>
-          <title>RMM Calculator - Résultats</title>
+          <title>RMM Analytics - Résultats</title>
         </Head>
 
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-          <div className="max-w-6xl mx-auto">
-            {/* En-tête avec bouton retour */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            {/* En-tête */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
               <div className="flex items-center justify-between">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Analyse RMM</h1>
-                  <p className="text-gray-600 text-sm">
-                    Adresse: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{address}</span>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">RMM Analytics</h1>
+                  <p className="text-gray-600">
+                    Adresse: <span className="font-mono bg-gray-100 px-3 py-1 rounded-lg text-sm">{address}</span>
                   </p>
                 </div>
                 <button 
                   onClick={resetForm}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  className="bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium"
                 >
                   Nouvelle analyse
                 </button>
@@ -244,7 +302,7 @@ export default function Home() {
 
             {/* Erreur */}
             {error && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                 <div className="text-center">
                   <div className="text-red-500 text-6xl mb-4">⚠️</div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur</h2>
@@ -255,24 +313,24 @@ export default function Home() {
 
             {/* Résumé USDC */}
             {usdcSummary && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Résumé USDC</h2>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Résumé USDC</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-red-800 mb-1">Intérêts d'emprunt</h3>
-                    <p className="text-2xl font-bold text-red-600">
+                  <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-red-700 mb-2">Intérêts d'emprunt</h3>
+                    <p className="text-3xl font-bold text-red-600">
                       {formatAmount(usdcSummary.totalBorrowInterest).toFixed(2)} USDC
                     </p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-green-800 mb-1">Intérêts de dépôt</h3>
-                    <p className="text-2xl font-bold text-green-600">
+                  <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-green-700 mb-2">Intérêts de dépôt</h3>
+                    <p className="text-3xl font-bold text-green-600">
                       {formatAmount(usdcSummary.totalSupplyInterest).toFixed(2)} USDC
                     </p>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-blue-800 mb-1">Gain net</h3>
-                    <p className={`text-2xl font-bold ${parseFloat(usdcSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-blue-700 mb-2">Gain net</h3>
+                    <p className={`text-3xl font-bold ${parseFloat(usdcSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {formatAmount(usdcSummary.netInterest).toFixed(2)} USDC
                     </p>
                   </div>
@@ -280,218 +338,47 @@ export default function Home() {
               </div>
             )}
 
-            {/* Graphique Dette USDC */}
-            {usdcBorrowDetails.length > 0 ? (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Évolution de la dette USDC</h2>
-                
-                <div className="h-96 w-full">
-                  <svg className="w-full h-full" viewBox="0 0 800 300">
-                    {/* Axes */}
-                    <line x1="50" y1="250" x2="750" y2="250" stroke="#e5e7eb" strokeWidth="2" />
-                    <line x1="50" y1="250" x2="50" y2="50" stroke="#e5e7eb" strokeWidth="2" />
-                    
-                    {/* Axes Y lisibles */}
-                    {(() => {
-                      const values = usdcBorrowDetails.map(d => formatAmount(d.debt || '0'));
-                      const readableValues = generateReadableValues(values);
-                      return readableValues.map((value, i) => {
-                        const y = 250 - ((value / Math.max(...readableValues)) * 200);
-                        return (
-                          <g key={i}>
-                            <line x1="45" y1={y} x2="50" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                            <text x="40" y={y + 3} fontSize="8" fill="#6b7280" textAnchor="end">
-                              {formatDisplayAmount(value)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Axes X lisibles */}
-                    {(() => {
-                      const readableDates = generateReadableDates(usdcBorrowDetails);
-                      return readableDates.map((detail, i) => {
-                        const originalIndex = usdcBorrowDetails.findIndex(d => d.date === detail.date);
-                        const x = 50 + (originalIndex * (700 / Math.max(usdcBorrowDetails.length - 1, 1)));
-                        return (
-                          <g key={i}>
-                            <line x1={x} y1="250" x2={x} y2="255" stroke="#e5e7eb" strokeWidth="1" />
-                            <text x={x} y="270" textAnchor="middle" fontSize="8" fill="#6b7280">
-                              {formatDate(detail.date)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Données du graphique */}
-                    {usdcBorrowDetails.map((detail, index) => {
-                      const x = 50 + (index * (700 / Math.max(usdcBorrowDetails.length - 1, 1)));
-                      const maxDebt = Math.max(...usdcBorrowDetails.map(d => formatAmount(d.debt || '0')));
-                      const y = 250 - ((formatAmount(detail.debt || '0') / maxDebt) * 200);
-                      
-                      return (
-                        <g key={index}>
-                          {/* Point */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="3"
-                            fill="#ef4444"
-                          />
-                          
-                          {/* Ligne vers le point suivant */}
-                          {index < usdcBorrowDetails.length - 1 && (
-                            <line
-                              x1={x}
-                              y1={y}
-                              x2={50 + ((index + 1) * (700 / Math.max(usdcBorrowDetails.length - 1, 1)))}
-                              y2={250 - ((formatAmount(usdcBorrowDetails[index + 1].debt || '0') / maxDebt) * 200)}
-                              stroke="#ef4444"
-                              strokeWidth="2"
-                            />
-                          )}
-                        </g>
-                      );
-                    })}
-                    
-                    {/* Légende Y */}
-                    <text x="20" y="60" fontSize="10" fill="#6b7280" textAnchor="middle" transform="rotate(-90, 20, 60)">
-                      Dette (USDC)
-                    </text>
-                    
-                    {/* Légende X */}
-                    <text x="400" y="290" fontSize="10" fill="#6b7280" textAnchor="middle">
-                      Date
-                    </text>
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 text-center">
-                <div className="text-gray-400 text-4xl mb-2">📉</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Aucune transaction de dette</h3>
-                <p className="text-gray-600 text-sm">Pas de transactions d'emprunt/remboursement USDC</p>
-              </div>
-            )}
+            {/* Graphiques USDC */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Graphique Dette USDC */}
+              <Chart
+                data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
+                title="Évolution de la dette USDC"
+                color="#ef4444"
+                currentBalance={tokenBalances?.debtUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.debtUSDC.balance}
+                type="line"
+              />
 
-            {/* Graphique Supply USDC */}
-            {usdcSupplyDetails.length > 0 ? (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Évolution du supply USDC</h2>
-                
-                <div className="h-96 w-full">
-                  <svg className="w-full h-full" viewBox="0 0 800 300">
-                    {/* Axes */}
-                    <line x1="50" y1="250" x2="750" y2="250" stroke="#e5e7eb" strokeWidth="2" />
-                    <line x1="50" y1="250" x2="50" y2="50" stroke="#e5e7eb" strokeWidth="2" />
-                    
-                    {/* Axes Y lisibles */}
-                    {(() => {
-                      const values = usdcSupplyDetails.map(d => formatAmount(d.supply || '0'));
-                      const readableValues = generateReadableValues(values);
-                      return readableValues.map((value, i) => {
-                        const y = 250 - ((value / Math.max(...readableValues)) * 200);
-                        return (
-                          <g key={i}>
-                            <line x1="45" y1={y} x2="50" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                            <text x="40" y={y + 3} fontSize="8" fill="#6b7280" textAnchor="end">
-                              {formatDisplayAmount(value)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Axes X lisibles */}
-                    {(() => {
-                      const readableDates = generateReadableDates(usdcSupplyDetails);
-                      return readableDates.map((detail, i) => {
-                        const originalIndex = usdcSupplyDetails.findIndex(d => d.date === detail.date);
-                        const x = 50 + (originalIndex * (700 / Math.max(usdcSupplyDetails.length - 1, 1)));
-                        return (
-                          <g key={i}>
-                            <line x1={x} y1="250" x2={x} y2="255" stroke="#e5e7eb" strokeWidth="1" />
-                            <text x={x} y="270" textAnchor="middle" fontSize="8" fill="#6b7280">
-                              {formatDate(detail.date)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Données du graphique */}
-                    {usdcSupplyDetails.map((detail, index) => {
-                      const x = 50 + (index * (700 / Math.max(usdcSupplyDetails.length - 1, 1)));
-                      const maxSupply = Math.max(...usdcSupplyDetails.map(d => formatAmount(d.supply || '0')));
-                      const y = 250 - ((formatAmount(detail.supply || '0') / maxSupply) * 200);
-                      
-                      return (
-                        <g key={index}>
-                          {/* Point */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="3"
-                            fill="#10b981"
-                          />
-                          
-                          {/* Ligne vers le point suivant */}
-                          {index < usdcSupplyDetails.length - 1 && (
-                            <line
-                              x1={x}
-                              y1={y}
-                              x2={50 + ((index + 1) * (700 / Math.max(usdcSupplyDetails.length - 1, 1)))}
-                              y2={250 - ((formatAmount(usdcSupplyDetails[index + 1].supply || '0') / maxSupply) * 200)}
-                              stroke="#10b981"
-                              strokeWidth="2"
-                            />
-                          )}
-                        </g>
-                      );
-                    })}
-                    
-                    {/* Légende Y */}
-                    <text x="20" y="60" fontSize="10" fill="#6b7280" textAnchor="middle" transform="rotate(-90, 20, 60)">
-                      Supply (USDC)
-                    </text>
-                    
-                    {/* Légende X */}
-                    <text x="400" y="290" fontSize="10" fill="#6b7280" textAnchor="middle">
-                      Date
-                    </text>
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 text-center">
-                <div className="text-gray-400 text-4xl mb-2">📈</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Aucune transaction de supply</h3>
-                <p className="text-gray-600 text-sm">Pas de transactions de dépôt/retrait USDC</p>
-              </div>
-            )}
+              {/* Graphique Supply USDC */}
+              <Chart
+                data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
+                title="Évolution du supply USDC"
+                color="#10b981"
+                currentBalance={tokenBalances?.armmUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.armmUSDC.balance}
+                type="area"
+              />
+            </div>
 
             {/* Résumé WXDAI */}
             {wxdaiSummary && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Résumé WXDAI</h2>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Résumé WXDAI</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-red-800 mb-1">Intérêts d'emprunt</h3>
-                    <p className="text-2xl font-bold text-red-600">
+                  <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-red-700 mb-2">Intérêts d'emprunt</h3>
+                    <p className="text-3xl font-bold text-red-600">
                       {formatAmount(wxdaiSummary.totalBorrowInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-green-800 mb-1">Intérêts de dépôt</h3>
-                    <p className="text-2xl font-bold text-green-600">
+                  <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-green-700 mb-2">Intérêts de dépôt</h3>
+                    <p className="text-3xl font-bold text-green-600">
                       {formatAmount(wxdaiSummary.totalSupplyInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h3 className="text-sm font-medium text-blue-800 mb-1">Gain net</h3>
-                    <p className={`text-2xl font-bold ${parseFloat(wxdaiSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-blue-700 mb-2">Gain net</h3>
+                    <p className={`text-3xl font-bold ${parseFloat(wxdaiSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {formatAmount(wxdaiSummary.netInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
@@ -499,201 +386,30 @@ export default function Home() {
               </div>
             )}
 
-            {/* Graphique Dette WXDAI */}
-            {wxdaiBorrowDetails.length > 0 ? (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Évolution de la dette WXDAI</h2>
-                
-                <div className="h-96 w-full">
-                  <svg className="w-full h-full" viewBox="0 0 800 300">
-                    {/* Axes */}
-                    <line x1="50" y1="250" x2="750" y2="250" stroke="#e5e7eb" strokeWidth="2" />
-                    <line x1="50" y1="250" x2="50" y2="50" stroke="#e5e7eb" strokeWidth="2" />
-                    
-                    {/* Axes Y lisibles */}
-                    {(() => {
-                      const values = wxdaiBorrowDetails.map(d => formatAmount(d.debt || '0', 18));
-                      const readableValues = generateReadableValues(values);
-                      return readableValues.map((value, i) => {
-                        const y = 250 - ((value / Math.max(...readableValues)) * 200);
-                        return (
-                          <g key={i}>
-                            <line x1="45" y1={y} x2="50" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                            <text x="40" y={y + 3} fontSize="8" fill="#6b7280" textAnchor="end">
-                              {formatDisplayAmount(value)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Axes X lisibles */}
-                    {(() => {
-                      const readableDates = generateReadableDates(wxdaiBorrowDetails);
-                      return readableDates.map((detail, i) => {
-                        const originalIndex = wxdaiBorrowDetails.findIndex(d => d.date === detail.date);
-                        const x = 50 + (originalIndex * (700 / Math.max(wxdaiBorrowDetails.length - 1, 1)));
-                        return (
-                          <g key={i}>
-                            <line x1={x} y1="250" x2={x} y2="255" stroke="#e5e7eb" strokeWidth="1" />
-                            <text x={x} y="270" textAnchor="middle" fontSize="8" fill="#6b7280">
-                              {formatDate(detail.date)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Données du graphique */}
-                    {wxdaiBorrowDetails.map((detail, index) => {
-                      const x = 50 + (index * (700 / Math.max(wxdaiBorrowDetails.length - 1, 1)));
-                      const maxDebt = Math.max(...wxdaiBorrowDetails.map(d => formatAmount(d.debt || '0', 18)));
-                      const y = 250 - ((formatAmount(detail.debt || '0', 18) / maxDebt) * 200);
-                      
-                      return (
-                        <g key={index}>
-                          {/* Point */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="3"
-                            fill="#ef4444"
-                          />
-                          
-                          {/* Ligne vers le point suivant */}
-                          {index < wxdaiBorrowDetails.length - 1 && (
-                            <line
-                              x1={x}
-                              y1={y}
-                              x2={50 + ((index + 1) * (700 / Math.max(wxdaiBorrowDetails.length - 1, 1)))}
-                              y2={250 - ((formatAmount(wxdaiBorrowDetails[index + 1].debt || '0', 18) / maxDebt) * 200)}
-                              stroke="#ef4444"
-                              strokeWidth="2"
-                            />
-                          )}
-                        </g>
-                      );
-                    })}
-                    
-                    {/* Légende Y */}
-                    <text x="20" y="60" fontSize="10" fill="#6b7280" textAnchor="middle" transform="rotate(-90, 20, 60)">
-                      Dette (WXDAI)
-                    </text>
-                    
-                    {/* Légende X */}
-                    <text x="400" y="290" fontSize="10" fill="#6b7280" textAnchor="middle">
-                      Date
-                    </text>
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 text-center">
-                <div className="text-gray-400 text-4xl mb-2">📉</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Aucune transaction de dette</h3>
-                <p className="text-gray-600 text-sm">Pas de transactions d'emprunt/remboursement WXDAI</p>
-              </div>
-            )}
+            {/* Graphiques WXDAI */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Graphique Dette WXDAI */}
+              <Chart
+                data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
+                title="Évolution de la dette WXDAI"
+                color="#f59e0b"
+                currentBalance={tokenBalances?.debtWXDAI.balance === '0.00' ? 'N/A' : tokenBalances?.debtWXDAI.balance}
+                type="line"
+              />
 
-            {/* Graphique Supply WXDAI */}
-            {wxdaiSupplyDetails.length > 0 ? (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Évolution du supply WXDAI</h2>
-                
-                <div className="h-96 w-full">
-                  <svg className="w-full h-full" viewBox="0 0 800 300">
-                    {/* Axes */}
-                    <line x1="50" y1="250" x2="750" y2="250" stroke="#e5e7eb" strokeWidth="2" />
-                    <line x1="50" y1="250" x2="50" y2="50" stroke="#e5e7eb" strokeWidth="2" />
-                    
-                    {/* Axes Y lisibles */}
-                    {(() => {
-                      const values = wxdaiSupplyDetails.map(d => formatAmount(d.supply || '0', 18));
-                      const readableValues = generateReadableValues(values);
-                      return readableValues.map((value, i) => {
-                        const y = 250 - ((value / Math.max(...readableValues)) * 200);
-                        return (
-                          <g key={i}>
-                            <line x1="45" y1={y} x2="50" y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                            <text x="40" y={y + 3} fontSize="8" fill="#6b7280" textAnchor="end">
-                              {formatDisplayAmount(value)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Axes X lisibles */}
-                    {(() => {
-                      const readableDates = generateReadableDates(wxdaiSupplyDetails);
-                      return readableDates.map((detail, i) => {
-                        const originalIndex = wxdaiSupplyDetails.findIndex(d => d.date === detail.date);
-                        const x = 50 + (originalIndex * (700 / Math.max(wxdaiSupplyDetails.length - 1, 1)));
-                        return (
-                          <g key={i}>
-                            <line x1={x} y1="250" x2={x} y2="255" stroke="#e5e7eb" strokeWidth="1" />
-                            <text x={x} y="270" textAnchor="middle" fontSize="8" fill="#6b7280">
-                              {formatDate(detail.date)}
-                            </text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    
-                    {/* Données du graphique */}
-                    {wxdaiSupplyDetails.map((detail, index) => {
-                      const x = 50 + (index * (700 / Math.max(wxdaiSupplyDetails.length - 1, 1)));
-                      const maxSupply = Math.max(...wxdaiSupplyDetails.map(d => formatAmount(d.supply || '0', 18)));
-                      const y = 250 - ((formatAmount(detail.supply || '0', 18) / maxSupply) * 200);
-                      
-                      return (
-                        <g key={index}>
-                          {/* Point */}
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r="3"
-                            fill="#10b981"
-                          />
-                          
-                          {/* Ligne vers le point suivant */}
-                          {index < wxdaiSupplyDetails.length - 1 && (
-                            <line
-                              x1={x}
-                              y1={y}
-                              x2={50 + ((index + 1) * (700 / Math.max(wxdaiSupplyDetails.length - 1, 1)))}
-                              y2={250 - ((formatAmount(wxdaiSupplyDetails[index + 1].supply || '0', 18) / maxSupply) * 200)}
-                              stroke="#10b981"
-                              strokeWidth="2"
-                            />
-                          )}
-                        </g>
-                      );
-                    })}
-                    
-                    {/* Légende Y */}
-                    <text x="20" y="60" fontSize="10" fill="#6b7280" textAnchor="middle" transform="rotate(-90, 20, 60)">
-                      Supply (WXDAI)
-                    </text>
-                    
-                    {/* Légende X */}
-                    <text x="400" y="290" fontSize="10" fill="#6b7280" textAnchor="middle">
-                      Date
-                    </text>
-                  </svg>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 text-center">
-                <div className="text-gray-400 text-4xl mb-2">📈</div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Aucune transaction de supply</h3>
-                <p className="text-gray-600 text-sm">Pas de transactions de dépôt/retrait WXDAI</p>
-              </div>
-            )}
+              {/* Graphique Supply WXDAI */}
+              <Chart
+                data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
+                title="Évolution du supply WXDAI"
+                color="#3b82f6"
+                currentBalance={tokenBalances?.armmWXDAI.balance}
+                type="area"
+              />
+            </div>
 
             {/* Aucune donnée */}
             {data && (!usdcSummary || (usdcBorrowDetails.length === 0 && usdcSupplyDetails.length === 0)) && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 text-center">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Aucune donnée</h2>
                 <p className="text-gray-600">Aucune transaction RMM trouvée pour cette adresse</p>
@@ -709,18 +425,18 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>RMM Gain Calculator</title>
-        <meta name="description" content="Calculateur de gains RMM pour les adresses EVM" />
+        <title>RMM Analytics</title>
+        <meta name="description" content="Analysez vos gains et pertes RMM" />
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 w-full max-w-md">
           {/* En-tête */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              RMM Calculator
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">
+              RMM Analytics
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-lg">
               Analysez vos gains et pertes RMM
             </p>
           </div>
@@ -728,7 +444,7 @@ export default function Home() {
           {/* Formulaire */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-3">
                 Adresse EVM
               </label>
               <input
@@ -737,21 +453,21 @@ export default function Home() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900"
               />
             </div>
 
             <button
               type="submit"
               disabled={!address.trim()}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-gray-900 text-white py-4 px-6 rounded-xl font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Analyser
             </button>
           </form>
 
           {/* Note */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
             <p className="text-sm text-blue-800">
               💡 <strong>Info:</strong> Saisissez votre adresse EVM pour voir vos transactions RMM et calculer vos gains/pertes.
             </p>

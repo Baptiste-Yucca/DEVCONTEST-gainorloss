@@ -3,13 +3,13 @@ const TOKENS = {
     address: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a83',
     decimals: 6,
     symbol: 'USDC',
-    supplyAddress: '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1',
+    supplyAddress: '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1', 
     supplySymbol: 'armmUSDC',
     supplyV2Address: '0x05d909006cD38ba9E73db72C083081726B67971D',
     supplyV2Symbol: 'armmUSDC_V2',
     debtAddress: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
     debtSymbol: 'debtUSDC',
-    debtV2Address: '0xefEA0b5a48f1B936759a3279dcC3BA252884C764',
+    debtV2Address: '0xefEA0b5a48f1B936759a3279dcC3BA252884C764', //TBC
     debtV2Symbol: 'debtUSDC_V2',
     reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'
   },

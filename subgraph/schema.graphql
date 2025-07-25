@@ -1,0 +1,9 @@
+type Transfer @entity(immutable: true) {
+  id: ID!
+  from: Bytes!
+  to: Bytes!
+  amount: BigInt!
+  hashId: Bytes!
+  timestamp: BigInt!
+  token: String!
+} 
