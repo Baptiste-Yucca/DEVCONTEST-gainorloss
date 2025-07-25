@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import Chart from '../components/Chart';
 
-// Types pour les données de l'API
+// Types pour les données de l'API V3
 interface DailyDetail {
   date: string;
   timestamp: number;
@@ -14,6 +14,46 @@ interface DailyDetail {
   totalInterest: string;
   transactionAmount?: string;
   transactionType?: string;
+}
+
+// Types pour les données de l'API V2
+interface V2Transaction {
+  txHash: string;
+  amount: string;
+  amountFormatted: number;
+  timestamp: number;
+  type: 'borrow' | 'repay' | 'deposit' | 'withdraw';
+  reserve: 'rmmUSDC' | 'rmmWXDAI';
+}
+
+interface V2Transactions {
+  USDC: {
+    debt: V2Transaction[];
+    supply: V2Transaction[];
+  };
+  WXDAI: {
+    debt: V2Transaction[];
+    supply: V2Transaction[];
+  };
+}
+
+interface V2ApiResponse {
+  success: boolean;
+  data: {
+    address: string;
+    contract: string;
+    subgraphUrl: string;
+    stats: {
+      USDC: { debt: number; supply: number; total: number };
+      WXDAI: { debt: number; supply: number; total: number };
+    };
+    totals: {
+      USDC: { debt: number; supply: number };
+      WXDAI: { debt: number; supply: number };
+    };
+    transactions: V2Transactions;
+    timestamp: string;
+  };
 }
 
 // Types pour les balances des tokens
@@ -82,6 +122,7 @@ interface ApiResponse {
 export default function Home() {
   const [address, setAddress] = useState('');
   const [data, setData] = useState<ApiResponse | null>(null);
+  const [dataV2, setDataV2] = useState<V2ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenBalances, setTokenBalances] = useState<TokenBalances | null>(null);
@@ -99,12 +140,21 @@ export default function Home() {
     return `${day}/${month}/${year}`;
   };
 
-  // Fonction pour préparer les données pour Recharts
+  // Fonction pour préparer les données pour Recharts (V3)
   const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6) => {
     return dailyDetails.map(detail => ({
       date: detail.date,
       value: formatAmount(detail[valueKey] || '0', decimals),
       formattedDate: formatDate(detail.date)
+    }));
+  };
+
+  // Fonction pour préparer les données V2 pour Recharts
+  const prepareV2ChartData = (transactions: V2Transaction[]) => {
+    return transactions.map(tx => ({
+      date: new Date(tx.timestamp * 1000).toISOString().split('T')[0],
+      value: tx.amountFormatted,
+      formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR')
     }));
   };
 
@@ -140,6 +190,21 @@ export default function Home() {
       const result = await response.json();
       console.log('✅ Données reçues:', result);
       setData(result);
+      
+      // Récupérer les données RMM v2
+      console.log('🔄 Récupération des données RMM v2...');
+      try {
+        const v2Response = await fetch(`http://localhost:3001/api/rmm/v2/${address.trim()}`);
+        if (v2Response.ok) {
+          const v2Result = await v2Response.json();
+          console.log('✅ Données RMM v2 reçues:', v2Result);
+          setDataV2(v2Result);
+        } else {
+          console.log('⚠️ Erreur lors de la récupération des données RMM v2');
+        }
+      } catch (v2Error) {
+        console.log('⚠️ Erreur lors de la récupération des données RMM v2:', v2Error);
+      }
       
       // Si on a des données, récupérer les balances des tokens
       if (result?.data?.results?.[0]?.success) {
@@ -237,6 +302,7 @@ export default function Home() {
   const resetForm = () => {
     setAddress('');
     setData(null);
+    setDataV2(null);
     setError(null);
     setLoading(false);
     setTokenBalances(null);
@@ -406,6 +472,67 @@ export default function Home() {
                 type="area"
               />
             </div>
+
+            {/* Graphiques RMM v2 - Montants des transactions */}
+            {dataV2 && (
+              <>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Transactions RMM v2 - Montants</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+                      <h3 className="text-sm font-medium text-blue-700 mb-2">USDC</h3>
+                      <p className="text-lg font-bold text-blue-600">
+                        Dette: {dataV2.data.totals.USDC.debt.toFixed(2)} | Supply: {dataV2.data.totals.USDC.supply.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
+                      <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
+                      <p className="text-lg font-bold text-green-600">
+                        Dette: {dataV2.data.totals.WXDAI.debt.toFixed(2)} | Supply: {dataV2.data.totals.WXDAI.supply.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Graphiques USDC v2 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                  {/* Graphique Dette USDC v2 */}
+                  <Chart
+                    data={prepareV2ChartData(dataV2.data.transactions.USDC.debt)}
+                    title="Évolution de la dette USDC (v2)"
+                    color="#ef4444"
+                    type="line"
+                  />
+
+                  {/* Graphique Supply USDC v2 */}
+                  <Chart
+                    data={prepareV2ChartData(dataV2.data.transactions.USDC.supply)}
+                    title="Évolution du supply USDC (v2)"
+                    color="#10b981"
+                    type="area"
+                  />
+                </div>
+
+                {/* Graphiques WXDAI v2 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                  {/* Graphique Dette WXDAI v2 */}
+                  <Chart
+                    data={prepareV2ChartData(dataV2.data.transactions.WXDAI.debt)}
+                    title="Évolution de la dette WXDAI (v2)"
+                    color="#f59e0b"
+                    type="line"
+                  />
+
+                  {/* Graphique Supply WXDAI v2 */}
+                  <Chart
+                    data={prepareV2ChartData(dataV2.data.transactions.WXDAI.supply)}
+                    title="Évolution du supply WXDAI (v2)"
+                    color="#3b82f6"
+                    type="area"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Aucune donnée */}
             {data && (!usdcSummary || (usdcBorrowDetails.length === 0 && usdcSupplyDetails.length === 0)) && (

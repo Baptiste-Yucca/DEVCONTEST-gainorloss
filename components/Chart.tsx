@@ -50,10 +50,19 @@ const Chart: React.FC<ChartProps> = ({
 }) => {
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-        <div className="text-gray-400 text-4xl mb-4">📊</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucune donnée</h3>
-        <p className="text-gray-600 text-sm">Pas de données disponibles pour ce graphique</p>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+          {currentBalance && (
+            <div className="text-sm text-gray-600">
+              Balance actuelle: <span className="font-semibold" style={{ color }}>{currentBalance}</span>
+            </div>
+          )}
+        </div>
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-4xl mb-4">📊</div>
+          <p className="text-gray-600 text-sm">Pas de données disponibles pour ce graphique</p>
+        </div>
       </div>
     );
   }
