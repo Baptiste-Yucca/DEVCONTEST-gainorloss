@@ -406,7 +406,7 @@ export default function Home() {
 
             {/* Graphiques USDC */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Graphique Dette USDC */}
+            {/* Graphique Dette USDC */}
               <Chart
                 data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
                 title="Évolution de la dette USDC"
@@ -415,7 +415,7 @@ export default function Home() {
                 type="line"
               />
 
-              {/* Graphique Supply USDC */}
+            {/* Graphique Supply USDC */}
               <Chart
                 data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
                 title="Évolution du supply USDC"
@@ -423,7 +423,7 @@ export default function Home() {
                 currentBalance={tokenBalances?.armmUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.armmUSDC.balance}
                 type="area"
               />
-            </div>
+              </div>
 
             {/* Résumé WXDAI */}
             {wxdaiSummary && (
@@ -454,7 +454,7 @@ export default function Home() {
 
             {/* Graphiques WXDAI */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Graphique Dette WXDAI */}
+            {/* Graphique Dette WXDAI */}
               <Chart
                 data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
                 title="Évolution de la dette WXDAI"
@@ -462,7 +462,7 @@ export default function Home() {
                 currentBalance={tokenBalances?.debtWXDAI.balance === '0.00' ? 'N/A' : tokenBalances?.debtWXDAI.balance}
                 type="line"
               />
-
+                    
               {/* Graphique Supply WXDAI */}
               <Chart
                 data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
@@ -502,8 +502,8 @@ export default function Home() {
                     title="Évolution de la dette USDC (v2)"
                     color="#ef4444"
                     type="line"
-                  />
-
+                            />
+                    
                   {/* Graphique Supply USDC v2 */}
                   <Chart
                     data={prepareV2ChartData(dataV2.data.transactions.USDC.supply)}
