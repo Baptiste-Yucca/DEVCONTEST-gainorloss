@@ -5,6 +5,12 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   webpack: (config) => {
+    // Ignorer le dossier subgraph (utilisé pour les tests)
+    config.module.rules.push({
+      test: /\.(ts|tsx|js|jsx)$/,
+      exclude: /subgraph/,
+    });
+    
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
