@@ -177,7 +177,8 @@ export default function Home() {
     setData(null);
 
     try {
-      const apiUrl = `http://localhost:3001/api/rmm/v3/${address.trim()}`;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const apiUrl = `${backendUrl}/api/rmm/v3/${address.trim()}`;
       console.log('🚀 Appel API vers:', apiUrl);
       
       const response = await fetch(apiUrl);
@@ -194,7 +195,7 @@ export default function Home() {
       // Récupérer les données RMM v2
       console.log('🔄 Récupération des données RMM v2...');
       try {
-        const v2Response = await fetch(`http://localhost:3001/api/rmm/v2/${address.trim()}`);
+        const v2Response = await fetch(`${backendUrl}/api/rmm/v2/${address.trim()}`);
         if (v2Response.ok) {
           const v2Result = await v2Response.json();
           console.log('✅ Données RMM v2 reçues:', v2Result);
@@ -226,7 +227,8 @@ export default function Home() {
     try {
       console.log('💰 Récupération des balances via API backend...');
       
-      const response = await fetch(`http://localhost:3001/api/balances/v3/${userAddress}`);
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const response = await fetch(`${backendUrl}/api/balances/v3/${userAddress}`);
       
       if (!response.ok) {
         throw new Error(`Erreur API backend: ${response.status} ${response.statusText}`);
