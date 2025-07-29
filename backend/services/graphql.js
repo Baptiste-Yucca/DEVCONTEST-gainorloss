@@ -12,7 +12,66 @@ const client = new GraphQLClient(THEGRAPH_URL, {
   } : {}
 });
 
-// Requêtes GraphQL
+// Requête GraphQL optimisée - une seule requête pour toutes les transactions
+const ALL_TRANSACTIONS_QUERY = `
+  query GetAllTransactions($userAddress: String!) {
+    borrows: borrows(
+      first: 1000, 
+      where: { user_: { id: $userAddress } }, 
+      orderBy: timestamp, 
+      orderDirection: asc
+    ) {
+      txHash
+      reserve { id }
+      amount
+      timestamp
+    }
+    
+    supplies: supplies(
+      first: 1000, 
+      where: {
+        user_: { id: $userAddress }
+        reserve_in: [
+          "0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70",
+          "0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70"
+        ]
+      }
+      orderBy: timestamp, 
+      orderDirection: asc
+    ) {
+      txHash
+      reserve { id }
+      amount
+      timestamp
+    }
+    
+    withdraws: redeemUnderlyings(
+      first: 1000, 
+      where: { user_: { id: $userAddress } }, 
+      orderBy: timestamp, 
+      orderDirection: asc
+    ) {
+      txHash
+      reserve { id }
+      amount
+      timestamp
+    }
+    
+    repays: repays(
+      first: 1000, 
+      where: { user_: { id: $userAddress } }, 
+      orderBy: timestamp, 
+      orderDirection: asc
+    ) {
+      txHash
+      reserve { id }
+      amount
+      timestamp
+    }
+  }
+`;
+
+// Anciennes requêtes (gardées pour référence)
 const BORROWS_QUERY = `
   query GetBorrows($userAddress: String!) {
     borrows(
@@ -94,77 +153,22 @@ const REPAYS_QUERY = `
 `;
 
 /**
- * Récupère les emprunts d'une adresse
+ * Récupère toutes les transactions d'une adresse en une seule requête optimisée
  */
-async function fetchBorrows(userAddress) {
+async function fetchAllTransactions(userAddress, req = null) {
+  const timerName = req ? req.startTimer('graphql_all_transactions_optimized') : null;
+  
   try {
+    console.log(`🚀 Récupération optimisée de toutes les transactions pour ${userAddress}`);
+    
     const variables = { userAddress: userAddress.toLowerCase() };
-    const data = await client.request(BORROWS_QUERY, variables);
-    console.log(`GraphQL: ${data.borrows?.length || 0} borrows trouvés pour ${userAddress}`);
-    return data.borrows || [];
-  } catch (error) {
-    console.error(`Erreur GraphQL pour borrows:`, error);
-    throw new Error(`Erreur lors de la récupération des borrows: ${error.message}`);
-  }
-}
-
-/**
- * Récupère les dépôts d'une adresse
- */
-async function fetchSupplies(userAddress) {
-  try {
-    const variables = { userAddress: userAddress.toLowerCase() };
-    const data = await client.request(SUPPLIES_QUERY, variables);
-    console.log(`GraphQL: ${data.supplies?.length || 0} supplies trouvés pour ${userAddress}`);
-    return data.supplies || [];
-  } catch (error) {
-    console.error(`Erreur GraphQL pour supplies:`, error);
-    throw new Error(`Erreur lors de la récupération des supplies: ${error.message}`);
-  }
-}
-
-/**
- * Récupère les retraits d'une adresse
- */
-async function fetchWithdraws(userAddress) {
-  try {
-    const variables = { userAddress: userAddress.toLowerCase() };
-    const data = await client.request(WITHDRAWS_QUERY, variables);
-    console.log(`GraphQL: ${data.redeemUnderlyings?.length || 0} withdraws trouvés pour ${userAddress}`);
-    return data.redeemUnderlyings || [];
-  } catch (error) {
-    console.error(`Erreur GraphQL pour withdraws:`, error);
-    throw new Error(`Erreur lors de la récupération des withdraws: ${error.message}`);
-  }
-}
-
-/**
- * Récupère les remboursements d'une adresse
- */
-async function fetchRepays(userAddress) {
-  try {
-    const variables = { userAddress: userAddress.toLowerCase() };
-    const data = await client.request(REPAYS_QUERY, variables);
-    console.log(`GraphQL: ${data.repays?.length || 0} repays trouvés pour ${userAddress}`);
-    return data.repays || [];
-  } catch (error) {
-    console.error(`Erreur GraphQL pour repays:`, error);
-    throw new Error(`Erreur lors de la récupération des repays: ${error.message}`);
-  }
-}
-
-/**
- * Récupère toutes les transactions d'une adresse en une seule fois
- */
-async function fetchAllTransactions(userAddress) {
-  try {
-    // Récupérer toutes les transactions via TheGraph
-    const [borrows, supplies, withdraws, repays] = await Promise.all([
-      fetchBorrows(userAddress),
-      fetchSupplies(userAddress),
-      fetchWithdraws(userAddress),
-      fetchRepays(userAddress)
-    ]);
+    const data = await client.request(ALL_TRANSACTIONS_QUERY, variables);
+    
+    // Extraire les données avec les bonnes clés
+    const borrows = data.borrows || [];
+    const supplies = data.supplies || [];
+    const withdraws = data.withdraws || [];
+    const repays = data.repays || [];
     
     // Récupérer tous les hashes des transactions déjà obtenues
     const existingTxHashes = [
@@ -174,10 +178,23 @@ async function fetchAllTransactions(userAddress) {
       ...repays.map(tx => tx.txHash)
     ];
     
-    console.log(`📊 ${existingTxHashes.length} transactions TheGraph récupérées`);
+    console.log(`📊 ${existingTxHashes.length} transactions TheGraph récupérées en une seule requête`);
     
     // Récupérer les transferts de tokens via Gnosisscan (en excluant ceux déjà trouvés)
-    const tokenTransfers = await fetchTokenTransfers(userAddress, existingTxHashes);
+    const tokenTransfers = await fetchTokenTransfers(userAddress, existingTxHashes, req);
+    
+    if (req) {
+      req.stopTimer('graphql_all_transactions_optimized');
+      req.logEvent('graphql_all_transactions_optimized_completed', { 
+        address: userAddress,
+        borrows: borrows.length,
+        supplies: supplies.length,
+        withdraws: withdraws.length,
+        repays: repays.length,
+        tokenTransfers: tokenTransfers.total,
+        total: borrows.length + supplies.length + withdraws.length + repays.length + tokenTransfers.total
+      });
+    }
     
     return {
       borrows,
@@ -189,9 +206,42 @@ async function fetchAllTransactions(userAddress) {
     };
     
   } catch (error) {
-    console.error('Erreur lors de la récupération de toutes les transactions:', error);
+    if (req) {
+      req.stopTimer('graphql_all_transactions_optimized');
+      req.logEvent('graphql_all_transactions_optimized_error', { 
+        address: userAddress, 
+        error: error.message 
+      });
+    }
+    
+    console.error('Erreur lors de la récupération optimisée de toutes les transactions:', error);
     throw error;
   }
+}
+
+// Fonctions individuelles gardées pour compatibilité (mais dépréciées)
+async function fetchBorrows(userAddress, req = null) {
+  console.warn('⚠️ fetchBorrows() est déprécié, utilisez fetchAllTransactions()');
+  const allTransactions = await fetchAllTransactions(userAddress, req);
+  return allTransactions.borrows;
+}
+
+async function fetchSupplies(userAddress, req = null) {
+  console.warn('⚠️ fetchSupplies() est déprécié, utilisez fetchAllTransactions()');
+  const allTransactions = await fetchAllTransactions(userAddress, req);
+  return allTransactions.supplies;
+}
+
+async function fetchWithdraws(userAddress, req = null) {
+  console.warn('⚠️ fetchWithdraws() est déprécié, utilisez fetchAllTransactions()');
+  const allTransactions = await fetchAllTransactions(userAddress, req);
+  return allTransactions.withdraws;
+}
+
+async function fetchRepays(userAddress, req = null) {
+  console.warn('⚠️ fetchRepays() est déprécié, utilisez fetchAllTransactions()');
+  const allTransactions = await fetchAllTransactions(userAddress, req);
+  return allTransactions.repays;
 }
 
 module.exports = {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { fetchAllTransactions } = require('../services/graphql');
+const { getTransactionsWithCache } = require('../services/transaction-cache');
 const { calculateInterestForToken } = require('../services/interest-calculator');
 
 // Import depuis les constantes centralisées
@@ -18,14 +18,14 @@ function identifyStablecoin(reserveId) {
   return 'UNKNOWN';
 }
 
-
-
 /**
  * @route GET /api/rmm/v3/:address1/:address2?/:address3?
- * @desc Endpoint principal qui utilise /transactions/ pour récupérer les données
+ * @desc Endpoint principal qui utilise le cache SQLite pour récupérer les données
  * @access Public
  */
 router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
+  const requestTimer = req.startTimer('rmm_v3_endpoint');
+  
   try {
     const { address1, address2, address3 } = req.params;
     const addresses = [address1, address2, address3].filter(addr => addr);
@@ -55,11 +55,20 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
       });
     }
 
+    req.logEvent('rmm_v3_started', { 
+      addresses, 
+      count: addresses.length 
+    });
+
     const results = [];
     for (const address of addresses) {
+      const addressTimer = req.startTimer(`address_${address}`);
+      
       try {
-        // Récupérer directement les transactions pour cette adresse
-        const allTransactions = await fetchAllTransactions(address);
+        req.logEvent('processing_address', { address });
+        
+        // Récupérer les transactions depuis le cache ou TheGraph
+        const allTransactions = await getTransactionsWithCache(address, req);
         
         // Grouper les transactions par stablecoin
         const transactionsByStablecoin = {
@@ -137,7 +146,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           });
         }
 
-        // Traiter les transferts de tokens (others)
+        // Traiter les transferts de tokens (others) - seulement si pas en cache
         if (allTransactions.tokenTransfers) {
           // Traiter les transferts USDC
           if (allTransactions.tokenTransfers.usdc) {
@@ -246,7 +255,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
 
             if (allTokenTransactions.length > 0) {
               console.log(`💰 Calcul des intérêts pour ${stablecoin} (${allTokenTransactions.length} transactions)`);
-              const interestResult = await calculateInterestForToken(allTokenTransactions, stablecoin);
+              const interestResult = await calculateInterestForToken(allTokenTransactions, stablecoin, req);
               interestCalculations[stablecoin] = interestResult;
             } else {
               console.log(`💰 Aucune transaction pour ${stablecoin}, pas de calcul d'intérêts`);
@@ -269,6 +278,13 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           }
         }
 
+        req.stopTimer(`address_${address}`);
+        req.logEvent('address_processed_successfully', { 
+          address, 
+          totalTransactions: allTransactions.total || (allTransactions.borrows?.length + allTransactions.supplies?.length + allTransactions.withdraws?.length + allTransactions.repays?.length),
+          stablecoins: Object.keys(transactionsByStablecoin)
+        });
+
         results.push({ 
           address, 
           success: true, 
@@ -277,7 +293,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
             transactions: transactionsByStablecoin,
             interests: interestCalculations,
             summary: {
-              totalTransactions: allTransactions.total,
+              totalTransactions: allTransactions.total || (allTransactions.borrows?.length + allTransactions.supplies?.length + allTransactions.withdraws?.length + allTransactions.repays?.length),
               stablecoins: Object.keys(transactionsByStablecoin).map(stablecoin => ({
                 symbol: stablecoin,
                 ...transactionsByStablecoin[stablecoin].summary,
@@ -287,6 +303,12 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           }
         });
       } catch (error) {
+        req.stopTimer(`address_${address}`);
+        req.logEvent('address_processing_error', { 
+          address, 
+          error: error.message 
+        });
+        
         console.error(`Erreur pour l'adresse ${address}:`, error);
         results.push({ 
           address, 
@@ -298,6 +320,13 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
 
     const successfulResults = results.filter(r => r.success);
     const failedResults = results.filter(r => !r.success);
+
+    req.stopTimer('rmm_v3_endpoint');
+    req.logEvent('rmm_v3_completed', { 
+      totalAddresses: addresses.length,
+      successful: successfulResults.length,
+      failed: failedResults.length
+    });
 
     const response = {
       success: true,
@@ -316,6 +345,11 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
     res.json(response);
 
   } catch (error) {
+    req.stopTimer('rmm_v3_endpoint');
+    req.logEvent('rmm_v3_error', { 
+      error: error.message 
+    });
+    
     console.error('Erreur dans /api/rmm/v3:', error);
     res.status(500).json({
       error: 'Erreur lors du traitement des adresses',

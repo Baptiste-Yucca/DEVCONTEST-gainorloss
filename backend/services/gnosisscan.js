@@ -10,7 +10,9 @@ const { TOKENS, getSupplyTokenAddresses } = require('../../utils/constants.js');
 /**
  * Récupère le solde d'un token pour une adresse
  */
-async function fetchTokenBalance(address, tokenAddress) {
+async function fetchTokenBalance(address, tokenAddress, req = null) {
+  const timerName = req ? req.startTimer(`gnosisscan_balance_${tokenAddress}`) : null;
+  
   try {
     const url = `${GNOSISSCAN_API_URL}?module=account&action=tokenbalance&contractaddress=${tokenAddress}&address=${address}&tag=latest`;
     
@@ -35,12 +37,29 @@ async function fetchTokenBalance(address, tokenAddress) {
     const data = await response.json();
     
     if (data.status === '1') {
+      if (req) {
+        req.stopTimer(`gnosisscan_balance_${tokenAddress}`);
+        req.logEvent('gnosisscan_balance_completed', { 
+          address, 
+          tokenAddress, 
+          balance: data.result 
+        });
+      }
       return data.result;
     } else {
       throw new Error(`Erreur API Gnosisscan: ${data.message}`);
     }
     
   } catch (error) {
+    if (req) {
+      req.stopTimer(`gnosisscan_balance_${tokenAddress}`);
+      req.logEvent('gnosisscan_balance_error', { 
+        address, 
+        tokenAddress, 
+        error: error.message 
+      });
+    }
+    
     console.error(`Erreur lors de la récupération du solde ${tokenAddress}:`, error);
     return '0'; // Retourner 0 en cas d'erreur
   }
@@ -49,7 +68,9 @@ async function fetchTokenBalance(address, tokenAddress) {
 /**
  * Récupère tous les soldes des tokens RMM pour une adresse
  */
-async function fetchTokenBalances(address) {
+async function fetchTokenBalances(address, req = null) {
+  const timerName = req ? req.startTimer('gnosisscan_all_balances') : null;
+  
   try {
     console.log(`Gnosisscan: Récupération des soldes pour ${address}`);
     
@@ -65,7 +86,7 @@ async function fetchTokenBalances(address) {
     
     // Récupérer tous les soldes en parallèle
     const balancePromises = Object.entries(allTokenAddresses).map(async ([tokenName, tokenAddress]) => {
-      const balance = await fetchTokenBalance(address, tokenAddress);
+      const balance = await fetchTokenBalance(address, tokenAddress, req);
       return [tokenName, balance];
     });
     
@@ -73,6 +94,14 @@ async function fetchTokenBalances(address) {
     
     // Convertir en objet
     const balances = Object.fromEntries(results);
+    
+    if (req) {
+      req.stopTimer('gnosisscan_all_balances');
+      req.logEvent('gnosisscan_all_balances_completed', { 
+        address, 
+        balances 
+      });
+    }
     
     console.log(`Gnosisscan: Soldes récupérés pour ${address}:`, {
       armmUSDC: balances.armmUSDC,
@@ -84,6 +113,14 @@ async function fetchTokenBalances(address) {
     return balances;
     
   } catch (error) {
+    if (req) {
+      req.stopTimer('gnosisscan_all_balances');
+      req.logEvent('gnosisscan_all_balances_error', { 
+        address, 
+        error: error.message 
+      });
+    }
+    
     console.error('Erreur lors de la récupération des soldes:', error);
     throw new Error(`Erreur lors de la récupération des soldes: ${error.message}`);
   }
@@ -168,7 +205,9 @@ async function fetchAddressTransactions(address, startBlock = 0, endBlock = 9999
 /**
  * Récupère les transactions de transfert des tokens de supply pour une adresse
  */
-async function fetchTokenTransfers(userAddress, existingTxHashes = []) {
+async function fetchTokenTransfers(userAddress, existingTxHashes = [], req = null) {
+  const timerName = req ? req.startTimer('gnosisscan_token_transfers') : null;
+  
   try {
     console.log(`🔄 Récupération des transferts de tokens pour ${userAddress}`);
     
@@ -178,6 +217,8 @@ async function fetchTokenTransfers(userAddress, existingTxHashes = []) {
     // Récupérer les transferts pour armmUSDC et armmWXDAI
     const supplyTokenAddresses = getSupplyTokenAddresses();
     for (const [tokenSymbol, contractAddress] of Object.entries(supplyTokenAddresses)) {
+      
+      const tokenTimerName = req ? req.startTimer(`gnosisscan_transfers_${tokenSymbol}`) : null;
       
       console.log(`📊 Récupération des transferts ${tokenSymbol}...`);
       
@@ -247,6 +288,15 @@ async function fetchTokenTransfers(userAddress, existingTxHashes = []) {
         });
         
         allTransfers.push(...transformedTransfers);
+        
+        if (req) {
+          req.stopTimer(`gnosisscan_transfers_${tokenSymbol}`);
+          req.logEvent('gnosisscan_transfers_token_completed', { 
+            tokenSymbol, 
+            count: transformedTransfers.length 
+          });
+        }
+        
         console.log(`📊 ${transformedTransfers.length} nouveaux transferts ${tokenSymbol} récupérés`);
       }
       
@@ -276,6 +326,17 @@ async function fetchTokenTransfers(userAddress, existingTxHashes = []) {
         return txWithoutSymbol;
       });
     
+    if (req) {
+      req.stopTimer('gnosisscan_token_transfers');
+      req.logEvent('gnosisscan_token_transfers_completed', { 
+        address: userAddress,
+        usdc: usdcTransfers.length,
+        wxdai: wxdaiTransfers.length,
+        others: otherTransfers.length,
+        total: allTransfers.length
+      });
+    }
+    
     console.log(`✅ Total: ${usdcTransfers.length} USDC, ${wxdaiTransfers.length} WXDAI, ${otherTransfers.length} autres`);
     
     return {
@@ -286,6 +347,14 @@ async function fetchTokenTransfers(userAddress, existingTxHashes = []) {
     };
     
   } catch (error) {
+    if (req) {
+      req.stopTimer('gnosisscan_token_transfers');
+      req.logEvent('gnosisscan_token_transfers_error', { 
+        address: userAddress, 
+        error: error.message 
+      });
+    }
+    
     console.error(`Erreur lors de la récupération des transferts de tokens:`, error);
     return {
       usdcWxdai: [],

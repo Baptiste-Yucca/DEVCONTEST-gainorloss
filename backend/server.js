@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const timetracker = require('./middleware/timetracker');
 require('dotenv').config();
 
 const app = express();
@@ -20,6 +21,9 @@ app.use(cors(corsOptions));
 // Middleware pour parser le JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Middleware de tracking des performances
+app.use(timetracker);
 
 // Routes API
 app.use('/api/health', require('./routes/health'));

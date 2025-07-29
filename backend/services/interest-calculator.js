@@ -45,7 +45,9 @@ function initDatabase() {
 /**
  * Récupère les taux depuis la base de données pour un token et une période
  */
-async function fetchRatesFromDB(token, fromTimestamp) {
+async function fetchRatesFromDB(token, fromTimestamp, req = null) {
+  const timerName = req ? req.startTimer(`db_rates_${token}`) : null;
+  
   try {
     const db = await initDatabase();
     
@@ -68,9 +70,26 @@ async function fetchRatesFromDB(token, fromTimestamp) {
       db.all(sql, [token, fromDateStr], (err, rows) => {
         db.close();
         if (err) {
+          if (req) {
+            req.stopTimer(`db_rates_${token}`);
+            req.logEvent('db_rates_error', { 
+              token, 
+              fromDate: fromDateStr, 
+              error: err.message 
+            });
+          }
           console.error('Erreur lors de la récupération des taux:', err);
           reject(err);
           return;
+        }
+        
+        if (req) {
+          req.stopTimer(`db_rates_${token}`);
+          req.logEvent('db_rates_completed', { 
+            token, 
+            fromDate: fromDateStr, 
+            count: rows?.length || 0 
+          });
         }
         
         console.log(`📊 ${rows.length} taux récupérés depuis la DB pour ${token}`);
@@ -79,6 +98,15 @@ async function fetchRatesFromDB(token, fromTimestamp) {
     });
     
   } catch (error) {
+    if (req) {
+      req.stopTimer(`db_rates_${token}`);
+      req.logEvent('db_rates_error', { 
+        token, 
+        fromTimestamp, 
+        error: error.message 
+      });
+    }
+    
     console.error('Erreur lors de la récupération des taux depuis la DB:', error);
     throw error;
   }
@@ -107,7 +135,9 @@ function getPreviousDayMidnight(timestamp) {
 /**
  * Calcule les intérêts pour les emprunts (borrows) avec précision intra-journalière
  */
-async function calculateBorrowInterest(transactions, token) {
+async function calculateBorrowInterest(transactions, token, req = null) {
+  const timerName = req ? req.startTimer(`interest_borrow_${token}`) : null;
+  
   console.log(`💰 Calcul des intérêts d'emprunt pour ${token} (précision intra-journalière)`);
   
   // Filtrer seulement les transactions d'emprunt et de remboursement
@@ -118,6 +148,10 @@ async function calculateBorrowInterest(transactions, token) {
 
   
   if (debtTransactions.length === 0) {
+    if (req) {
+      req.stopTimer(`interest_borrow_${token}`);
+      req.logEvent('interest_borrow_empty', { token });
+    }
     console.log(`Aucune transaction d'emprunt/remboursement pour ${token}`);
     return {
       totalInterest: 0,
@@ -139,7 +173,7 @@ async function calculateBorrowInterest(transactions, token) {
   console.log(`📅 Période de calcul: ${new Date(startTimestamp * 1000).toISOString()} → ${new Date(endTimestamp * 1000).toISOString()}`);
   
   // Récupérer tous les taux d'intérêt depuis la base de données
-  const allRates = await fetchRatesFromDB(token, startTimestamp);
+  const allRates = await fetchRatesFromDB(token, startTimestamp, req);
   
   // Créer un Map pour un accès rapide aux taux par date
   const ratesByDate = new Map();
@@ -212,7 +246,18 @@ async function calculateBorrowInterest(transactions, token) {
         
         // Appliquer la transaction (borrow ou repay)
         let txAmount = 0n;
-        txAmount = BigInt(tx.amount);
+        
+        // Vérifier que tx.amount existe et n'est pas undefined
+        if (!tx.amount) {
+          console.warn(`⚠️ Transaction sans montant détectée:`, tx);
+          continue; // Passer à la transaction suivante
+        }
+        
+        if (token === 'USDC') {
+          txAmount = BigInt(tx.amount);
+        } else {
+          txAmount = BigInt(tx.amount);
+        }
         
         if (tx.transactionType === 'borrow') {
           runningAmount += txAmount;
@@ -366,6 +411,15 @@ async function calculateBorrowInterest(transactions, token) {
   
   console.log(`💰 Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
   
+  if (req) {
+    req.stopTimer(`interest_borrow_${token}`);
+    req.logEvent('interest_borrow_completed', { 
+      token, 
+      days: dailyDetails.length, 
+      totalInterest: totalInterest.toString() 
+    });
+  }
+  
   return {
     totalInterest: totalInterest.toString(),
     dailyDetails,
@@ -381,7 +435,9 @@ async function calculateBorrowInterest(transactions, token) {
 /**
  * Calcule les intérêts pour les dépôts (supplies) avec précision intra-journalière
  */
-async function calculateSupplyInterest(transactions, token) {
+async function calculateSupplyInterest(transactions, token, req = null) {
+  const timerName = req ? req.startTimer(`interest_supply_${token}`) : null;
+  
   console.log(`💰 Calcul des intérêts de dépôt pour ${token} (précision intra-journalière)`);
   
   // Filtrer seulement les transactions de dépôt et de retrait (y compris les transferts autres)
@@ -393,6 +449,10 @@ async function calculateSupplyInterest(transactions, token) {
   ).sort((a, b) => a.timestamp - b.timestamp);
   
   if (supplyTransactions.length === 0) {
+    if (req) {
+      req.stopTimer(`interest_supply_${token}`);
+      req.logEvent('interest_supply_empty', { token });
+    }
     console.log(`Aucune transaction de dépôt/retrait pour ${token}`);
     return {
       totalInterest: 0,
@@ -415,7 +475,7 @@ async function calculateSupplyInterest(transactions, token) {
   console.log(`📅 Période de calcul: ${new Date(startTimestamp * 1000).toISOString()} → ${new Date(endTimestamp * 1000).toISOString()}`);
   
   // Récupérer tous les taux d'intérêt depuis la base de données
-  const allRates = await fetchRatesFromDB(token, startTimestamp);
+  const allRates = await fetchRatesFromDB(token, startTimestamp, req);
   
   // Créer un Map pour un accès rapide aux taux par date
   const ratesByDate = new Map();
@@ -673,6 +733,15 @@ async function calculateSupplyInterest(transactions, token) {
   
   console.log(`💰 Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
   
+  if (req) {
+    req.stopTimer(`interest_supply_${token}`);
+    req.logEvent('interest_supply_completed', { 
+      token, 
+      days: dailyDetails.length, 
+      totalInterest: totalInterest.toString() 
+    });
+  }
+  
   return {
     totalInterest: totalInterest.toString(),
     dailyDetails,
@@ -690,18 +759,30 @@ async function calculateSupplyInterest(transactions, token) {
 /**
  * Calcule les intérêts pour un token donné et retourne un relevé journalier
  */
-async function calculateInterestForToken(transactions, token) {
+async function calculateInterestForToken(transactions, token, req = null) {
+  const timerName = req ? req.startTimer(`interest_total_${token}`) : null;
+  
   console.log(`🚀 Calcul des intérêts pour ${token}`);
   
   try {
     // Calculer les intérêts d'emprunt
-    const borrowInterest = await calculateBorrowInterest(transactions, token);
+    const borrowInterest = await calculateBorrowInterest(transactions, token, req);
     
     // Calculer les intérêts de dépôt
-    const supplyInterest = await calculateSupplyInterest(transactions, token);
+    const supplyInterest = await calculateSupplyInterest(transactions, token, req);
     
     // Créer un relevé journalier combiné
     const dailyStatement = createDailyStatement(borrowInterest.dailyDetails, supplyInterest.dailyDetails, token);
+    
+    if (req) {
+      req.stopTimer(`interest_total_${token}`);
+      req.logEvent('interest_total_completed', { 
+        token, 
+        borrowInterest: borrowInterest.totalInterest,
+        supplyInterest: supplyInterest.totalInterest,
+        netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
+      });
+    }
     
     return {
       token,
@@ -716,6 +797,14 @@ async function calculateInterestForToken(transactions, token) {
     };
     
   } catch (error) {
+    if (req) {
+      req.stopTimer(`interest_total_${token}`);
+      req.logEvent('interest_total_error', { 
+        token, 
+        error: error.message 
+      });
+    }
+    
     console.error(`Erreur lors du calcul des intérêts pour ${token}:`, error);
     throw error;
   }
