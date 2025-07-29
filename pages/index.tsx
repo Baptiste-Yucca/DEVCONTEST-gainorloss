@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import Chart from '../components/Chart';
+import TransactionsTable from '../components/TransactionsTable';
 
 // Types pour les données de l'API V3
 interface DailyDetail {
@@ -126,6 +127,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenBalances, setTokenBalances] = useState<TokenBalances | null>(null);
+  const [isV3Collapsed, setIsV3Collapsed] = useState(false);
+  const [isV2Collapsed, setIsV2Collapsed] = useState(false);
 
   // Fonction pour formater les montants (conversion depuis base units)
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -156,6 +159,110 @@ export default function Home() {
       value: tx.amountFormatted,
       formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR')
     }));
+  };
+
+  // Fonction pour préparer toutes les transactions pour le tableau
+  const prepareAllTransactions = () => {
+    const allTransactions: any[] = [];
+
+    // Ajouter les transactions USDC
+    if (data?.data?.results?.[0]?.data?.interests?.USDC) {
+      const usdcData = data.data.results[0].data.interests.USDC;
+      
+      // Transactions de dette USDC
+      usdcData.borrow.dailyDetails.forEach((detail: any) => {
+        if (detail.transactionAmount && detail.transactionType) {
+          allTransactions.push({
+            timestamp: detail.timestamp,
+            amount: detail.transactionAmount,
+            type: detail.transactionType === 'borrow' ? 'borrow' : 'repay',
+            token: 'USDC',
+            hash: detail.hash || 'unknown'
+          });
+        }
+      });
+
+      // Transactions de supply USDC
+      usdcData.supply.dailyDetails.forEach((detail: any) => {
+        if (detail.transactionAmount && detail.transactionType) {
+          allTransactions.push({
+            timestamp: detail.timestamp,
+            amount: detail.transactionAmount,
+            type: detail.transactionType === 'deposit' ? 'deposit' : 'withdraw',
+            token: 'USDC',
+            hash: detail.hash || 'unknown'
+          });
+        }
+      });
+    }
+
+    // Ajouter les transactions WXDAI
+    if (data?.data?.results?.[0]?.data?.interests?.WXDAI) {
+      const wxdaiData = data.data.results[0].data.interests.WXDAI;
+      
+      // Transactions de dette WXDAI
+      wxdaiData.borrow.dailyDetails.forEach((detail: any) => {
+        if (detail.transactionAmount && detail.transactionType) {
+          allTransactions.push({
+            timestamp: detail.timestamp,
+            amount: detail.transactionAmount,
+            type: detail.transactionType === 'borrow' ? 'borrow' : 'repay',
+            token: 'WXDAI',
+            hash: detail.hash || 'unknown'
+          });
+        }
+      });
+
+      // Transactions de supply WXDAI
+      wxdaiData.supply.dailyDetails.forEach((detail: any) => {
+        if (detail.transactionAmount && detail.transactionType) {
+          allTransactions.push({
+            timestamp: detail.timestamp,
+            amount: detail.transactionAmount,
+            type: detail.transactionType === 'deposit' ? 'deposit' : 'withdraw',
+            token: 'WXDAI',
+            hash: detail.hash || 'unknown'
+          });
+        }
+      });
+    }
+
+    // Trier par timestamp décroissant (plus récent en premier)
+    return allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+  };
+
+  // Fonction pour préparer les transactions V2
+  const prepareV2Transactions = () => {
+    const v2Transactions: any[] = [];
+
+    // Ajouter les transactions de dette WXDAI V2
+    if (dataV2?.data?.transactions?.WXDAI?.debt) {
+      dataV2.data.transactions.WXDAI.debt.forEach((tx: any) => {
+        v2Transactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type === 'borrow' ? 'borrow' : 'repay',
+          token: 'WXDAI',
+          hash: tx.txHash
+        });
+      });
+    }
+
+    // Ajouter les transactions de supply WXDAI V2
+    if (dataV2?.data?.transactions?.WXDAI?.supply) {
+      dataV2.data.transactions.WXDAI.supply.forEach((tx: any) => {
+        v2Transactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type === 'deposit' ? 'deposit' : 'withdraw',
+          token: 'WXDAI',
+          hash: tx.txHash
+        });
+      });
+    }
+
+    // Trier par timestamp décroissant (plus récent en premier)
+    return v2Transactions.sort((a, b) => b.timestamp - a.timestamp);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -207,12 +314,15 @@ export default function Home() {
         console.log('⚠️ Erreur lors de la récupération des données RMM v2:', v2Error);
       }
       
-      // Si on a des données, récupérer les balances des tokens
-      if (result?.data?.results?.[0]?.success) {
-        console.log('💰 Récupération des balances des tokens...');
+      // Récupérer les balances des tokens (même si pas de données)
+      console.log('💰 Récupération des balances des tokens...');
+      try {
         const balances = await fetchTokenBalances(address.trim());
         setTokenBalances(balances);
         console.log('✅ Balances récupérées:', balances);
+      } catch (balanceError) {
+        console.error('❌ Erreur lors de la récupération des balances:', balanceError);
+        // En cas d'erreur, on garde tokenBalances à null pour afficher "N/A" dans les graphiques
       }
     } catch (err) {
       console.error('❌ Erreur lors de la récupération des données:', err);
@@ -456,7 +566,7 @@ export default function Home() {
                 data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
                 title="Évolution de la dette USDC"
                 color="#ef4444"
-                currentBalance={tokenBalances?.debtUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.debtUSDC.balance}
+                currentBalance={tokenBalances?.debtUSDC.balance === '0.00' ? '0' : tokenBalances?.debtUSDC.balance}
                 type="line"
                 tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
                 userAddress={address}
@@ -467,7 +577,7 @@ export default function Home() {
                 data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
                 title="Évolution du supply USDC"
                 color="#10b981"
-                currentBalance={tokenBalances?.armmUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.armmUSDC.balance}
+                currentBalance={tokenBalances?.armmUSDC.balance === '0.00' ? '0' : tokenBalances?.armmUSDC.balance}
                 type="area"
                 tokenAddress="0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1"
                 userAddress={address}
@@ -508,7 +618,7 @@ export default function Home() {
                 data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
                 title="Évolution de la dette WXDAI"
                 color="#f59e0b"
-                currentBalance={tokenBalances?.debtWXDAI.balance === '0.00' ? 'N/A' : tokenBalances?.debtWXDAI.balance}
+                currentBalance={tokenBalances?.debtWXDAI.balance === '0.00' ? '0' : tokenBalances?.debtWXDAI.balance}
                 type="line"
                 tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
                 userAddress={address}
@@ -519,7 +629,7 @@ export default function Home() {
                 data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
                 title="Évolution du supply WXDAI"
                 color="#3b82f6"
-                currentBalance={tokenBalances?.armmWXDAI.balance}
+                currentBalance={tokenBalances?.armmWXDAI.balance === '0.00' ? '0' : tokenBalances?.armmWXDAI.balance}
                 type="area"
                 tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
                 userAddress={address}
@@ -531,39 +641,51 @@ export default function Home() {
               <>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Transactions RMM v2 - Montants</h2>
-                  <div className="grid grid-cols-1 gap-6 mb-6">
-                    <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
-                      <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
-                      <p className="text-lg font-bold text-green-600">
-                        Dette: {dataV2.data.totals.WXDAI.debt.toFixed(2)} | Supply: {dataV2.data.totals.WXDAI.supply.toFixed(2)}
+                  
+                  {/* Vérifier si le wallet a des transactions V2 */}
+                  {(!dataV2.data.transactions.WXDAI.debt || dataV2.data.transactions.WXDAI.debt.length === 0) && 
+                   (!dataV2.data.transactions.WXDAI.supply || dataV2.data.transactions.WXDAI.supply.length === 0) ? (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">😢</div>
+                      <p className="text-lg text-gray-600">
+                        Ce wallet est trop jeune et n'a jamais connu la V2 :'(
                       </p>
                     </div>
-                  </div>
-                </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 gap-6 mb-6">
+                        <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
+                          <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
+                          <p className="text-lg font-bold text-green-600">
+                            Dette: {dataV2.data.totals.WXDAI.debt.toFixed(2)} | Supply: {dataV2.data.totals.WXDAI.supply.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
 
+                      {/* Graphiques WXDAI v2 */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                        {/* Graphique Dette WXDAI v2 */}
+                        <Chart
+                          data={prepareV2ChartData(dataV2.data.transactions.WXDAI.debt)}
+                          title="Évolution de la dette WXDAI (v2)"
+                          color="#f59e0b"
+                          type="line"
+                          tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
+                          userAddress={address}
+                        />
 
-
-                {/* Graphiques WXDAI v2 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  {/* Graphique Dette WXDAI v2 */}
-                  <Chart
-                    data={prepareV2ChartData(dataV2.data.transactions.WXDAI.debt)}
-                    title="Évolution de la dette WXDAI (v2)"
-                    color="#f59e0b"
-                    type="line"
-                    tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
-                    userAddress={address}
-                  />
-
-                  {/* Graphique Supply WXDAI v2 */}
-                  <Chart
-                    data={prepareV2ChartData(dataV2.data.transactions.WXDAI.supply)}
-                    title="Évolution du supply WXDAI (v2)"
-                    color="#3b82f6"
-                    type="area"
-                    tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
-                    userAddress={address}
-                  />
+                        {/* Graphique Supply WXDAI v2 */}
+                        <Chart
+                          data={prepareV2ChartData(dataV2.data.transactions.WXDAI.supply)}
+                          title="Évolution du supply WXDAI (v2)"
+                          color="#3b82f6"
+                          type="area"
+                          tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
+                          userAddress={address}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -575,6 +697,28 @@ export default function Home() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Aucune donnée</h2>
                 <p className="text-gray-600">Aucune transaction RMM trouvée pour cette adresse</p>
               </div>
+            )}
+
+            {/* Tableau des transactions V3 */}
+            {(data && (usdcBorrowDetails.length > 0 || usdcSupplyDetails.length > 0 || wxdaiBorrowDetails.length > 0 || wxdaiSupplyDetails.length > 0)) && (
+              <TransactionsTable 
+                transactions={prepareAllTransactions()}
+                userAddress={address}
+                title="Transactions V3"
+                isCollapsed={isV3Collapsed}
+                onToggleCollapse={() => setIsV3Collapsed(!isV3Collapsed)}
+              />
+            )}
+
+            {/* Tableau des transactions V2 */}
+            {dataV2 && (dataV2.data.transactions.WXDAI.debt.length > 0 || dataV2.data.transactions.WXDAI.supply.length > 0) && (
+              <TransactionsTable 
+                transactions={prepareV2Transactions()}
+                userAddress={address}
+                title="Transactions V2"
+                isCollapsed={isV2Collapsed}
+                onToggleCollapse={() => setIsV2Collapsed(!isV2Collapsed)}
+              />
             )}
           </div>
         </div>
