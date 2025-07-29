@@ -14,8 +14,23 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 
 // Configuration CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://gainorloss.mybots.fun'
+];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Permettre les requêtes sans origin (comme les apps mobiles)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS bloqué pour:', origin);
+      callback(new Error('Non autorisé par CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
