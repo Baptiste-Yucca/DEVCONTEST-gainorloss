@@ -4,6 +4,12 @@ const path = require('path');
 // Chemin vers la base de données
 const DB_PATH = path.join(__dirname, '../../data/transactions.db');
 
+// Configuration de l'expiration du cache (en heures)
+const CACHE_EXPIRATION_HOURS = process.env.CACHE_EXPIRATION_HOURS || 12;
+const CACHE_EXPIRATION_MS = CACHE_EXPIRATION_HOURS * 60 * 60 * 1000;
+
+console.log(`⚙️  Configuration cache: expiration = ${CACHE_EXPIRATION_HOURS}h`);
+
 /**
  * Initialise la connexion à la base de données
  */
@@ -38,11 +44,21 @@ async function createTables() {
           type TEXT NOT NULL,
           token TEXT NOT NULL,
           reserve_id TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_address, tx_hash, type)
+        );
+        
+        CREATE TABLE IF NOT EXISTS user_cache_status (
+          user_address TEXT PRIMARY KEY,
+          last_updated_timestamp INTEGER NOT NULL,
+          transaction_count INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         
         CREATE INDEX IF NOT EXISTS idx_user_address ON user_transactions(user_address);
         CREATE INDEX IF NOT EXISTS idx_tx_hash ON user_transactions(tx_hash);
+        CREATE INDEX IF NOT EXISTS idx_timestamp ON user_transactions(timestamp);
       `;
       
       db.exec(sql, (err) => {
@@ -64,7 +80,76 @@ async function createTables() {
 }
 
 /**
- * Vérifie si un utilisateur a des transactions en cache
+ * Vérifie si le cache d'un utilisateur a expiré
+ */
+function isCacheExpired(lastUpdatedTimestamp) {
+  const now = Date.now();
+  const cacheAge = now - (lastUpdatedTimestamp * 1000);
+  return cacheAge > CACHE_EXPIRATION_MS;
+}
+
+/**
+ * Nettoie les caches expirés
+ */
+async function cleanupExpiredCache() {
+  try {
+    const db = await initDatabase();
+    
+    return new Promise((resolve, reject) => {
+      const now = Date.now();
+      const expirationTimestamp = Math.floor((now - CACHE_EXPIRATION_MS) / 1000);
+      
+      // Supprimer les statuts de cache expirés
+      const deleteExpiredStatusSql = `
+        DELETE FROM user_cache_status 
+        WHERE last_updated_timestamp < ?
+      `;
+      
+      db.run(deleteExpiredStatusSql, [expirationTimestamp], function(err) {
+        if (err) {
+          db.close();
+          reject(err);
+          return;
+        }
+        
+        const expiredStatusCount = this.changes;
+        
+        // Supprimer les transactions des utilisateurs expirés
+        const deleteExpiredTransactionsSql = `
+          DELETE FROM user_transactions 
+          WHERE user_address IN (
+            SELECT user_address 
+            FROM user_cache_status 
+            WHERE last_updated_timestamp < ?
+          )
+        `;
+        
+        db.run(deleteExpiredTransactionsSql, [expirationTimestamp], function(err) {
+          db.close();
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          const expiredTransactionsCount = this.changes;
+          
+          if (expiredStatusCount > 0 || expiredTransactionsCount > 0) {
+            console.log(`🧹 Nettoyage cache: ${expiredStatusCount} utilisateurs, ${expiredTransactionsCount} transactions expirées`);
+          }
+          
+          resolve({ expiredStatusCount, expiredTransactionsCount });
+        });
+      });
+    });
+    
+  } catch (error) {
+    console.error('Erreur lors du nettoyage du cache:', error);
+    return { expiredStatusCount: 0, expiredTransactionsCount: 0 };
+  }
+}
+
+/**
+ * Vérifie si un utilisateur a des transactions en cache (non expirées)
  */
 async function hasUserTransactions(userAddress) {
   try {
@@ -72,9 +157,10 @@ async function hasUserTransactions(userAddress) {
     
     return new Promise((resolve, reject) => {
       const sql = `
-        SELECT COUNT(*) as count 
-        FROM user_transactions 
-        WHERE user_address = ?
+        SELECT COUNT(*) as count, last_updated_timestamp
+        FROM user_transactions ut
+        JOIN user_cache_status ucs ON ut.user_address = ucs.user_address
+        WHERE ut.user_address = ?
       `;
       
       db.get(sql, [userAddress.toLowerCase()], (err, row) => {
@@ -84,13 +170,91 @@ async function hasUserTransactions(userAddress) {
           reject(err);
           return;
         }
-        resolve(row.count > 0);
+        
+        if (row.count > 0) {
+          // Vérifier si le cache a expiré
+          if (isCacheExpired(row.last_updated_timestamp)) {
+            console.log(`⏰ Cache expiré pour ${userAddress} (${CACHE_EXPIRATION_HOURS}h)`);
+            resolve(false);
+          } else {
+            resolve(true);
+          }
+        } else {
+          resolve(false);
+        }
       });
     });
     
   } catch (error) {
     console.error('Erreur lors de la vérification du cache:', error);
     return false;
+  }
+}
+
+/**
+ * Récupère le statut de cache d'un utilisateur
+ */
+async function getCacheStatus(userAddress) {
+  try {
+    const db = await initDatabase();
+    
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT last_updated_timestamp, transaction_count
+        FROM user_cache_status 
+        WHERE user_address = ?
+      `;
+      
+      db.get(sql, [userAddress.toLowerCase()], (err, row) => {
+        db.close();
+        if (err) {
+          console.error('Erreur lors de la récupération du statut de cache:', err);
+          reject(err);
+          return;
+        }
+        
+        if (row && !isCacheExpired(row.last_updated_timestamp)) {
+          resolve(row);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+    
+  } catch (error) {
+    console.error('Erreur lors de la récupération du statut de cache:', error);
+    return null;
+  }
+}
+
+/**
+ * Met à jour le statut de cache d'un utilisateur
+ */
+async function updateCacheStatus(userAddress, lastUpdatedTimestamp, transactionCount) {
+  try {
+    const db = await initDatabase();
+    
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT OR REPLACE INTO user_cache_status 
+        (user_address, last_updated_timestamp, transaction_count, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      `;
+      
+      db.run(sql, [userAddress.toLowerCase(), lastUpdatedTimestamp, transactionCount], function(err) {
+        db.close();
+        if (err) {
+          console.error('Erreur lors de la mise à jour du statut de cache:', err);
+          reject(err);
+          return;
+        }
+        resolve(this.changes);
+      });
+    });
+    
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du statut de cache:', error);
+    throw error;
   }
 }
 
@@ -180,6 +344,7 @@ async function storeUserTransactions(userAddress, transactions) {
         const stmt = db.prepare(insertSql);
         
         let totalInserted = 0;
+        let maxTimestamp = 0;
         
         // Insérer les borrows
         transactions.borrows?.forEach(tx => {
@@ -194,6 +359,7 @@ async function storeUserTransactions(userAddress, transactions) {
             tx.reserve.id
           ]);
           totalInserted++;
+          maxTimestamp = Math.max(maxTimestamp, tx.timestamp);
         });
         
         // Insérer les supplies
@@ -209,6 +375,7 @@ async function storeUserTransactions(userAddress, transactions) {
             tx.reserve.id
           ]);
           totalInserted++;
+          maxTimestamp = Math.max(maxTimestamp, tx.timestamp);
         });
         
         // Insérer les withdraws
@@ -224,6 +391,7 @@ async function storeUserTransactions(userAddress, transactions) {
             tx.reserve.id
           ]);
           totalInserted++;
+          maxTimestamp = Math.max(maxTimestamp, tx.timestamp);
         });
         
         // Insérer les repays
@@ -239,6 +407,7 @@ async function storeUserTransactions(userAddress, transactions) {
             tx.reserve.id
           ]);
           totalInserted++;
+          maxTimestamp = Math.max(maxTimestamp, tx.timestamp);
         });
         
         stmt.finalize((err) => {
@@ -248,15 +417,30 @@ async function storeUserTransactions(userAddress, transactions) {
             return;
           }
           
-          db.run('COMMIT', (err) => {
-            db.close();
-            if (err) {
-              reject(err);
-              return;
-            }
-            console.log(`✅ ${totalInserted} transactions stockées pour ${userAddress}`);
-            resolve(totalInserted);
-          });
+          // Mettre à jour le statut de cache
+          const totalCount = (transactions.borrows?.length || 0) + 
+                           (transactions.supplies?.length || 0) + 
+                           (transactions.withdraws?.length || 0) + 
+                           (transactions.repays?.length || 0);
+          
+          db.run('UPDATE user_cache_status SET last_updated_timestamp = ?, transaction_count = ?, updated_at = CURRENT_TIMESTAMP WHERE user_address = ?', 
+            [maxTimestamp, totalCount, userAddress.toLowerCase()], (err) => {
+              if (err) {
+                db.run('ROLLBACK');
+                reject(err);
+                return;
+              }
+              
+              db.run('COMMIT', (err) => {
+                db.close();
+                if (err) {
+                  reject(err);
+                  return;
+                }
+                console.log(`✅ ${totalInserted} transactions stockées pour ${userAddress} (max timestamp: ${maxTimestamp})`);
+                resolve({ totalInserted, maxTimestamp });
+              });
+            });
         });
       });
     });
@@ -289,6 +473,9 @@ async function getTransactionsWithCache(userAddress, req = null) {
   const timerName = req ? req.startTimer('cache_check') : null;
   
   try {
+    // Nettoyer les caches expirés (une fois par requête)
+    await cleanupExpiredCache();
+    
     // Vérifier si l'utilisateur a des données en cache
     const hasCache = await hasUserTransactions(userAddress);
     
@@ -296,15 +483,43 @@ async function getTransactionsWithCache(userAddress, req = null) {
       req.stopTimer('cache_check');
       req.logEvent('cache_check_completed', { 
         address: userAddress, 
-        hasCache 
+        hasCache,
+        expirationHours: CACHE_EXPIRATION_HOURS
       });
     }
     
     if (hasCache) {
       console.log(`📦 Récupération depuis le cache pour ${userAddress}`);
-      return await getUserTransactions(userAddress);
+      
+      // Récupérer les transactions en cache
+      const cachedTransactions = await getUserTransactions(userAddress);
+      
+      // Vérifier s'il y a de nouvelles transactions
+      const cacheStatus = await getCacheStatus(userAddress);
+      if (cacheStatus) {
+        console.log(`🔄 Vérification des nouvelles transactions depuis ${new Date(cacheStatus.last_updated_timestamp * 1000).toISOString()}`);
+        
+        // Utiliser la fonction GraphQL pour récupérer les nouvelles transactions
+        const { fetchNewTransactions } = require('./graphql');
+        const newTransactions = await fetchNewTransactions(userAddress, cacheStatus.last_updated_timestamp, req);
+        
+        if (newTransactions.total > 0) {
+          console.log(`🆕 ${newTransactions.total} nouvelles transactions trouvées`);
+          
+          // Stocker seulement les nouvelles transactions
+          await storeUserTransactions(userAddress, newTransactions);
+          
+          // Fusionner les transactions
+          return mergeTransactions(cachedTransactions, newTransactions);
+        } else {
+          console.log(`✅ Aucune nouvelle transaction trouvée`);
+          return cachedTransactions;
+        }
+      } else {
+        return cachedTransactions;
+      }
     } else {
-      console.log(`🔄 Pas de cache, requête TheGraph pour ${userAddress}`);
+      console.log(`🔄 Pas de cache, requête TheGraph complète pour ${userAddress}`);
       // Utiliser la fonction GraphQL existante
       const { fetchAllTransactions } = require('./graphql');
       const transactions = await fetchAllTransactions(userAddress, req);
@@ -329,10 +544,31 @@ async function getTransactionsWithCache(userAddress, req = null) {
   }
 }
 
+/**
+ * Fusionne les transactions en cache avec les nouvelles
+ */
+function mergeTransactions(cached, newTransactions) {
+  return {
+    borrows: [...(cached.borrows || []), ...(newTransactions.borrows || [])],
+    supplies: [...(cached.supplies || []), ...(newTransactions.supplies || [])],
+    withdraws: [...(cached.withdraws || []), ...(newTransactions.withdraws || [])],
+    repays: [...(cached.repays || []), ...(newTransactions.repays || [])],
+    tokenTransfers: newTransactions.tokenTransfers || { usdc: [], armmwxdai: [], others: [], total: 0 },
+    total: (cached.borrows?.length || 0) + (cached.supplies?.length || 0) + 
+           (cached.withdraws?.length || 0) + (cached.repays?.length || 0) +
+           (newTransactions.borrows?.length || 0) + (newTransactions.supplies?.length || 0) +
+           (newTransactions.withdraws?.length || 0) + (newTransactions.repays?.length || 0)
+  };
+}
+
 module.exports = {
   createTables,
   hasUserTransactions,
   getUserTransactions,
   storeUserTransactions,
-  getTransactionsWithCache
+  getTransactionsWithCache,
+  getCacheStatus,
+  updateCacheStatus,
+  cleanupExpiredCache,
+  isCacheExpired
 }; 

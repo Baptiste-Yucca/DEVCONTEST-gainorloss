@@ -1,40 +1,54 @@
 const express = require('express');
 const router = express.Router();
 
-// Stockage des métriques de performance (en mémoire pour l'instant)
-const performanceMetrics = {
-  requests: [],
-  maxRequests: 1000 // Limiter le nombre de requêtes stockées
-};
+// Variables pour stocker les logs de performance
+let performanceLogs = [];
+let timers = {};
 
 /**
- * @route GET /api/health
- * @desc Endpoint de santé de l'API
- * @access Public
+ * Endpoint de santé principal
  */
-router.get('/', (req, res) => {
+router.get('/api/health', (req, res) => {
   const startTime = req.startTimer('health_check');
   
   try {
+    // Récupérer les informations de configuration du cache
+    const { cleanupExpiredCache } = require('../services/transaction-cache');
+    
+    // Configuration du cache
+    const cacheConfig = {
+      expirationHours: process.env.CACHE_EXPIRATION_HOURS || 12,
+      expirationMs: (process.env.CACHE_EXPIRATION_HOURS || 12) * 60 * 60 * 1000
+    };
+    
     const healthData = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development',
-      version: '1.0.0'
+      cache: cacheConfig,
+      performance: {
+        totalRequests: performanceLogs.length,
+        averageResponseTime: calculateAverageResponseTime()
+      }
     };
     
     req.stopTimer('health_check');
-    req.logEvent('health_check_completed', healthData);
+    req.logEvent('health_check_completed', { 
+      status: 'healthy',
+      cacheConfig 
+    });
     
     res.json(healthData);
+    
   } catch (error) {
     req.stopTimer('health_check');
-    req.logEvent('health_check_error', { error: error.message });
+    req.logEvent('health_check_error', { 
+      error: error.message 
+    });
     
     res.status(500).json({
-      status: 'unhealthy',
+      status: 'error',
       error: error.message,
       timestamp: new Date().toISOString()
     });
@@ -42,157 +56,179 @@ router.get('/', (req, res) => {
 });
 
 /**
- * @route GET /api/health/performance
- * @desc Endpoint pour visualiser les métriques de performance
- * @access Public
+ * Endpoint pour les logs de performance détaillés
  */
-router.get('/performance', (req, res) => {
-  const startTime = req.startTimer('performance_metrics');
+router.get('/api/health/performance', (req, res) => {
+  const startTime = req.startTimer('performance_check');
   
   try {
-    // Analyser les logs de performance de la requête actuelle
-    const currentRequestLogs = req.performanceMetrics?.logs || [];
-    
-    // Calculer les statistiques des timers
-    const timerStats = {};
-    const eventStats = {};
-    
-    currentRequestLogs.forEach(log => {
-      if (log.action === 'stop_timer') {
-        const duration = parseFloat(log.duration.replace('ms', ''));
-        if (!timerStats[log.name]) {
-          timerStats[log.name] = {
-            count: 0,
-            totalTime: 0,
-            minTime: Infinity,
-            maxTime: 0,
-            avgTime: 0
-          };
-        }
-        
-        timerStats[log.name].count++;
-        timerStats[log.name].totalTime += duration;
-        timerStats[log.name].minTime = Math.min(timerStats[log.name].minTime, duration);
-        timerStats[log.name].maxTime = Math.max(timerStats[log.name].maxTime, duration);
-        timerStats[log.name].avgTime = timerStats[log.name].totalTime / timerStats[log.name].count;
-      } else if (log.action === 'event') {
-        if (!eventStats[log.event]) {
-          eventStats[log.event] = 0;
-        }
-        eventStats[log.event]++;
-      }
-    });
-    
-    // Formater les statistiques
-    const formattedTimerStats = Object.entries(timerStats).map(([name, stats]) => ({
-      name,
-      count: stats.count,
-      totalTime: `${stats.totalTime.toFixed(2)}ms`,
-      avgTime: `${stats.avgTime.toFixed(2)}ms`,
-      minTime: `${stats.minTime.toFixed(2)}ms`,
-      maxTime: `${stats.maxTime.toFixed(2)}ms`
-    }));
-    
     const performanceData = {
-      requestId: req.requestId,
-      totalTime: req.performanceMetrics ? 
-        `${(performance.now() - req.performanceMetrics.startTime).toFixed(2)}ms` : 
-        'N/A',
-      timers: formattedTimerStats,
-      events: eventStats,
-      logs: currentRequestLogs,
+      logs: performanceLogs.slice(-50), // Derniers 50 logs
+      timers: Object.keys(timers).map(name => ({
+        name,
+        avgTime: timers[name].totalTime / timers[name].count,
+        count: timers[name].count,
+        totalTime: timers[name].totalTime
+      })),
       summary: {
-        totalTimers: Object.keys(timerStats).length,
-        totalEvents: Object.keys(eventStats).length,
-        totalLogs: currentRequestLogs.length
+        totalLogs: performanceLogs.length,
+        totalTimers: Object.keys(timers).length
       }
     };
     
-    req.stopTimer('performance_metrics');
-    req.logEvent('performance_metrics_completed', { 
-      requestId: req.requestId,
-      timerCount: Object.keys(timerStats).length
+    req.stopTimer('performance_check');
+    req.logEvent('performance_check_completed', { 
+      logsCount: performanceLogs.length,
+      timersCount: Object.keys(timers).length
     });
     
     res.json(performanceData);
+    
   } catch (error) {
-    req.stopTimer('performance_metrics');
-    req.logEvent('performance_metrics_error', { error: error.message });
+    req.stopTimer('performance_check');
+    req.logEvent('performance_check_error', { 
+      error: error.message 
+    });
     
     res.status(500).json({
-      error: 'Erreur lors de la récupération des métriques de performance',
-      message: error.message
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
 
 /**
- * @route GET /api/health/performance/summary
- * @desc Endpoint pour un résumé des performances
- * @access Public
+ * Endpoint pour un résumé des performances
  */
-router.get('/performance/summary', (req, res) => {
+router.get('/api/health/performance/summary', (req, res) => {
   const startTime = req.startTimer('performance_summary');
   
   try {
-    const currentRequestLogs = req.performanceMetrics?.logs || [];
+    // Calculer les statistiques des timers
+    const timerStats = Object.keys(timers).map(name => {
+      const timer = timers[name];
+      return {
+        name,
+        averageTime: `${(timer.totalTime / timer.count).toFixed(2)}ms`,
+        count: timer.count,
+        totalTime: `${timer.totalTime.toFixed(2)}ms`
+      };
+    });
     
-    // Extraire les temps des principales opérations
-    const summary = {
-      requestId: req.requestId,
-      totalTime: req.performanceMetrics ? 
-        `${(performance.now() - req.performanceMetrics.startTime).toFixed(2)}ms` : 
-        'N/A',
-      operations: {}
+    // Trouver les timers les plus lents
+    const slowestTimers = timerStats
+      .sort((a, b) => parseFloat(b.averageTime) - parseFloat(a.averageTime))
+      .slice(0, 5);
+    
+    const summaryData = {
+      timestamp: new Date().toISOString(),
+      totalRequests: performanceLogs.length,
+      activeTimers: timerStats.length,
+      slowestOperations: slowestTimers,
+      cacheStats: {
+        expirationHours: process.env.CACHE_EXPIRATION_HOURS || 12,
+        status: 'active'
+      }
     };
-    
-    // Chercher les timers principaux
-    const mainTimers = [
-      'rmm_v3_endpoint',
-      'graphql_all_transactions',
-      'gnosisscan_token_transfers',
-      'interest_total_USDC',
-      'interest_total_WXDAI',
-      'db_rates_USDC',
-      'db_rates_WXDAI'
-    ];
-    
-    mainTimers.forEach(timerName => {
-      const timerLog = currentRequestLogs.find(log => 
-        log.action === 'stop_timer' && log.name === timerName
-      );
-      
-      if (timerLog) {
-        summary.operations[timerName] = timerLog.duration;
-      }
-    });
-    
-    // Compter les événements par type
-    const eventCounts = {};
-    currentRequestLogs.forEach(log => {
-      if (log.action === 'event') {
-        eventCounts[log.event] = (eventCounts[log.event] || 0) + 1;
-      }
-    });
-    
-    summary.events = eventCounts;
     
     req.stopTimer('performance_summary');
     req.logEvent('performance_summary_completed', { 
-      requestId: req.requestId,
-      operationCount: Object.keys(summary.operations).length
+      totalRequests: performanceLogs.length,
+      slowestTimers: slowestTimers.length
     });
     
-    res.json(summary);
+    res.json(summaryData);
+    
   } catch (error) {
     req.stopTimer('performance_summary');
-    req.logEvent('performance_summary_error', { error: error.message });
+    req.logEvent('performance_summary_error', { 
+      error: error.message 
+    });
     
     res.status(500).json({
-      error: 'Erreur lors de la récupération du résumé de performance',
-      message: error.message
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
 
-module.exports = router; 
+/**
+ * Endpoint pour nettoyer manuellement le cache expiré
+ */
+router.post('/api/health/cache/cleanup', async (req, res) => {
+  const startTime = req.startTimer('manual_cache_cleanup');
+  
+  try {
+    const { cleanupExpiredCache } = require('../services/transaction-cache');
+    
+    const cleanupResult = await cleanupExpiredCache();
+    
+    req.stopTimer('manual_cache_cleanup');
+    req.logEvent('manual_cache_cleanup_completed', cleanupResult);
+    
+    res.json({
+      status: 'success',
+      message: 'Cache cleanup completed',
+      result: cleanupResult,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    req.stopTimer('manual_cache_cleanup');
+    req.logEvent('manual_cache_cleanup_error', { 
+      error: error.message 
+    });
+    
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * Fonction pour calculer le temps de réponse moyen
+ */
+function calculateAverageResponseTime() {
+  if (performanceLogs.length === 0) return 0;
+  
+  const totalTime = performanceLogs.reduce((sum, log) => {
+    return sum + (log.totalTime || 0);
+  }, 0);
+  
+  return totalTime / performanceLogs.length;
+}
+
+/**
+ * Fonction pour ajouter un log de performance
+ */
+function addPerformanceLog(log) {
+  performanceLogs.push(log);
+  
+  // Garder seulement les 1000 derniers logs
+  if (performanceLogs.length > 1000) {
+    performanceLogs = performanceLogs.slice(-1000);
+  }
+}
+
+/**
+ * Fonction pour ajouter un timer
+ */
+function addTimer(name, time) {
+  if (!timers[name]) {
+    timers[name] = { count: 0, totalTime: 0 };
+  }
+  
+  timers[name].count++;
+  timers[name].totalTime += time;
+}
+
+// Exporter les fonctions pour le middleware
+module.exports = {
+  router,
+  addPerformanceLog,
+  addTimer
+}; 
