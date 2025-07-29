@@ -7,6 +7,8 @@
     "init": "node init-rates.js",
     "init-transactions": "node init-transactions.js",
     "update": "node update-rates.js",
+    "populate": "node populate-database.js",
+    "populate-stats": "node populate-database.js stats",
     "stats": "node -e \"require('./database').getStats().then(stats => console.table(stats))\"",
     "stats-transactions": "node -e \"require('./init-transactions').getDatabaseStats().then(stats => console.table(stats))\""
   },

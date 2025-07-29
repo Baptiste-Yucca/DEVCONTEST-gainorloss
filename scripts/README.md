@@ -18,7 +18,9 @@ scripts/
 ├── database.js            # Module de gestion de la base SQLite
 ├── init-rates.js          # Script d'initialisation de la DB
 ├── init-transactions.js   # Script d'initialisation de transactions.db
-└── update-rates.js        # Script de mise à jour quotidienne
+├── populate-database.js   # Script de remplissage avec top holders
+├── update-rates.js        # Script de mise à jour quotidienne
+└── env.populate.example   # Variables d'environnement pour populate
 ```
 
 ## Installation
@@ -89,6 +91,29 @@ Cette commande affiche les statistiques de la base de données `transactions.db`
 - Nombre de transactions par table
 - Nombre d'utilisateurs uniques
 - Statuts de cache
+
+#### Remplissage automatique de la base de données
+
+Le script `populate-database.js` récupère automatiquement les top 100 holders de chaque token et remplit la base de données :
+
+```bash
+# Configuration des variables d'environnement
+cp env.populate.example .env
+# Éditez .env avec vos clés API
+
+# Lancer le remplissage
+npm run populate
+
+# Voir les statistiques de remplissage
+npm run populate-stats
+```
+
+**Fonctionnalités :**
+- Récupère les top 100 holders via GnosisScan API
+- Appelle le backend pour chaque adresse
+- Traite par batches de 10 adresses
+- Gère les limites d'API et les erreurs
+- Marque les holders comme traités
 
 ## Mise à jour quotidienne
 
