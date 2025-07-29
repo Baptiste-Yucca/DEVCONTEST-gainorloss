@@ -1,5 +1,5 @@
 const { GraphQLClient } = require('graphql-request');
-const { fetchTokenTransfers } = require('./gnosisscan');
+const { fetchTokenTransfersWithFallback } = require('./moralis');
 
 // Configuration TheGraph
 const THEGRAPH_URL = 'https://api.thegraph.com/subgraphs/id/QmVH7ota6caVV2ceLY91KYYh6BJs2zeMScTTYgKDpt7VRg';
@@ -250,7 +250,7 @@ async function fetchAllTransactions(userAddress, req = null) {
     console.log(`📊 ${existingTxHashes.length} transactions TheGraph récupérées en une seule requête`);
     
     // Récupérer les transferts de tokens via Gnosisscan (en excluant ceux déjà trouvés)
-    const tokenTransfers = await fetchTokenTransfers(userAddress, existingTxHashes, req);
+    const tokenTransfers = await fetchTokenTransfersWithFallback(userAddress, existingTxHashes, req);
     
     if (req) {
       req.stopTimer('graphql_all_transactions_optimized');
@@ -320,7 +320,7 @@ async function fetchNewTransactions(userAddress, fromTimestamp, req = null) {
     console.log(`📊 ${newTxHashes.length} nouvelles transactions TheGraph récupérées`);
     
     // Récupérer les nouveaux transferts de tokens via Gnosisscan
-    const tokenTransfers = await fetchTokenTransfers(userAddress, newTxHashes, req);
+    const tokenTransfers = await fetchTokenTransfersWithFallback(userAddress, newTxHashes, req);
     
     if (req) {
       req.stopTimer('graphql_new_transactions');

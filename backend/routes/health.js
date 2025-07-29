@@ -226,9 +226,5 @@ function addTimer(name, time) {
   timers[name].totalTime += time;
 }
 
-// Exporter les fonctions pour le middleware
-module.exports = {
-  router,
-  addPerformanceLog,
-  addTimer
-}; 
+// Exporter le router
+module.exports = router; 

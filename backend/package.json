@@ -9,7 +9,17 @@
     "init-db": "node scripts/init-rates.js",
     "update-rates": "node scripts/update-rates.js",
     "fetch-graphql": "node scripts/fetch-graphql-data.js",
-    "stats": "node -e \"require('./scripts/database').getStats().then(stats => console.table(stats))\""
+    "stats": "node -e \"require('./scripts/database').getStats().then(stats => console.table(stats))\"",
+    "test-moralis": "node scripts/test-moralis.js",
+    "test-moralis-key": "node scripts/test-moralis-with-key.js",
+    "test-moralis-curl": "node scripts/test-moralis-curl.js",
+    "test-format": "node scripts/test-format-uniformity.js",
+    "doc-format": "node scripts/document-format.js",
+    "analyze-moralis": "node scripts/analyze-moralis-response.js",
+    "analyze-moralis-sample": "node scripts/analyze-moralis-sample.js",
+    "test-transfer-logic": "node scripts/test-transfer-logic.js",
+    "generate-curl": "node scripts/generate-moralis-curl.js",
+    "test-complete-flow": "node scripts/test-complete-flow.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
