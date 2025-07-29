@@ -260,31 +260,37 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
       {/* Contenu conditionnel */}
       {!isCollapsed && (
         <>
-          {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-          <h3 className="text-sm font-medium text-blue-700 mb-1">Total</h3>
-          <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
-        </div>
-        <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
-          <h3 className="text-sm font-medium text-red-700 mb-1">Emprunts</h3>
-          <p className="text-2xl font-bold text-red-600">
-            {filteredTransactions.filter(tx => tx.type === 'borrow').length}
-          </p>
-        </div>
-        <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
-          <h3 className="text-sm font-medium text-green-700 mb-1">Dépôts</h3>
-          <p className="text-2xl font-bold text-green-600">
-            {filteredTransactions.filter(tx => tx.type === 'deposit').length}
-          </p>
-        </div>
-        <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl">
-          <h3 className="text-sm font-medium text-orange-700 mb-1">Retraits</h3>
-          <p className="text-2xl font-bold text-orange-600">
-            {filteredTransactions.filter(tx => tx.type === 'withdraw').length}
-          </p>
-        </div>
-      </div>
+                    {/* Statistiques */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-blue-700 mb-1">Total</h3>
+              <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
+            </div>
+            <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-red-700 mb-1">Emprunts</h3>
+              <p className="text-2xl font-bold text-red-600">
+                {filteredTransactions.filter(tx => tx.type === 'borrow').length}
+              </p>
+            </div>
+            <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-green-700 mb-1">Dépôts</h3>
+              <p className="text-2xl font-bold text-green-600">
+                {filteredTransactions.filter(tx => tx.type === 'deposit').length}
+              </p>
+            </div>
+            <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-orange-700 mb-1">Retraits</h3>
+              <p className="text-2xl font-bold text-orange-600">
+                {filteredTransactions.filter(tx => tx.type === 'withdraw').length}
+              </p>
+            </div>
+            <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-purple-700 mb-1">Période</h3>
+              <p className="text-sm font-bold text-purple-600">
+                {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}
+              </p>
+            </div>
+          </div>
 
       {/* Tableau des transactions */}
       <div className="overflow-x-auto">

@@ -17,6 +17,7 @@ scripts/
 ├── package.json           # Dépendances pour les scripts
 ├── database.js            # Module de gestion de la base SQLite
 ├── init-rates.js          # Script d'initialisation de la DB
+├── init-transactions.js   # Script d'initialisation de transactions.db
 └── update-rates.js        # Script de mise à jour quotidienne
 ```
 
@@ -29,9 +30,11 @@ cd scripts
 npm install
 ```
 
-### 2. Initialiser la base de données
+### 2. Initialiser les bases de données
 
-**⚠️ Important**: Cette étape doit être exécutée une seule fois lors de la première installation.
+**⚠️ Important**: Ces étapes doivent être exécutées une seule fois lors de la première installation.
+
+#### Base de données des taux (rates.db)
 
 ```bash
 npm run init
@@ -47,16 +50,45 @@ Cette commande va :
 
 **Durée estimée**: 2-5 minutes (selon la connexion réseau)
 
+#### Base de données des transactions (transactions.db)
+
+```bash
+npm run init-transactions
+# ou directement:
+node init-transactions.js
+```
+
+Cette commande va :
+- Créer le fichier `transactions.db` dans le dossier `data/`
+- Créer les tables nécessaires pour stocker les transactions utilisateur
+- Créer les index pour optimiser les performances
+- Afficher les statistiques de la base de données
+
+**Durée estimée**: Quelques secondes
+
 ### 3. Vérifier l'installation
+
+#### Statistiques des taux
 
 ```bash
 npm run stats
 ```
 
-Cette commande affiche les statistiques de la base de données :
+Cette commande affiche les statistiques de la base de données `rates.db` :
 - Nombre d'entrées par token
 - Dates de couverture
 - Dernières mises à jour
+
+#### Statistiques des transactions
+
+```bash
+npm run stats-transactions
+```
+
+Cette commande affiche les statistiques de la base de données `transactions.db` :
+- Nombre de transactions par table
+- Nombre d'utilisateurs uniques
+- Statuts de cache
 
 ## Mise à jour quotidienne
 
