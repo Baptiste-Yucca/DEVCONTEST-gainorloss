@@ -30,18 +30,14 @@ function initializeTransactionsDatabase() {
       CREATE TABLE IF NOT EXISTS user_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_address TEXT NOT NULL,
-        transaction_hash TEXT NOT NULL,
-        token_address TEXT NOT NULL,
-        token_symbol TEXT NOT NULL,
-        transaction_type TEXT NOT NULL,
+        tx_hash TEXT NOT NULL,
         amount TEXT NOT NULL,
-        amount_decimal REAL NOT NULL,
-        from_address TEXT NOT NULL,
-        to_address TEXT NOT NULL,
-        block_number INTEGER NOT NULL,
-        block_timestamp INTEGER NOT NULL,
+        timestamp INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        token TEXT NOT NULL,
+        reserve_id TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_address, transaction_hash, token_address)
+        UNIQUE(user_address, tx_hash, type)
       )
     `;
 
@@ -108,9 +104,8 @@ function initializeTransactionsDatabase() {
       // Créer les index pour optimiser les performances
       const createIndexes = [
         'CREATE INDEX IF NOT EXISTS idx_user_transactions_address ON user_transactions(user_address);',
-        'CREATE INDEX IF NOT EXISTS idx_user_transactions_hash ON user_transactions(transaction_hash);',
-        'CREATE INDEX IF NOT EXISTS idx_user_transactions_token ON user_transactions(token_address);',
-        'CREATE INDEX IF NOT EXISTS idx_user_transactions_timestamp ON user_transactions(block_timestamp);',
+        'CREATE INDEX IF NOT EXISTS idx_user_transactions_hash ON user_transactions(tx_hash);',
+        'CREATE INDEX IF NOT EXISTS idx_user_transactions_timestamp ON user_transactions(timestamp);',
         'CREATE INDEX IF NOT EXISTS idx_rmm_transactions_address ON rmm_transactions(user_address);',
         'CREATE INDEX IF NOT EXISTS idx_rmm_transactions_hash ON rmm_transactions(transaction_hash);',
         'CREATE INDEX IF NOT EXISTS idx_rmm_transactions_type ON rmm_transactions(transaction_type);',

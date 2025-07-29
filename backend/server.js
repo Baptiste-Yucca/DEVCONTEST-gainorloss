@@ -1,8 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 const timetracker = require('./middleware/timetracker');
-require('dotenv').config();
+
+// Charger les variables d'environnement depuis le fichier .env
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
