@@ -127,7 +127,7 @@ function extractTransactionHash(id) {
 }
 
 // Fonction pour filtrer les transactions par symboles de tokens
-function filterTransactionsBySymbol(transactions, allowedSymbols = ['rmmUSDC', 'rmmWXDAI']) {
+function filterTransactionsBySymbol(transactions, allowedSymbols = ['rmmWXDAI']) {
   return transactions.filter(tx => 
     tx.reserve && 
     tx.reserve.symbol && 
@@ -138,26 +138,24 @@ function filterTransactionsBySymbol(transactions, allowedSymbols = ['rmmUSDC', '
 // Fonction pour organiser les transactions par token natif
 function organizeTransactionsByToken(transactions) {
   const organized = {
-    USDC: {
-      debt: [], // borrows + repays
-      supply: [] // deposits + withdraws
-    },
     WXDAI: {
       debt: [], // borrows + repays
       supply: [] // deposits + withdraws
     }
   };
 
-  // Organiser les borrows et repays (debt)
+  // Organiser les borrows et repays (debt) - seulement WXDAI
   [...transactions.borrows, ...transactions.repays].forEach(tx => {
-    const token = tx.reserve === 'rmmUSDC' ? 'USDC' : 'WXDAI';
-    organized[token].debt.push(tx);
+    if (tx.reserve === 'rmmWXDAI') {
+      organized.WXDAI.debt.push(tx);
+    }
   });
 
-  // Organiser les deposits et withdraws (supply)
+  // Organiser les deposits et withdraws (supply) - seulement WXDAI
   [...transactions.deposits, ...transactions.redeemUnderlyings].forEach(tx => {
-    const token = tx.reserve === 'rmmUSDC' ? 'USDC' : 'WXDAI';
-    organized[token].supply.push(tx);
+    if (tx.reserve === 'rmmWXDAI') {
+      organized.WXDAI.supply.push(tx);
+    }
   });
 
   // Trier par timestamp
@@ -194,7 +192,7 @@ async function fetchUserTransactions(userAddress) {
       // Formater les transactions
       const formattedTransactions = filteredTransactions.map(tx => {
         const txHash = extractTransactionHash(tx.id);
-        const decimals = tx.reserve.symbol === 'rmmUSDC' ? 6 : 18; // USDC = 6, WXDAI = 18
+        const decimals = 18; // WXDAI = 18
         
         return {
           txHash: txHash,
@@ -238,11 +236,6 @@ router.get('/:address', async (req, res) => {
 
     // Calculer les statistiques par token
     const stats = {
-      USDC: {
-        debt: transactions.USDC.debt.length,
-        supply: transactions.USDC.supply.length,
-        total: transactions.USDC.debt.length + transactions.USDC.supply.length
-      },
       WXDAI: {
         debt: transactions.WXDAI.debt.length,
         supply: transactions.WXDAI.supply.length,
@@ -252,10 +245,6 @@ router.get('/:address', async (req, res) => {
 
     // Calculer les montants totaux par token
     const totals = {
-      USDC: {
-        debt: transactions.USDC.debt.reduce((sum, tx) => sum + tx.amountFormatted, 0),
-        supply: transactions.USDC.supply.reduce((sum, tx) => sum + tx.amountFormatted, 0)
-      },
       WXDAI: {
         debt: transactions.WXDAI.debt.reduce((sum, tx) => sum + tx.amountFormatted, 0),
         supply: transactions.WXDAI.supply.reduce((sum, tx) => sum + tx.amountFormatted, 0)
@@ -276,7 +265,7 @@ router.get('/:address', async (req, res) => {
       }
     };
 
-    console.log(`✅ Transactions récupérées: ${stats.totalTransactions} transactions`);
+    console.log(`✅ Transactions récupérées: ${stats.WXDAI.total} transactions`);
     res.json(response);
 
   } catch (error) {
@@ -324,7 +313,7 @@ router.get('/:address/:type', async (req, res) => {
     // Formater les transactions
     const formattedTransactions = filteredTransactions.map(tx => {
       const txHash = extractTransactionHash(tx.id);
-      const decimals = tx.reserve.symbol === 'rmmUSDC' ? 6 : 18;
+      const decimals = 18; // WXDAI = 18
       
       return {
         txHash: txHash,

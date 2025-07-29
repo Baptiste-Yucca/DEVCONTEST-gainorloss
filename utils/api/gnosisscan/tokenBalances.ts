@@ -9,6 +9,9 @@ const RMM_CONTRACT_ADDRESS = '0x12a000a8a2cd339d85119c346142adb444bc5ce5';
 const GNOSISSCAN_API_KEY = process.env.NEXT_PUBLIC_GNOSISSCAN_API_KEY || '';
 const GNOSISSCAN_API_URL = 'https://api.gnosisscan.io/api';
 
+// Configuration de l'API backend
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
 // ABI minimal pour la fonction balanceOf d'un token ERC20
 const ERC20_ABI = [
   {
@@ -22,6 +25,56 @@ const ERC20_ABI = [
 
 // Fournisseur Ethers.js pour Gnosis Chain
 const provider = new ethers.JsonRpcProvider('https://rpc.gnosis.gateway.fm');
+
+/**
+ * Récupère les balances via l'API backend RPC (multicall)
+ * Plus rapide et plus efficace que les appels individuels
+ * @param userAddress Adresse de l'utilisateur
+ * @returns Les balances de tous les tokens
+ */
+export const fetchTokenBalancesRPC = async (userAddress: string): Promise<TokenBalances> => {
+  try {
+    console.log(`🚀 Récupération RPC des balances pour ${userAddress}`);
+    
+    const startTime = Date.now();
+    const response = await fetch(`${BACKEND_API_URL}/api/balances/rpc/${userAddress}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const responseTime = Date.now() - startTime;
+    
+    console.log(`⏱️ Temps de réponse RPC: ${responseTime}ms`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(`API Error: ${data.error || 'Unknown error'}`);
+    }
+    
+    // Transformer les données du backend vers le format frontend
+    const balances = data.data.balances;
+    
+    return {
+      armmUSDC: balances.armmUSDC?.balance || '0',
+      armmWXDAI: balances.armmWXDAI?.balance || '0',
+      debtUSDC: balances.debtUSDC?.balance || '0',
+      debtWXDAI: balances.debtWXDAI?.balance || '0'
+    };
+    
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération RPC des balances:', error);
+    
+    // Fallback vers les appels individuels en cas d'erreur
+    console.log('🔄 Fallback vers les appels individuels...');
+    return await fetchAllTokenBalances(userAddress);
+  }
+};
 
 /**
  * Récupère le solde d'un token ERC20 via la fonction balanceOf

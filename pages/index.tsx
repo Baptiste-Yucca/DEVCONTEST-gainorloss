@@ -23,7 +23,7 @@ interface V2Transaction {
   amountFormatted: number;
   timestamp: number;
   type: 'borrow' | 'repay' | 'deposit' | 'withdraw';
-  reserve: 'rmmUSDC' | 'rmmWXDAI';
+  reserve: 'rmmWXDAI';
 }
 
 interface V2Transactions {
@@ -177,7 +177,7 @@ export default function Home() {
     setData(null);
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
       const apiUrl = `${backendUrl}/api/rmm/v3/${address.trim()}`;
       console.log('🚀 Appel API vers:', apiUrl);
       
@@ -222,13 +222,13 @@ export default function Home() {
     }
   };
 
-  // Fonction pour récupérer les balances des tokens via l'API backend
+  // Fonction pour récupérer les balances des tokens via l'API backend RPC
   const fetchTokenBalances = async (userAddress: string): Promise<TokenBalances> => {
     try {
-      console.log('💰 Récupération des balances via API backend...');
+      console.log('🚀 Récupération des balances via API backend RPC...');
       
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-      const response = await fetch(`${backendUrl}/api/balances/v3/${userAddress}`);
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/balances/rpc/${userAddress}`);
       
       if (!response.ok) {
         throw new Error(`Erreur API backend: ${response.status} ${response.statusText}`);
@@ -270,7 +270,50 @@ export default function Home() {
         }
       };
     } catch (error) {
-      console.error('Erreur lors de la récupération des balances:', error);
+      console.error('❌ Erreur lors de la récupération des balances RPC:', error);
+      
+      // Fallback vers l'ancienne API en cas d'erreur
+      console.log('🔄 Fallback vers l\'API V3...');
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+        const fallbackResponse = await fetch(`${backendUrl}/api/balances/v3/${userAddress}`);
+        
+        if (fallbackResponse.ok) {
+          const fallbackResult = await fallbackResponse.json();
+          if (fallbackResult.success) {
+            const backendBalances = fallbackResult.data.balances;
+            return {
+              armmUSDC: {
+                token: backendBalances.armmUSDC.token,
+                balance: backendBalances.armmUSDC.formatted,
+                symbol: backendBalances.armmUSDC.symbol,
+                decimals: backendBalances.armmUSDC.decimals
+              },
+              armmWXDAI: {
+                token: backendBalances.armmWXDAI.token,
+                balance: backendBalances.armmWXDAI.formatted,
+                symbol: backendBalances.armmWXDAI.symbol,
+                decimals: backendBalances.armmWXDAI.decimals
+              },
+              debtUSDC: {
+                token: backendBalances.debtUSDC.token,
+                balance: backendBalances.debtUSDC.formatted,
+                symbol: backendBalances.debtUSDC.symbol,
+                decimals: backendBalances.debtUSDC.decimals
+              },
+              debtWXDAI: {
+                token: backendBalances.debtWXDAI.token,
+                balance: backendBalances.debtWXDAI.formatted,
+                symbol: backendBalances.debtWXDAI.symbol,
+                decimals: backendBalances.debtWXDAI.decimals
+              }
+            };
+          }
+        }
+      } catch (fallbackError) {
+        console.error('❌ Erreur lors du fallback:', fallbackError);
+      }
+      
       // Retourner des balances à 0 en cas d'erreur
       return {
         armmUSDC: {
@@ -415,6 +458,8 @@ export default function Home() {
                 color="#ef4444"
                 currentBalance={tokenBalances?.debtUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.debtUSDC.balance}
                 type="line"
+                tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
+                userAddress={address}
               />
 
             {/* Graphique Supply USDC */}
@@ -424,6 +469,8 @@ export default function Home() {
                 color="#10b981"
                 currentBalance={tokenBalances?.armmUSDC.balance === '0.00' ? 'N/A' : tokenBalances?.armmUSDC.balance}
                 type="area"
+                tokenAddress="0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1"
+                userAddress={address}
               />
               </div>
 
@@ -463,6 +510,8 @@ export default function Home() {
                 color="#f59e0b"
                 currentBalance={tokenBalances?.debtWXDAI.balance === '0.00' ? 'N/A' : tokenBalances?.debtWXDAI.balance}
                 type="line"
+                tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
+                userAddress={address}
               />
                     
               {/* Graphique Supply WXDAI */}
@@ -472,6 +521,8 @@ export default function Home() {
                 color="#3b82f6"
                 currentBalance={tokenBalances?.armmWXDAI.balance}
                 type="area"
+                tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
+                userAddress={address}
               />
             </div>
 
@@ -480,13 +531,7 @@ export default function Home() {
               <>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Transactions RMM v2 - Montants</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-                      <h3 className="text-sm font-medium text-blue-700 mb-2">USDC</h3>
-                      <p className="text-lg font-bold text-blue-600">
-                        Dette: {dataV2.data.totals.USDC.debt.toFixed(2)} | Supply: {dataV2.data.totals.USDC.supply.toFixed(2)}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 gap-6 mb-6">
                     <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
                       <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
                       <p className="text-lg font-bold text-green-600">
@@ -496,24 +541,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Graphiques USDC v2 */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  {/* Graphique Dette USDC v2 */}
-                  <Chart
-                    data={prepareV2ChartData(dataV2.data.transactions.USDC.debt)}
-                    title="Évolution de la dette USDC (v2)"
-                    color="#ef4444"
-                    type="line"
-                            />
-                    
-                  {/* Graphique Supply USDC v2 */}
-                  <Chart
-                    data={prepareV2ChartData(dataV2.data.transactions.USDC.supply)}
-                    title="Évolution du supply USDC (v2)"
-                    color="#10b981"
-                    type="area"
-                  />
-                </div>
+
 
                 {/* Graphiques WXDAI v2 */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -523,6 +551,8 @@ export default function Home() {
                     title="Évolution de la dette WXDAI (v2)"
                     color="#f59e0b"
                     type="line"
+                    tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
+                    userAddress={address}
                   />
 
                   {/* Graphique Supply WXDAI v2 */}
@@ -531,6 +561,8 @@ export default function Home() {
                     title="Évolution du supply WXDAI (v2)"
                     color="#3b82f6"
                     type="area"
+                    tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
+                    userAddress={address}
                   />
                 </div>
               </>

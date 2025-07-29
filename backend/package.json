@@ -19,7 +19,8 @@
     "analyze-moralis-sample": "node scripts/analyze-moralis-sample.js",
     "test-transfer-logic": "node scripts/test-transfer-logic.js",
     "generate-curl": "node scripts/generate-moralis-curl.js",
-    "test-complete-flow": "node scripts/test-complete-flow.js"
+    "test-complete-flow": "node scripts/test-complete-flow.js",
+    "test-balances": "node scripts/test-balances-performance.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -10,6 +10,7 @@ import {
   Area,
   AreaChart
 } from 'recharts';
+import MagnetLink from './MagnetLink';
 
 interface ChartData {
   date: string;
@@ -24,6 +25,8 @@ interface ChartProps {
   currentBalance?: string;
   height?: number;
   type?: 'line' | 'area';
+  tokenAddress?: string;
+  userAddress?: string;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -46,13 +49,24 @@ const Chart: React.FC<ChartProps> = ({
   color,
   currentBalance,
   height = 320,
-  type = 'line'
+  type = 'line',
+  tokenAddress,
+  userAddress
 }) => {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+            {tokenAddress && userAddress && (
+              <MagnetLink 
+                tokenAddress={tokenAddress} 
+                userAddress={userAddress}
+                className="ml-2"
+              />
+            )}
+          </div>
           {currentBalance && (
             <div className="text-sm text-gray-600">
               Balance actuelle: <span className="font-semibold" style={{ color }}>{currentBalance}</span>
@@ -70,7 +84,16 @@ const Chart: React.FC<ChartProps> = ({
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+          {tokenAddress && userAddress && (
+            <MagnetLink 
+              tokenAddress={tokenAddress} 
+              userAddress={userAddress}
+              className="ml-2"
+            />
+          )}
+        </div>
         {currentBalance && (
           <div className="text-sm text-gray-600">
             Balance actuelle: <span className="font-semibold" style={{ color }}>{currentBalance}</span>
