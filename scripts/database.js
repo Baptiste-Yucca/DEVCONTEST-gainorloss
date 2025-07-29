@@ -39,7 +39,6 @@ function initializeDatabase() {
         liquidity_rate_avg REAL,
         variable_borrow_rate_avg REAL,
         utilization_rate_avg REAL,
-        stable_borrow_rate_avg REAL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(token, date)
       )
@@ -90,8 +89,8 @@ function insertRates(token, reserveId, ratesData) {
     const insertSQL = `
       INSERT OR REPLACE INTO interest_rates 
       (token, reserve_id, date, year, month, day, timestamp, 
-       liquidity_rate_avg, variable_borrow_rate_avg, utilization_rate_avg, stable_borrow_rate_avg)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       liquidity_rate_avg, variable_borrow_rate_avg, utilization_rate_avg)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const stmt = db.prepare(insertSQL);
@@ -119,8 +118,7 @@ function insertRates(token, reserveId, ratesData) {
         timestamp, // Utiliser le timestamp calculé
         rate.liquidityRate_avg,
         rate.variableBorrowRate_avg,
-        rate.utilizationRate_avg,
-        rate.stableBorrowRate_avg
+        rate.utilizationRate_avg
       ], function(err) {
         if (err) {
           errors.push(`Erreur pour ${dateKey}: ${err.message}`);
@@ -228,6 +226,39 @@ function getLastDate(token) {
 }
 
 /**
+ * Obtient la date la plus ancienne disponible pour un token
+ */
+function getOldestDate(token) {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database(DB_PATH);
+    
+    const sql = `
+      SELECT MIN(date) as oldest_date 
+      FROM interest_rates 
+      WHERE token = ?
+    `;
+    
+    db.get(sql, [token], (err, row) => {
+      if (err) {
+        console.error('Erreur lors de la récupération de la date la plus ancienne:', err);
+        db.close();
+        reject(err);
+        return;
+      }
+      
+      db.close((err) => {
+        if (err) {
+          console.error('Erreur lors de la fermeture de la base de données:', err);
+          reject(err);
+        } else {
+          resolve(row ? row.oldest_date : null);
+        }
+      });
+    });
+  });
+}
+
+/**
  * Obtient les statistiques de la base de données
  */
 function getStats() {
@@ -270,6 +301,7 @@ module.exports = {
   insertRates,
   getRates,
   getLastDate,
+  getOldestDate,
   getStats,
   DB_PATH
 }; 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const fetch = require('node-fetch');
-const { insertRates, getLastDate, getStats } = require('./database');
+const { insertRates, getLastDate, getStats, getOldestDate } = require('./database');
 
 // Import depuis les constantes centralisées
 const { TOKENS } = require('../utils/constants.js');
@@ -62,47 +62,43 @@ async function updateRates() {
       console.log(`\n💰 Mise à jour de ${tokenName}...`);
       
       try {
-        // Récupérer la dernière date disponible dans la base
-        const lastDate = await getLastDate(tokenName);
+        // Récupérer la date la plus ancienne en base pour ce token
+        const oldestDate = await getOldestDate(tokenName);
         
-        let fromTimestamp;
-        if (lastDate) {
-          // Si on a déjà des données, récupérer depuis la dernière date
-          fromTimestamp = dateYYYYMMDDToTimestamp(lastDate);
-          console.log(`📅 Dernière date en base: ${formatDateYYYYMMDD(lastDate)}`);
-          console.log(`📅 Récupération depuis: ${new Date(fromTimestamp * 1000).toLocaleDateString('fr-FR')}`);
-        } else {
-          // Si pas de données, récupérer depuis 7 jours en arrière
-          fromTimestamp = Math.floor(Date.now() / 1000) - (7 * 24 * 60 * 60);
-          console.log(`📅 Aucune donnée en base, récupération depuis 7 jours en arrière`);
-        }
+        // Calculer le timestamp pour 28 jours en arrière
+        const fromTimestamp = Math.floor(Date.now() / 1000) - (28 * 24 * 60 * 60);
+        console.log(`📅 Récupération des taux depuis 28 jours: ${new Date(fromTimestamp * 1000).toLocaleDateString('fr-FR')}`);
         
-        // Récupérer les nouveaux taux depuis l'API
+        // Récupérer les taux depuis l'API
         const ratesData = await fetchRatesFromAPI(tokenConfig.reserveId, fromTimestamp);
         
         if (ratesData.length === 0) {
-          console.log(`✅ Aucun nouveau taux pour ${tokenName}`);
+          console.log(`✅ Aucun taux récupéré pour ${tokenName}`);
           continue;
         }
         
-        // Filtrer les données pour ne garder que les nouvelles
+        console.log(`📊 ${ratesData.length} taux récupérés depuis l'API pour ${tokenName}`);
+        
+        // Filtrer les données pour ne garder que les nouvelles (plus récentes que la plus ancienne en base)
         let newRatesData = ratesData;
-        if (lastDate) {
+        if (oldestDate) {
           newRatesData = ratesData.filter(rate => {
             const year = rate.x.year;
             const monthHuman = String(rate.x.month + 1).padStart(2, '0'); // +1 pour format humain
             const day = String(rate.x.date).padStart(2, '0');
             const dateKey = `${year}${monthHuman}${day}`;
-            return dateKey > lastDate;
+            return dateKey > oldestDate;
           });
+          console.log(`📅 Plus ancienne date en base: ${formatDateYYYYMMDD(oldestDate)}`);
+          console.log(`🆕 ${newRatesData.length} nouveaux taux trouvés (plus récents que ${formatDateYYYYMMDD(oldestDate)})`);
+        } else {
+          console.log(`🆕 ${newRatesData.length} nouveaux taux trouvés (base vide)`);
         }
         
         if (newRatesData.length === 0) {
           console.log(`✅ Aucun nouveau taux pour ${tokenName} (tous déjà en base)`);
           continue;
         }
-        
-        console.log(`🆕 ${newRatesData.length} nouveaux taux trouvés pour ${tokenName}`);
         
         // Afficher la période des nouveaux taux
         if (newRatesData.length > 0) {

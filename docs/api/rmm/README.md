@@ -22,7 +22,6 @@ GET https://rmm-api.realtoken.network/data/rates-history
     "liquidityRate_avg": 0.076958830006516,    // Taux de dépôt
     "variableBorrowRate_avg": 0.118741940645401, // Taux d'emprunt variable
     "utilizationRate_avg": 0.828559093055556,   // Taux d'utilisation
-    "stableBorrowRate_avg": 0,                  // Taux d'emprunt stable
     "x": {
       "year": 2025,
       "month": 0,    // 0-11

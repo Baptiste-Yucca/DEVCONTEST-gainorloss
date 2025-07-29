@@ -4,7 +4,6 @@ interface RmmApiRate {
   liquidityRate_avg: number;
   variableBorrowRate_avg: number;
   utilizationRate_avg: number;
-  stableBorrowRate_avg: number;
   x: {
     year: number;
     month: number;

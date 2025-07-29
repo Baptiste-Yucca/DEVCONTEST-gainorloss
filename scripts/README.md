@@ -132,7 +132,6 @@ CREATE TABLE interest_rates (
   liquidity_rate_avg REAL,               -- Taux de liquidité
   variable_borrow_rate_avg REAL,         -- Taux d'emprunt variable
   utilization_rate_avg REAL,             -- Taux d'utilisation
-  stable_borrow_rate_avg REAL,           -- Taux d'emprunt stable
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(token, date)
 );
