@@ -115,6 +115,36 @@ interface ApiResponse {
             };
           };
         };
+        transactions?: {
+          USDC: {
+            debt: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+            supply: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+          };
+          WXDAI: {
+            debt: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+            supply: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+          };
+        };
       };
     }>;
   };
@@ -165,65 +195,90 @@ export default function Home() {
   const prepareAllTransactions = () => {
     const allTransactions: any[] = [];
 
-    // Ajouter les transactions USDC
-    if (data?.data?.results?.[0]?.data?.interests?.USDC) {
-      const usdcData = data.data.results[0].data.interests.USDC;
+    // Ajouter les transactions USDC V3
+    if (data?.data?.results?.[0]?.data?.transactions?.USDC) {
+      const usdcData = data.data.results[0].data.transactions.USDC;
       
       // Transactions de dette USDC
-      usdcData.borrow.dailyDetails.forEach((detail: any) => {
-        if (detail.transactionAmount && detail.transactionType) {
-          allTransactions.push({
-            timestamp: detail.timestamp,
-            amount: detail.transactionAmount,
-            type: detail.transactionType === 'borrow' ? 'borrow' : 'repay',
-            token: 'USDC',
-            hash: detail.hash || 'unknown'
-          });
-        }
+      usdcData.debt.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'USDC',
+          txHash: tx.txHash,
+          version: 'V3'
+        });
       });
 
       // Transactions de supply USDC
-      usdcData.supply.dailyDetails.forEach((detail: any) => {
-        if (detail.transactionAmount && detail.transactionType) {
-          allTransactions.push({
-            timestamp: detail.timestamp,
-            amount: detail.transactionAmount,
-            type: detail.transactionType === 'deposit' ? 'deposit' : 'withdraw',
-            token: 'USDC',
-            hash: detail.hash || 'unknown'
-          });
-        }
+      usdcData.supply.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'USDC',
+          txHash: tx.txHash,
+          version: 'V3'
+        });
       });
     }
 
-    // Ajouter les transactions WXDAI
-    if (data?.data?.results?.[0]?.data?.interests?.WXDAI) {
-      const wxdaiData = data.data.results[0].data.interests.WXDAI;
+    // Ajouter les transactions WXDAI V3
+    if (data?.data?.results?.[0]?.data?.transactions?.WXDAI) {
+      const wxdaiData = data.data.results[0].data.transactions.WXDAI;
       
       // Transactions de dette WXDAI
-      wxdaiData.borrow.dailyDetails.forEach((detail: any) => {
-        if (detail.transactionAmount && detail.transactionType) {
-          allTransactions.push({
-            timestamp: detail.timestamp,
-            amount: detail.transactionAmount,
-            type: detail.transactionType === 'borrow' ? 'borrow' : 'repay',
-            token: 'WXDAI',
-            hash: detail.hash || 'unknown'
-          });
-        }
+      wxdaiData.debt.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'WXDAI',
+          txHash: tx.txHash,
+          version: 'V3'
+        });
       });
 
       // Transactions de supply WXDAI
-      wxdaiData.supply.dailyDetails.forEach((detail: any) => {
-        if (detail.transactionAmount && detail.transactionType) {
-          allTransactions.push({
-            timestamp: detail.timestamp,
-            amount: detail.transactionAmount,
-            type: detail.transactionType === 'deposit' ? 'deposit' : 'withdraw',
-            token: 'WXDAI',
-            hash: detail.hash || 'unknown'
-          });
-        }
+      wxdaiData.supply.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'WXDAI',
+          txHash: tx.txHash,
+          version: 'V3'
+        });
+      });
+    }
+
+    // Ajouter les transactions V2
+    if (dataV2?.data?.transactions?.WXDAI) {
+      const v2Data = dataV2.data.transactions.WXDAI;
+      
+      // Transactions de dette WXDAI V2
+      v2Data.debt.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'WXDAI',
+          txHash: tx.txHash,
+          version: 'V2'
+        });
+      });
+
+      // Transactions de supply WXDAI V2
+      v2Data.supply.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'WXDAI',
+          txHash: tx.txHash,
+          version: 'V2'
+        });
       });
     }
 
@@ -231,39 +286,7 @@ export default function Home() {
     return allTransactions.sort((a, b) => b.timestamp - a.timestamp);
   };
 
-  // Fonction pour préparer les transactions V2
-  const prepareV2Transactions = () => {
-    const v2Transactions: any[] = [];
 
-    // Ajouter les transactions de dette WXDAI V2
-    if (dataV2?.data?.transactions?.WXDAI?.debt) {
-      dataV2.data.transactions.WXDAI.debt.forEach((tx: any) => {
-        v2Transactions.push({
-          timestamp: tx.timestamp,
-          amount: tx.amount,
-          type: tx.type === 'borrow' ? 'borrow' : 'repay',
-          token: 'WXDAI',
-          hash: tx.txHash
-        });
-      });
-    }
-
-    // Ajouter les transactions de supply WXDAI V2
-    if (dataV2?.data?.transactions?.WXDAI?.supply) {
-      dataV2.data.transactions.WXDAI.supply.forEach((tx: any) => {
-        v2Transactions.push({
-          timestamp: tx.timestamp,
-          amount: tx.amount,
-          type: tx.type === 'deposit' ? 'deposit' : 'withdraw',
-          token: 'WXDAI',
-          hash: tx.txHash
-        });
-      });
-    }
-
-    // Trier par timestamp décroissant (plus récent en premier)
-    return v2Transactions.sort((a, b) => b.timestamp - a.timestamp);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -699,25 +722,14 @@ export default function Home() {
               </div>
             )}
 
-            {/* Tableau des transactions V3 */}
-            {(data && (usdcBorrowDetails.length > 0 || usdcSupplyDetails.length > 0 || wxdaiBorrowDetails.length > 0 || wxdaiSupplyDetails.length > 0)) && (
+            {/* Tableau des transactions unifié */}
+            {(data || dataV2) && prepareAllTransactions().length > 0 && (
               <TransactionsTable 
                 transactions={prepareAllTransactions()}
                 userAddress={address}
-                title="Transactions V3"
+                title="Transactions"
                 isCollapsed={isV3Collapsed}
                 onToggleCollapse={() => setIsV3Collapsed(!isV3Collapsed)}
-              />
-            )}
-
-            {/* Tableau des transactions V2 */}
-            {dataV2 && (dataV2.data.transactions.WXDAI.debt.length > 0 || dataV2.data.transactions.WXDAI.supply.length > 0) && (
-              <TransactionsTable 
-                transactions={prepareV2Transactions()}
-                userAddress={address}
-                title="Transactions V2"
-                isCollapsed={isV2Collapsed}
-                onToggleCollapse={() => setIsV2Collapsed(!isV2Collapsed)}
               />
             )}
           </div>

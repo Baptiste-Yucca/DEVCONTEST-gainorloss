@@ -123,7 +123,7 @@ function extractTransactionHash(id) {
   if (parts.length >= 3) {
     return parts[2]; // Le hash est le 3ème élément après les ":"
   }
-  return '';
+  return null;
 }
 
 // Fonction pour filtrer les transactions par symboles de tokens

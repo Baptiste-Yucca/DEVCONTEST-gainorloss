@@ -4,7 +4,7 @@ import { Transaction } from '../utils/api/types';
 interface TransactionWithType extends Transaction {
   type: 'borrow' | 'repay' | 'deposit' | 'withdraw';
   token: 'USDC' | 'WXDAI';
-  hash: string;
+  version?: 'V2' | 'V3';
 }
 
 interface TransactionsTableProps {
@@ -17,6 +17,7 @@ interface TransactionsTableProps {
 
 type FilterType = 'all' | 'USDC' | 'WXDAI';
 type TransactionType = 'all' | 'borrow' | 'repay' | 'deposit' | 'withdraw';
+type VersionType = 'all' | 'V2' | 'V3';
 
 interface DateRange {
   start: Date;
@@ -32,6 +33,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 }) => {
   const [tokenFilter, setTokenFilter] = useState<FilterType>('all');
   const [typeFilter, setTypeFilter] = useState<TransactionType>('all');
+  const [versionFilter, setVersionFilter] = useState<VersionType>('all');
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     if (transactions.length === 0) {
       const today = new Date();
@@ -50,14 +52,15 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
     return transactions.filter(tx => {
       const tokenMatch = tokenFilter === 'all' || tx.token === tokenFilter;
       const typeMatch = typeFilter === 'all' || tx.type === typeFilter;
+      const versionMatch = versionFilter === 'all' || tx.version === versionFilter;
       
       // Filtre par date
       const txDate = new Date(tx.timestamp * 1000);
       const dateMatch = txDate >= dateRange.start && txDate <= dateRange.end;
       
-      return tokenMatch && typeMatch && dateMatch;
+      return tokenMatch && typeMatch && versionMatch && dateMatch;
     });
-  }, [transactions, tokenFilter, typeFilter, dateRange]);
+  }, [transactions, tokenFilter, typeFilter, versionFilter, dateRange]);
 
   // Fonction pour formater les montants
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -118,7 +121,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
   // Fonction pour exporter en CSV
   const exportToCSV = () => {
-    const headers = ['Date', 'Type', 'Token', 'Montant', 'Hash'];
+    const headers = ['Date', 'Type', 'Token', 'Montant', 'Hash', 'Version'];
     const csvData = [
       headers.join(','),
       ...filteredTransactions.map(tx => [
@@ -126,7 +129,8 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
         tx.type,
         tx.token,
         formatAmount(tx.amount, tx.token === 'USDC' ? 6 : 18).toFixed(2),
-        tx.hash
+        tx.txHash || 'Hash non disponible',
+        tx.version || 'N/A'
       ].join(','))
     ].join('\n');
 
@@ -199,6 +203,16 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     <option value="repay">Remboursements</option>
                     <option value="deposit">Dépôts</option>
                     <option value="withdraw">Retraits</option>
+                  </select>
+                  
+                  <select
+                    value={versionFilter}
+                    onChange={(e) => setVersionFilter(e.target.value as VersionType)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">Toutes les versions</option>
+                    <option value="V2">V2</option>
+                    <option value="V3">V3</option>
                   </select>
                 </div>
 
@@ -302,12 +316,13 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Token</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Montant</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Hash</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-900">Version</th>
             </tr>
           </thead>
           <tbody>
             {filteredTransactions.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-8 text-gray-500">
+                <td colSpan={6} className="text-center py-8 text-gray-500">
                   Aucune transaction trouvée avec les filtres actuels
                 </td>
               </tr>
@@ -329,14 +344,27 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     {formatAmount(tx.amount, tx.token === 'USDC' ? 6 : 18).toFixed(2)} {tx.token}
                   </td>
                   <td className="py-3 px-4">
-                    <a
-                      href={`https://gnosisscan.io/tx/${tx.hash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 text-sm font-mono truncate block max-w-xs"
-                    >
-                      {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
-                    </a>
+                    {tx.txHash ? (
+                      <a
+                        href={`https://gnosisscan.io/tx/${tx.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 text-sm font-mono truncate block max-w-xs"
+                      >
+                        {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-400 text-sm">Hash non disponible</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      tx.version === 'V2' ? 'bg-blue-100 text-blue-700' : 
+                      tx.version === 'V3' ? 'bg-green-100 text-green-700' : 
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tx.version || 'N/A'}
+                    </span>
                   </td>
                 </tr>
               ))
