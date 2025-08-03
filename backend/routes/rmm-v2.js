@@ -246,8 +246,24 @@ router.get('/:address', async (req, res) => {
     // Calculer les montants totaux par token
     const totals = {
       WXDAI: {
-        debt: transactions.WXDAI.debt.reduce((sum, tx) => sum + tx.amountFormatted, 0),
-        supply: transactions.WXDAI.supply.reduce((sum, tx) => sum + tx.amountFormatted, 0)
+        debt: transactions.WXDAI.debt.reduce((sum, tx) => {
+          // Calculer la dette nette : emprunts positifs, remboursements négatifs
+          if (tx.type === 'borrow') {
+            return sum + tx.amountFormatted;
+          } else if (tx.type === 'repay') {
+            return sum - tx.amountFormatted;
+          }
+          return sum;
+        }, 0),
+        supply: transactions.WXDAI.supply.reduce((sum, tx) => {
+          // Calculer le supply net : dépôts positifs, retraits négatifs
+          if (tx.type === 'deposit') {
+            return sum + tx.amountFormatted;
+          } else if (tx.type === 'withdraw') {
+            return sum - tx.amountFormatted;
+          }
+          return sum;
+        }, 0)
       }
     };
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getTransactionsWithCache } = require('../services/transaction-cache');
+const { getTransactionsWithCache } = require('../services/transaction-manager');
 const { calculateInterestForToken } = require('../services/interest-calculator');
 
 // Import depuis les constantes centralisées

@@ -84,6 +84,25 @@ const getDebtTokenAddresses = () => ({
   debtWXDAI: TOKENS.WXDAI.debtAddress
 });
 
+// Configuration pour les supply tokens et leurs blocs de départ
+const SUPPLY_TOKENS_CONFIG = {
+  armmV3WXDAI: {
+    address: '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b',
+    symbol: 'armmV3WXDAI',
+    startBlock: 32074665
+  },
+  armmV3USDC: {
+    address: '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1',
+    symbol: 'armmV3USDC',
+    startBlock: 32074665 
+  },
+  rmmV2WXDAI: {
+    address: '0x7349C9eaA538e118725a6130e0f8341509b9f8A0',
+    symbol: 'rmmV2WXDAI',
+    startBlock: 20206607
+  }
+};
+
 module.exports = {
   TOKENS,
   ADDRESS_TO_TOKEN,
@@ -92,6 +111,7 @@ module.exports = {
   TransactionType,
   RESERVE_TO_TICKER,
   TICKER_TO_RESERVE,
+  SUPPLY_TOKENS_CONFIG,
   getSupplyTokenAddresses,
   getDebtTokenAddresses
 };

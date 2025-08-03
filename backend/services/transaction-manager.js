@@ -509,11 +509,12 @@ function transformSupplyTransactionsToStandard(transactions, tokenSymbol, tokenC
   
   transactions.forEach(tx => {
     const baseTransaction = {
-      id: tx.hash,
+      txHash: tx.hash,
       amount: tx.amount,
       timestamp: parseInt(tx.timestamp),
       reserve: { id: reserveId },
-      user: { id: tx.moveType === 'move_in' ? 'to' : 'from' }
+      move: tx.moveType === 'move_in' ? 'in' : 'out',
+      function: tx.functionName
     };
     
     // Classification des transactions selon les 5 types demandés
@@ -523,8 +524,11 @@ function transformSupplyTransactionsToStandard(transactions, tokenSymbol, tokenC
     switch (tx.functionName) {
       case 'supply':
       case 'depositETH':
-      case 'disperseToken':
         transactionType = 'deposit'; // supply -> deposit
+        break;
+        
+      case 'disperseToken':
+        transactionType = 'disperse'; // disperseToken -> disperse
         break;
         
       case 'withdraw':
@@ -576,7 +580,7 @@ function transformSupplyTransactionsToStandard(transactions, tokenSymbol, tokenC
           result.borrows.push(transactionWithType);
         }
         break;
-        
+      default:
       case 'others':
         // Les "others" peuvent être ajoutés aux supplies ou withdraws selon le moveType
         if (tx.moveType === 'move_in') {
@@ -593,26 +597,59 @@ function transformSupplyTransactionsToStandard(transactions, tokenSymbol, tokenC
 
 /**
  * Détecte et supprime les doublons basés sur le hash de transaction
+ * Gère les transactions disperseToken qui peuvent avoir plusieurs entrées pour le même hash
  */
 function removeDuplicates(transactions) {
-  const seen = new Set();
+  const hashGroups = new Map();
   const uniqueTransactions = [];
   
+  // Grouper les transactions par hash
   transactions.forEach(tx => {
-    const key = tx.id || tx.hash; // Utiliser id ou hash comme clé unique
-    if (key && !seen.has(key)) {
-      seen.add(key);
-      uniqueTransactions.push(tx);
-    } else if (!key) {
+    const key = tx.txHash || tx.id || tx.hash;
+    if (key) {
+      if (!hashGroups.has(key)) {
+        hashGroups.set(key, []);
+      }
+      hashGroups.get(key).push(tx);
+    } else {
       // Si pas de hash, on garde la transaction mais on log
       console.log(`⚠️  Transaction sans hash détectée:`, tx);
       uniqueTransactions.push(tx);
     }
   });
   
+  // Pour chaque groupe de transactions avec le même hash
+  hashGroups.forEach((group, hash) => {
+    if (group.length === 1) {
+      // Une seule transaction avec ce hash
+      uniqueTransactions.push(group[0]);
+    } else {
+      // Plusieurs transactions avec le même hash (doublons potentiels)
+      console.log(`🔍 ${group.length} transactions avec le hash ${hash}:`);
+      group.forEach(tx => {
+        console.log(`  - Type: ${tx.type}, Amount: ${tx.amount}, Move: ${tx.move || 'N/A'}`);
+      });
+      
+      // Pour les transactions disperseToken, on garde une seule entrée
+      const disperseTransactions = group.filter(tx => tx.type === 'disperse');
+      const otherTransactions = group.filter(tx => tx.type !== 'disperse');
+      
+      if (disperseTransactions.length > 0) {
+        // Garder seulement la première transaction disperse
+        uniqueTransactions.push(disperseTransactions[0]);
+        console.log(`✅ Gardé 1 transaction disperse sur ${disperseTransactions.length}`);
+      }
+      
+      // Garder les autres types de transactions
+      otherTransactions.forEach(tx => {
+        uniqueTransactions.push(tx);
+      });
+    }
+  });
+  
   const removedCount = transactions.length - uniqueTransactions.length;
   if (removedCount > 0) {
-    console.log(`🧹 ${removedCount} doublons supprimés`);
+    console.log(`🧹 ${removedCount} doublons supprimés au total`);
   }
   
   return uniqueTransactions;

@@ -184,11 +184,31 @@ export default function Home() {
 
   // Fonction pour préparer les données V2 pour Recharts
   const prepareV2ChartData = (transactions: V2Transaction[]) => {
-    return transactions.map(tx => ({
-      date: new Date(tx.timestamp * 1000).toISOString().split('T')[0],
-      value: tx.amountFormatted,
-      formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR')
-    }));
+    // Calculer la dette cumulée pour V2 (avec support des valeurs négatives)
+    let cumulativeDebt = 0;
+    const chartData: Array<{date: string; value: number; formattedDate: string; type?: string; amount?: number; timestamp?: number}> = [];
+    
+    // Trier les transactions par timestamp
+    const sortedTransactions = [...transactions].sort((a, b) => a.timestamp - b.timestamp);
+    
+    for (const tx of sortedTransactions) {
+      if (tx.type === 'borrow') {
+        cumulativeDebt += tx.amountFormatted;
+      } else if (tx.type === 'repay') {
+        cumulativeDebt -= tx.amountFormatted;
+      }
+      
+      chartData.push({
+        date: new Date(tx.timestamp * 1000).toISOString().split('T')[0],
+        value: cumulativeDebt, // Utiliser la dette cumulée au lieu du montant individuel
+        formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+        type: tx.type,
+        amount: tx.amountFormatted,
+        timestamp: tx.timestamp
+      });
+    }
+    
+    return chartData;
   };
 
   // Fonction pour préparer toutes les transactions pour le tableau

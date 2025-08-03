@@ -49,6 +49,7 @@ app.use('/api/rmm', require('./routes/rmm'));
 app.use('/api/rmm/v2', require('./routes/rmm-v2'));
 app.use('/api/balances', require('./routes/balances'));
 
+
 // Route racine
 app.get('/', (req, res) => {
   res.json({
@@ -59,7 +60,8 @@ app.get('/', (req, res) => {
       health: '/api/health',
       rmm: '/api/rmm/v3/:address1/:address2?/:address3?',
       'rmm-v2': '/api/rmm/v2/:address',
-      balances: '/api/balances/v3/:address'
+      balances: '/api/balances/v3/:address',
+
     },
     example: 'GET /api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f'
   });
@@ -77,7 +79,8 @@ app.use('*', (req, res) => {
       'GET /api/rmm/v2/:address',
       'GET /api/rmm/v2/:address/:type',
       'GET /api/balances/v3/:address',
-      'POST /api/balances/v3/batch'
+      'POST /api/balances/v3/batch',
+
     ]
   });
 });
