@@ -1,27 +1,28 @@
-const { createTables } = require('../services/transaction-cache');
+const { initializeDatabase, ensureDataDir } = require('../../scripts/database');
 
 /**
- * Script d'initialisation de la base de données de cache
+ * Script d'initialisation de la base de données de transactions
  */
-async function initCache() {
-  console.log('🚀 Initialisation de la base de données de cache...\n');
+async function initTransactions() {
+  console.log('🚀 Initialisation de la base de données de transactions...\n');
   
   try {
-    // Créer les tables
-    await createTables();
+    ensureDataDir();
     
-    console.log('✅ Base de données de cache initialisée avec succès!');
+    // Initialiser la base transactions
+    await initializeDatabase('transactions');
+    
+    console.log('✅ Base de données de transactions initialisée avec succès!');
     console.log('📁 Fichier créé: data/transactions.db');
     console.log('');
     console.log('📊 Structure de la base:');
     console.log('   - Table: user_transactions');
-    console.log('   - Index: user_address, tx_hash');
-    console.log('   - Champs: user_address, tx_hash, amount, timestamp, type, token, reserve_id');
+    console.log('   - Index: user_address, tx_hash, timestamp');
     console.log('');
     console.log('🎯 Fonctionnement:');
     console.log('   1. Première requête → TheGraph + stockage en DB');
-    console.log('   2. Requêtes suivantes → Récupération depuis la DB (0ms)');
-    console.log('   3. Gain de performance: 90-95% pour les requêtes répétées');
+    console.log('   2. Requêtes suivantes → Récupération depuis la DB');
+    console.log('   3. Performance optimisée avec SQLite');
     
   } catch (error) {
     console.error('❌ Erreur lors de l\'initialisation:', error.message);
@@ -31,7 +32,7 @@ async function initCache() {
 
 // Exécuter si le script est appelé directement
 if (require.main === module) {
-  initCache();
+  initTransactions();
 }
 
-module.exports = { initCache }; 
+module.exports = { initTransactions }; 

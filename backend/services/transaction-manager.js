@@ -28,37 +28,16 @@ function initDatabase() {
 async function createTables() {
   try {
     const db = await initDatabase();
+    const { createAllTables } = require('./schemas/database-schemas');
     
-    return new Promise((resolve, reject) => {
-      const sql = `
-        CREATE TABLE IF NOT EXISTS user_transactions (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_address TEXT NOT NULL,
-          tx_hash TEXT NOT NULL,
-          amount TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          type TEXT NOT NULL,
-          token TEXT NOT NULL,
-          reserve_id TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(user_address, tx_hash, type)
-        );
-        
-        CREATE INDEX IF NOT EXISTS idx_user_address ON user_transactions(user_address);
-        CREATE INDEX IF NOT EXISTS idx_tx_hash ON user_transactions(tx_hash);
-        CREATE INDEX IF NOT EXISTS idx_timestamp ON user_transactions(timestamp);
-      `;
-      
-      db.exec(sql, (err) => {
-        db.close();
-        if (err) {
-          console.error('Erreur lors de la création des tables:', err);
-          reject(err);
-          return;
-        }
-        console.log('✅ Tables de cache créées avec succès');
-        resolve();
-      });
+    await createAllTables(db);
+    
+    db.close((err) => {
+      if (err) {
+        console.error('Erreur lors de la fermeture de la base de données:', err);
+        throw err;
+      }
+              console.log('✅ Tables de transactions créées avec succès');
     });
     
   } catch (error) {
@@ -125,7 +104,7 @@ async function getUserTransactions(userAddress) {
       db.all(sql, [userAddress.toLowerCase()], (err, rows) => {
         db.close();
         if (err) {
-          console.error('Erreur lors de la récupération du cache:', err);
+          console.error('Erreur lors de la récupération des transactions:', err);
           reject(err);
           return;
         }
@@ -167,7 +146,7 @@ async function getUserTransactions(userAddress) {
     });
     
   } catch (error) {
-    console.error('Erreur lors de la récupération du cache:', error);
+            console.error('Erreur lors de la récupération des transactions:', error);
     throw error;
   }
 }
@@ -280,7 +259,7 @@ async function storeUserTransactions(userAddress, transactions) {
     });
     
   } catch (error) {
-    console.error('Erreur lors du stockage en cache:', error);
+            console.error('Erreur lors du stockage des transactions:', error);
     throw error;
   }
 }
@@ -303,7 +282,7 @@ function identifyTokenFromReserveId(reserveId) {
 /**
  * Récupère les transactions d'un utilisateur en combinant debt tokens (TheGraph) et supply tokens (GnosisScan)
  */
-async function getTransactionsWithCache(userAddress, req = null) {
+async function getTransactions(userAddress, req = null) {
   const timerName = req ? req.startTimer('db_check') : null;
   
   // Normaliser l'adresse en minuscules pour la cohérence
@@ -656,7 +635,7 @@ function removeDuplicates(transactions) {
 }
 
 /**
- * Fusionne les transactions en cache avec les nouvelles en évitant les doublons
+ * Fusionne les transactions existantes avec les nouvelles en évitant les doublons
  */
 function mergeTransactions(cached, newTransactions) {
   // Combiner toutes les transactions
@@ -686,7 +665,7 @@ module.exports = {
   hasUserTransactions,
   getUserTransactions,
   storeUserTransactions,
-  getTransactionsWithCache,
+  getTransactions,
   shouldUseSupplyTokensMethodForUser,
   getSupplyTokenTransactions,
   transformSupplyTransactionsToStandard,

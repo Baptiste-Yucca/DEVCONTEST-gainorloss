@@ -1,7 +1,7 @@
 // Charger les variables d'environnement du backend
 require('dotenv').config({ path: './backend/.env' });
 
-const { getTransactionsWithCache } = require('../backend/services/transaction-manager');
+const { getTransactions } = require('../backend/services/transaction-manager');
 
 /**
  * Test de l'intégration transparente
@@ -23,7 +23,7 @@ async function testIntegration() {
     
     console.log(`📊 Récupération des transactions pour ${walletAddress}`);
     
-    const transactions = await getTransactionsWithCache(walletAddress);
+    const transactions = await getTransactions(walletAddress);
     
     console.log('\n📊 Résultats:');
     console.log(`- Total de transactions: ${transactions.total}`);

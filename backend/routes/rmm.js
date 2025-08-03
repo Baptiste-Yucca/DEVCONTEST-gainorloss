@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getTransactionsWithCache } = require('../services/transaction-manager');
+const { getTransactions } = require('../services/transaction-manager');
 const { calculateInterestForToken } = require('../services/interest-calculator');
 
 // Import depuis les constantes centralisées
@@ -68,7 +68,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         req.logEvent('processing_address', { address });
         
         // Récupérer les transactions depuis le cache ou TheGraph
-        const allTransactions = await getTransactionsWithCache(address, req);
+        const allTransactions = await getTransactions(address, req);
         
         // Grouper les transactions par stablecoin
         const transactionsByStablecoin = {

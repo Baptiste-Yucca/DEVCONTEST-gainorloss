@@ -12,13 +12,10 @@ router.get('/api/health', (req, res) => {
   const startTime = req.startTimer('health_check');
   
   try {
-    // Récupérer les informations de configuration du cache
-    const { cleanupExpiredCache } = require('../services/transaction-cache');
-    
-    // Configuration du cache
-    const cacheConfig = {
-      expirationHours: process.env.CACHE_EXPIRATION_HOURS || 12,
-      expirationMs: (process.env.CACHE_EXPIRATION_HOURS || 12) * 60 * 60 * 1000
+    // Configuration de la base de données
+    const dbConfig = {
+      transactionsDb: 'data/transactions.db',
+      ratesDb: 'data/rates.db'
     };
     
     const healthData = {
@@ -26,7 +23,7 @@ router.get('/api/health', (req, res) => {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      cache: cacheConfig,
+      database: dbConfig,
       performance: {
         totalRequests: performanceLogs.length,
         averageResponseTime: calculateAverageResponseTime()
@@ -36,7 +33,7 @@ router.get('/api/health', (req, res) => {
     req.stopTimer('health_check');
     req.logEvent('health_check_completed', { 
       status: 'healthy',
-      cacheConfig 
+      dbConfig 
     });
     
     res.json(healthData);
@@ -126,8 +123,9 @@ router.get('/api/health/performance/summary', (req, res) => {
       totalRequests: performanceLogs.length,
       activeTimers: timerStats.length,
       slowestOperations: slowestTimers,
-      cacheStats: {
-        expirationHours: process.env.CACHE_EXPIRATION_HOURS || 12,
+      databaseStats: {
+        transactionsDb: 'data/transactions.db',
+        ratesDb: 'data/rates.db',
         status: 'active'
       }
     };
@@ -155,29 +153,43 @@ router.get('/api/health/performance/summary', (req, res) => {
 });
 
 /**
- * Endpoint pour nettoyer manuellement le cache expiré
+ * Endpoint pour vérifier l'état de la base de données
  */
-router.post('/api/health/cache/cleanup', async (req, res) => {
-  const startTime = req.startTimer('manual_cache_cleanup');
+router.post('/api/health/database/status', async (req, res) => {
+  const startTime = req.startTimer('database_status_check');
   
   try {
-    const { cleanupExpiredCache } = require('../services/transaction-cache');
+    // Vérifier l'état des bases de données
+    const fs = require('fs');
+    const path = require('path');
     
-    const cleanupResult = await cleanupExpiredCache();
+    const transactionsDbPath = path.join(__dirname, '../../data/transactions.db');
+    const ratesDbPath = path.join(__dirname, '../../data/rates.db');
     
-    req.stopTimer('manual_cache_cleanup');
-    req.logEvent('manual_cache_cleanup_completed', cleanupResult);
+    const dbStatus = {
+      transactions: {
+        exists: fs.existsSync(transactionsDbPath),
+        size: fs.existsSync(transactionsDbPath) ? fs.statSync(transactionsDbPath).size : 0
+      },
+      rates: {
+        exists: fs.existsSync(ratesDbPath),
+        size: fs.existsSync(ratesDbPath) ? fs.statSync(ratesDbPath).size : 0
+      }
+    };
+    
+    req.stopTimer('database_status_check');
+    req.logEvent('database_status_check_completed', dbStatus);
     
     res.json({
       status: 'success',
-      message: 'Cache cleanup completed',
-      result: cleanupResult,
+      message: 'Database status check completed',
+      result: dbStatus,
       timestamp: new Date().toISOString()
     });
     
   } catch (error) {
-    req.stopTimer('manual_cache_cleanup');
-    req.logEvent('manual_cache_cleanup_error', { 
+    req.stopTimer('database_status_check');
+    req.logEvent('database_status_check_error', { 
       error: error.message 
     });
     

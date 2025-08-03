@@ -1,81 +1,99 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
+const { getTableSchema, createAllTables } = require('../backend/schemas/database-schemas');
 
-// Chemin vers la base de données
-const DB_PATH = path.join(__dirname, '../data/rates.db');
+// Configuration des bases de données
+const DATABASES = {
+  rates: {
+    path: path.join(__dirname, '../data/rates.db'),
+    tables: ['interest_rates']
+  },
+  transactions: {
+    path: path.join(__dirname, '../data/transactions.db'),
+    tables: ['user_transactions']
+  }
+};
 
 // Créer le dossier data s'il n'existe pas
-const fs = require('fs');
-const dataDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+function ensureDataDir() {
+  const dataDir = path.dirname(DATABASES.rates.path);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
 }
 
 /**
- * Crée et initialise la base de données
+ * Initialise une base de données spécifique
  */
-function initializeDatabase() {
+function initializeDatabase(dbName) {
+  const config = DATABASES[dbName];
+  if (!config) {
+    throw new Error(`Base de données inconnue: ${dbName}`);
+  }
+
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH, (err) => {
+    const db = new sqlite3.Database(config.path, (err) => {
       if (err) {
-        console.error('Erreur lors de l\'ouverture de la base de données:', err);
+        console.error(`Erreur lors de l'ouverture de ${dbName}:`, err);
         reject(err);
         return;
       }
-      console.log('Base de données SQLite connectée.');
+      console.log(`✅ Base de données ${dbName} connectée`);
     });
 
-    // Créer la table des taux
-    const createTableSQL = `
-      CREATE TABLE IF NOT EXISTS interest_rates (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        token TEXT NOT NULL,
-        reserve_id TEXT NOT NULL,
-        date TEXT NOT NULL,
-        year INTEGER NOT NULL,
-        month INTEGER NOT NULL,
-        day INTEGER NOT NULL,
-        timestamp INTEGER NOT NULL,
-        liquidity_rate_avg REAL,
-        variable_borrow_rate_avg REAL,
-        utilization_rate_avg REAL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(token, date)
-      )
-    `;
-
-    db.run(createTableSQL, (err) => {
-      if (err) {
-        console.error('Erreur lors de la création de la table:', err);
-        db.close();
-        reject(err);
-        return;
-      }
-      console.log('Table interest_rates créée avec succès.');
-      
-      // Créer un index pour optimiser les requêtes
-      const createIndexSQL = `
-        CREATE INDEX IF NOT EXISTS idx_token_date ON interest_rates(token, date);
-      `;
-      
-      db.run(createIndexSQL, (err) => {
-        if (err) {
-          console.error('Erreur lors de la création de l\'index:', err);
-        } else {
-          console.log('Index créé avec succès.');
-        }
-        
+    if (dbName === 'transactions') {
+      // Utiliser createAllTables pour les transactions
+      createAllTables(db).then(() => {
         db.close((err) => {
           if (err) {
-            console.error('Erreur lors de la fermeture de la base de données:', err);
+            console.error('Erreur lors de la fermeture:', err);
             reject(err);
           } else {
-            console.log('Base de données fermée.');
+            console.log(`✅ Base de données ${dbName} initialisée`);
+            resolve();
+          }
+        });
+      }).catch(reject);
+    } else {
+      // Utiliser getTableSchema pour les autres bases
+      const tableConfig = getTableSchema(config.tables[0]);
+      if (!tableConfig) {
+        reject(new Error(`Schéma non trouvé pour ${config.tables[0]}`));
+        return;
+      }
+
+      db.run(tableConfig.schema, (err) => {
+        if (err) {
+          console.error('Erreur lors de la création de la table:', err);
+          db.close();
+          reject(err);
+          return;
+        }
+        console.log(`✅ Table ${config.tables[0]} créée`);
+
+        // Créer les index
+        tableConfig.indexes.forEach((indexSQL, i) => {
+          db.run(indexSQL, (err) => {
+            if (err) {
+              console.error(`❌ Erreur index ${i + 1}:`, err);
+            } else {
+              console.log(`✅ Index ${i + 1} créé`);
+            }
+          });
+        });
+
+        db.close((err) => {
+          if (err) {
+            console.error('Erreur lors de la fermeture:', err);
+            reject(err);
+          } else {
+            console.log(`✅ Base de données ${dbName} initialisée`);
             resolve();
           }
         });
       });
-    });
+    }
   });
 }
 
@@ -84,7 +102,7 @@ function initializeDatabase() {
  */
 function insertRates(token, reserveId, ratesData) {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH);
+    const db = new sqlite3.Database(DATABASES.rates.path);
     
     const insertSQL = `
       INSERT OR REPLACE INTO interest_rates 
@@ -157,7 +175,7 @@ function insertRates(token, reserveId, ratesData) {
  */
 function getRates(token, fromDate, toDate = null) {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH);
+    const db = new sqlite3.Database(DATABASES.rates.path);
     
     let sql = `
       SELECT * FROM interest_rates 
@@ -197,7 +215,7 @@ function getRates(token, fromDate, toDate = null) {
  */
 function getLastDate(token) {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH);
+    const db = new sqlite3.Database(DATABASES.rates.path);
     
     const sql = `
       SELECT MAX(date) as last_date 
@@ -230,7 +248,7 @@ function getLastDate(token) {
  */
 function getOldestDate(token) {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH);
+    const db = new sqlite3.Database(DATABASES.rates.path);
     
     const sql = `
       SELECT MIN(date) as oldest_date 
@@ -263,7 +281,7 @@ function getOldestDate(token) {
  */
 function getStats() {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH);
+    const db = new sqlite3.Database(DATABASES.rates.path);
     
     const sql = `
       SELECT 
@@ -298,10 +316,26 @@ function getStats() {
 
 module.exports = {
   initializeDatabase,
+  ensureDataDir,
   insertRates,
   getRates,
   getLastDate,
   getOldestDate,
   getStats,
-  DB_PATH
-}; 
+  DATABASES
+};
+
+// Exécuter si le script est appelé directement
+if (require.main === module) {
+  ensureDataDir();
+  
+  const dbName = process.argv[2] || 'rates';
+  console.log(`🚀 Initialisation de la base de données: ${dbName}`);
+  
+  initializeDatabase(dbName).then(() => {
+    console.log(`✅ Base de données ${dbName} initialisée avec succès!`);
+  }).catch((error) => {
+    console.error('❌ Erreur lors de l\'initialisation:', error);
+    process.exit(1);
+  });
+} 
