@@ -315,9 +315,7 @@ async function getTransactions(userAddress, req = null) {
       finalTransactions = mergeTransactions(finalTransactions, dbTransactions);
     }
     
-    // Récupérer les debt tokens via TheGraph
-    console.log(`🔄 Récupération des debt tokens via TheGraph pour ${normalizedAddress}`);
-    try {
+   try {
       const { fetchAllTransactions } = require('./graphql');
       const debtTransactions = await fetchAllTransactions(normalizedAddress, req);
       
