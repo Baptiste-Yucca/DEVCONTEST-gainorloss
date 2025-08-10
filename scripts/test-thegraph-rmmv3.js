@@ -343,7 +343,7 @@ async function testCombinedBalances(userAddress) {
  */
 async function runTests() {
   // Adresse de test (remplacez par une vraie adresse si nécessaire)
-  const testAddress = '0xBfC71268725323DD06F32fbe81EC576195785Df5';
+  const testAddress = '0x5dd59fc29E30aCe2457fB7dCA70AbB22c1501FAE'; //'0xBfC71268725323DD06F32fbe81EC576195785Df5';
   
   console.log('🚀 Test des queries TheGraph RMMv3');
   console.log('=' .repeat(60));
