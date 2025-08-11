@@ -66,7 +66,7 @@ const COMBINED_BALANCE_QUERY = `
       where: { userReserve_: { user: $user } } 
       orderBy: timestamp
       orderDirection: desc
-      first: 50
+      first: 1000
     ) {
       timestamp
       currentATokenBalance
@@ -85,7 +85,7 @@ const COMBINED_BALANCE_QUERY = `
       where: { userReserve_: { user: $user } }
       orderBy: timestamp
       orderDirection: desc
-      first: 50
+      first: 1000
     ) {
       timestamp
       currentVariableDebt

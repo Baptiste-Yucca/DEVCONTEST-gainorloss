@@ -221,6 +221,40 @@ const REPAYS_QUERY = `
   }
 `;
 
+
+const sTokenBalance_QUERY = `query ATokenMovements($user: String!) {
+  atokenBalanceHistoryItems(
+    where: { userReserve_: { user: $user } } 
+    orderBy: timestamp
+    orderDirection: asc
+  ) {
+    timestamp
+    currentATokenBalance
+    scaledATokenBalance
+    index
+    userReserve {
+      reserve { symbol decimals }
+    }
+  }
+}
+`;
+
+const bTokenBalance_QUERY = `query ATokenMovements($user: String!) {
+  vtokenBalanceHistoryItems(
+    where: { userReserve_: { user: $user } }   # ← filtre sur l’utilisateur
+    orderBy: timestamp
+    orderDirection: asc
+  ) {
+    timestamp
+    currentVariableDebt
+    scaledVariableDebt
+    index
+    userReserve {
+      reserve { symbol decimals }
+    }
+  }
+}`;
+
 /**
  * Récupère toutes les transactions d'une adresse en une seule requête optimisée
  */
