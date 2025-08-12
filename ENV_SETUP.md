@@ -62,7 +62,7 @@ NODE_ENV=development
 # Clés API privées (côté serveur uniquement)
 THEGRAPH_API_KEY=votre_cle_thegraph
 GNOSISSCAN_API_KEY=votre_cle_gnosisscan
-MORALIS_API_KEY=votre_cle_moralis
+
 
 # Configuration CORS
 CORS_ORIGIN=http://localhost:3000
@@ -93,13 +93,6 @@ RATE_LIMIT_MAX_REQUESTS=100
 3. Allez dans votre dashboard
 4. Créez une nouvelle clé API
 5. Utilisez cette clé pour `THEGRAPH_API_KEY`
-
-### Moralis API Key
-1. Allez sur [Moralis](https://moralis.io/)
-2. Créez un compte gratuit
-3. Allez dans votre dashboard
-4. Créez une nouvelle clé API
-5. Utilisez cette clé pour `MORALIS_API_KEY`
 
 ## 🗄️ Bases de Données
 

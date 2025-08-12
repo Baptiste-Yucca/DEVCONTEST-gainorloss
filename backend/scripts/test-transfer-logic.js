@@ -5,9 +5,9 @@ function testTransferLogic() {
   console.log('🧪 Test de la logique des transferts');
   console.log('====================================');
   
-  // Données de test basées sur la réponse de Moralis
+  // Données de test génériques pour simuler les transferts de tokens
   const testAddress = '0xbf64da3f8d6e827e17c98a7adbfd347c01500a5c';
-  const moralisData = [
+  const testData = [
     {
       "token_name": "USD//C on xDai",
       "token_symbol": "USDC",
@@ -42,11 +42,11 @@ function testTransferLogic() {
   ];
   
   console.log(`\n📋 Adresse de test: ${testAddress}`);
-  console.log(`📊 ${moralisData.length} transferts de test`);
+  console.log(`📊 ${testData.length} transferts de test`);
   
-  // Simuler la transformation Moralis
-  function transformMoralisTransfers(moralisData, tokenSymbol, userAddress) {
-    return moralisData.map(tx => {
+  // Simuler la transformation des données de transfert
+  function transformTestTransfers(testData, tokenSymbol, userAddress) {
+    return testData.map(tx => {
       // Déterminer la direction du transfert
       const isIncoming = tx.to_address.toLowerCase() === userAddress.toLowerCase();
       const transfer = isIncoming ? 'in' : 'out';
@@ -75,7 +75,7 @@ function testTransferLogic() {
   
   // Test 1: Transformation simple
   console.log('\n🔄 Test 1: Transformation des données');
-  const transformed = transformMoralisTransfers(moralisData, 'USDC', testAddress);
+  const transformed = transformTestTransfers(testData, 'USDC', testAddress);
   
   console.log('📋 Transferts transformés:');
   transformed.forEach((tx, index) => {

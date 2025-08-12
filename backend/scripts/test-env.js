@@ -9,7 +9,6 @@ const importantVars = [
   'NODE_ENV',
   'THEGRAPH_API_KEY',
   'GNOSISSCAN_API_KEY',
-  'MORALIS_API_KEY',
   'CORS_ORIGIN'
 ];
 

@@ -1,5 +1,81 @@
 const { GraphQLClient } = require('graphql-request');
-const { fetchTokenTransfersWithFallback } = require('./moralis');
+const { fetchTokenTransfers: fetchGnosisScanTransfers } = require('./gnosisscan');
+
+// Fonction de remplacement pour fetchTokenTransfersWithFallback
+async function fetchTokenTransfersWithFallback(userAddress, existingTxHashes = [], req = null) {
+  try {
+    console.log(`🔄 Récupération des transferts de tokens pour ${userAddress} via GnosisScan`);
+    
+    const existingHashSet = new Set(existingTxHashes);
+    const allTransfers = [];
+    
+    // Récupérer les adresses des tokens de supply depuis les constantes
+    const supplyTokenAddresses = {
+      'USDC': '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b',
+      'WXDAI': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d'
+    };
+    
+    // Utiliser directement GnosisScan pour chaque token
+    for (const [tokenSymbol, contractAddress] of Object.entries(supplyTokenAddresses)) {
+      try {
+        const transfers = await fetchGnosisScanTransfers(userAddress, contractAddress, req);
+        
+        // Filtrer les transactions déjà récupérées
+        const newTransfers = transfers.filter(tx => !existingHashSet.has(tx.hash));
+        
+        allTransfers.push(...newTransfers);
+        
+        console.log(`📊 GnosisScan: ${newTransfers.length} nouveaux transferts ${tokenSymbol}`);
+        
+        // Délai entre les requêtes pour respecter les limites
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+      } catch (error) {
+        console.error(`❌ Erreur GnosisScan pour ${tokenSymbol}:`, error.message);
+      }
+    }
+    
+    // Séparer les transactions par type
+    const usdcTransfers = allTransfers
+      .filter(tx => tx.contractAddress === supplyTokenAddresses['USDC'])
+      .map(tx => {
+        const { tokenSymbol, ...txWithoutSymbol } = tx;
+        return txWithoutSymbol;
+      });
+    
+    const wxdaiTransfers = allTransfers
+      .filter(tx => tx.contractAddress === supplyTokenAddresses['WXDAI'])
+      .map(tx => {
+        const { tokenSymbol, ...txWithoutSymbol } = tx;
+        return txWithoutSymbol;
+      });
+    
+    const otherTransfers = allTransfers
+      .filter(tx => !supplyTokenAddresses[Object.values(supplyTokenAddresses).includes(tx.contractAddress)])
+      .map(tx => {
+        const { tokenSymbol, ...txWithoutSymbol } = tx;
+        return txWithoutSymbol;
+      });
+    
+    console.log(`✅ Total: ${usdcTransfers.length} USDC, ${wxdaiTransfers.length} WXDAI, ${otherTransfers.length} autres`);
+    
+    return {
+      usdc: usdcTransfers,
+      armmwxdai: wxdaiTransfers,
+      others: otherTransfers,
+      total: allTransfers.length
+    };
+    
+  } catch (error) {
+    console.error(`❌ Erreur lors de la récupération des transferts de tokens:`, error);
+    return {
+      usdc: [],
+      armmwxdai: [],
+      others: [],
+      total: 0
+    };
+  }
+}
 
 // Configuration TheGraph
 const THEGRAPH_URL = 'https://api.thegraph.com/subgraphs/id/QmVH7ota6caVV2ceLY91KYYh6BJs2zeMScTTYgKDpt7VRg';

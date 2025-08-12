@@ -32,21 +32,6 @@ GNOSISSCAN_API_KEY=votre_cle_api_ici
 THEGRAPH_API_KEY=votre_cle_api_ici
 ```
 
-### 3. Moralis API Key (optionnel)
-**Pour les transferts de tokens** (fallback si pas de clé)
-
-#### Comment obtenir la clé :
-1. Aller sur [https://moralis.io/](https://moralis.io/)
-2. Créer un compte gratuit
-3. Aller dans "API Keys"
-4. Créer une nouvelle clé
-
-#### Configuration :
-```bash
-# Dans le fichier .env du backend
-MORALIS_API_KEY=votre_cle_api_ici
-```
-
 ## Routes disponibles
 
 ### API V2 (Etherscan/GnosisScan moderne)
@@ -86,9 +71,6 @@ Cela testera les deux versions et recommandera la plus rapide.
 - **Gratuit** : 1000 appels/jour
 - **Payant** : Limites personnalisées
 
-### Moralis
-- **Gratuit** : 25,000 appels/mois
-- **Payant** : Limites personnalisées
 
 ## Recommandations
 
