@@ -111,6 +111,7 @@ async function getCurrentBalances(userAddress) {
 
 /**
  * Calcule les intérêts pour les supply tokens (aTokens)
+ * Version simplifiée : un seul point par jour (le dernier)
  */
 function calculateSupplyInterestFromBalances(atokenBalances, token) {
   console.log(`💰 Calcul des intérêts de supply pour ${token} via TheGraph`);
@@ -150,7 +151,6 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
 
   // Trier par timestamp (plus ancien en premier)
   const sortedBalances = tokenBalances.sort((a, b) => a.timestamp - b.timestamp);
-  const decimals = sortedBalances[0].userReserve.reserve.decimals;
   
   const dailyDetails = [];
   let totalInterest = 0n;
@@ -158,101 +158,79 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
   let totalSupplies = 0n;
   let totalWithdraws = 0n;
 
-  // Grouper les balances par jour (YYYYMMDD)
+  // Grouper les balances par jour (YYYYMMDD) - UN SEUL point par jour
   const balancesByDay = new Map();
   
   sortedBalances.forEach(balance => {
     const dateKey = formatDateYYYYMMDD(balance.timestamp);
-    if (!balancesByDay.has(dateKey)) {
-      balancesByDay.set(dateKey, []);
-    }
-    balancesByDay.get(dateKey).push(balance);
+    
+    // Si on a déjà une balance pour ce jour, on la remplace
+    // (le dernier timestamp écrase le précédent)
+    balancesByDay.set(dateKey, balance);
   });
 
+  // Convertir en tableau et trier par date
+  const dailyBalances = Array.from(balancesByDay.values())
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  console.log(`📅 ${dailyBalances.length} jours uniques trouvés (après déduplication)`);
+
   // Traiter chaque jour
-  for (const [dateKey, dayBalances] of balancesByDay) {
-    // Trier les balances du jour par timestamp
-    dayBalances.sort((a, b) => a.timestamp - b.timestamp);
+  for (let i = 0; i < dailyBalances.length; i++) {
+    const currentBalance = dailyBalances[i];
+    const currentATokenBalance = BigInt(currentBalance.currentATokenBalance);
+    const scaledATokenBalance = BigInt(currentBalance.scaledATokenBalance);
     
     let dayTotalInterest = 0n;
     let daySupply = 0n;
     let dayWithdraw = 0n;
     
-    // Pour chaque balance du jour
-    for (let i = 0; i < dayBalances.length; i++) {
-      const currentBalance = dayBalances[i];
-      const currentATokenBalance = BigInt(currentBalance.currentATokenBalance);
-      const scaledATokenBalance = BigInt(currentBalance.scaledATokenBalance);
-      
-      if (i === 0) {
-        // Première balance du jour
-        if (currentATokenBalance > currentSupply) {
-          // Supply : la différence est un nouveau dépôt
-          const supplyAmount = currentATokenBalance - currentSupply;
-          daySupply += supplyAmount;
-          totalSupplies += supplyAmount;
-        } else if (currentATokenBalance < currentSupply) {
-          // Withdraw : la différence est un retrait
-          const withdrawAmount = currentSupply - currentATokenBalance;
-          dayWithdraw += withdrawAmount;
-          totalWithdraws += withdrawAmount;
-        }
-        
-        // Les intérêts sont la différence entre current et scaled (moins les mouvements)
-        const balanceWithInterest = currentATokenBalance;
-        const baseAmount = scaledATokenBalance;
-        const interest = balanceWithInterest - baseAmount;
-        
-        if (interest > 0n) {
-          dayTotalInterest += interest;
-        }
-      } else {
-        // Balance suivante dans la journée
-        const previousBalance = dayBalances[i - 1];
-        const previousATokenBalance = BigInt(previousBalance.currentATokenBalance);
-        const previousScaledATokenBalance = BigInt(previousBalance.scaledATokenBalance);
-        
-        // Identifier le type de mouvement
-        if (scaledATokenBalance > previousScaledATokenBalance) {
-          // Supply : scaled a augmenté
-          const supplyAmount = scaledATokenBalance - previousScaledATokenBalance;
-          daySupply += supplyAmount;
-          totalSupplies += supplyAmount;
-        } else if (scaledATokenBalance < previousScaledATokenBalance) {
-          // Withdraw : scaled a diminué
-          const withdrawAmount = previousScaledATokenBalance - scaledATokenBalance;
-          dayWithdraw += withdrawAmount;
-          totalWithdraws += withdrawAmount;
-        }
-        
-        // Calculer les intérêts générés entre les deux balances
-        const currentInterest = currentATokenBalance - scaledATokenBalance;
-        const previousInterest = previousATokenBalance - previousScaledATokenBalance;
-        const interestGenerated = currentInterest - previousInterest;
-        
-        if (interestGenerated > 0n) {
-          dayTotalInterest += interestGenerated;
-        }
+    if (i === 0) {
+      // Premier jour : pas de comparaison possible
+      dayTotalInterest = currentATokenBalance - scaledATokenBalance;
+      if (dayTotalInterest > 0n) {
+        dayTotalInterest = dayTotalInterest;
       }
+    } else {
+      // Jour suivant : comparer avec le jour précédent
+      const previousBalance = dailyBalances[i - 1];
+      const previousATokenBalance = BigInt(previousBalance.currentATokenBalance);
+      const previousScaledATokenBalance = BigInt(previousBalance.scaledATokenBalance);
       
-      currentSupply = currentATokenBalance;
+      // Calculer les intérêts générés entre les deux jours
+      const currentInterest = currentATokenBalance - scaledATokenBalance;
+      const previousInterest = previousATokenBalance - previousScaledATokenBalance;
+      dayTotalInterest = currentInterest - previousInterest;
+      
+      // Identifier le type de mouvement
+      if (scaledATokenBalance > previousScaledATokenBalance) {
+        // Supply : scaled a augmenté
+        const supplyAmount = scaledATokenBalance - previousScaledATokenBalance;
+        daySupply = supplyAmount;
+        totalSupplies += supplyAmount;
+      } else if (scaledATokenBalance < previousScaledATokenBalance) {
+        // Withdraw : scaled a diminué
+        const withdrawAmount = previousScaledATokenBalance - scaledATokenBalance;
+        dayWithdraw = withdrawAmount;
+        totalWithdraws += withdrawAmount;
+      }
     }
     
     // Créer le détail journalier
-    const lastBalance = dayBalances[dayBalances.length - 1];
     const dailyDetail = {
-      date: dateKey,
-      timestamp: lastBalance.timestamp,
-      supply: currentSupply.toString(),
-      dailyInterest: dayTotalInterest.toString(),
-      totalInterest: (totalInterest + dayTotalInterest).toString(),
+      date: formatDateYYYYMMDD(currentBalance.timestamp),
+      timestamp: currentBalance.timestamp,
+      supply: currentATokenBalance.toString(),
+      dailyInterest: dayTotalInterest > 0n ? dayTotalInterest.toString() : "0",
+      totalInterest: (totalInterest + (dayTotalInterest > 0n ? dayTotalInterest : 0n)).toString(),
       transactionAmount: daySupply > 0n ? daySupply.toString() : (dayWithdraw > 0n ? dayWithdraw.toString() : "0"),
       transactionType: daySupply > 0n ? 'supply' : (dayWithdraw > 0n ? 'withdraw' : 'none'),
       source: "real"
     };
     
     dailyDetails.push(dailyDetail);
-    totalInterest += dayTotalInterest;
+    totalInterest += dayTotalInterest > 0n ? dayTotalInterest : 0n;
+    currentSupply = currentATokenBalance;
   }
 
   console.log(`✅ Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
