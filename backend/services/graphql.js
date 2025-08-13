@@ -298,11 +298,13 @@ const REPAYS_QUERY = `
 `;
 
 
-const sTokenBalance_QUERY = `query ATokenMovements($user: String!) {
+const sTokenBalance_QUERY = `query ATokenMovements($user: String!, $first: Int!, $skip: Int!) {
   atokenBalanceHistoryItems(
     where: { userReserve_: { user: $user } } 
     orderBy: timestamp
     orderDirection: asc
+    first: $first
+    skip: $skip
   ) {
     timestamp
     currentATokenBalance
@@ -315,11 +317,13 @@ const sTokenBalance_QUERY = `query ATokenMovements($user: String!) {
 }
 `;
 
-const bTokenBalance_QUERY = `query ATokenMovements($user: String!) {
+const dTokenBalance_QUERY = `query VTokenMovements($user: String!, $first: Int!, $skip: Int!) {
   vtokenBalanceHistoryItems(
-    where: { userReserve_: { user: $user } }   # ← filtre sur l’utilisateur
+    where: { userReserve_: { user: $user } }
     orderBy: timestamp
     orderDirection: asc
+    first: $first
+    skip: $skip
   ) {
     timestamp
     currentVariableDebt
@@ -495,11 +499,203 @@ async function fetchRepays(userAddress, req = null) {
   return allTransactions.repays;
 }
 
+/**
+ * Récupère tous les atokenBalanceHistoryItems avec pagination
+ */
+async function fetchAllATokenBalances(userAddress, req = null) {
+  const timerName = req ? req.startTimer('graphql_atoken_balances') : null;
+  const LIMIT = 1000; // Limite TheGraph par défaut
+  const allBalances = [];
+  let skip = 0;
+  let hasMore = true;
+  
+  try {
+    console.log(`🔍 Récupération de tous les atokenBalanceHistoryItems pour ${userAddress}`);
+    
+    while (hasMore) {
+      const variables = { 
+        user: userAddress.toLowerCase(),
+        first: LIMIT,
+        skip: skip
+      };
+      
+      const data = await client.request(sTokenBalance_QUERY, variables);
+      const balances = data.atokenBalanceHistoryItems || [];
+      
+      // Filtrer seulement USDC et WXDAI
+      const filteredBalances = balances.filter(item => {
+        const symbol = item.userReserve?.reserve?.symbol;
+        return symbol === 'USDC' || symbol === 'WXDAI';
+      });
+      
+      allBalances.push(...filteredBalances);
+      console.log(` Batch ${Math.floor(skip/LIMIT) + 1}: ${balances.length} balances, ${filteredBalances.length} filtrées (USDC/WXDAI)`);
+      
+      // Vérifier s'il y a plus de données
+      if (balances.length < LIMIT) {
+        hasMore = false;
+        console.log(`✅ Fin de pagination: ${balances.length} < ${LIMIT}`);
+      } else {
+        skip += LIMIT;
+        console.log(`⏭️  Pagination suivante: skip=${skip}`);
+      }
+    }
+    
+    console.log(`🎯 Total: ${allBalances.length} balances atoken (USDC/WXDAI) récupérées`);
+    
+    if (req) {
+      req.stopTimer('graphql_atoken_balances');
+      req.logEvent('graphql_atoken_balances_completed', { 
+        address: userAddress,
+        totalBalances: allBalances.length
+      });
+    }
+    
+    return allBalances;
+    
+  } catch (error) {
+    if (req) {
+      req.stopTimer('graphql_atoken_balances');
+      req.logEvent('graphql_atoken_balances_error', { 
+        address: userAddress,
+        error: error.message 
+      });
+    }
+    
+    console.error('❌ Erreur lors de la récupération des atoken balances:', error);
+    throw error;
+  }
+}
+
+/**
+ * Récupère tous les vtokenBalanceHistoryItems avec pagination
+ */
+async function fetchAllVTokenBalances(userAddress, req = null) {
+  const timerName = req ? req.startTimer('graphql_vtoken_balances') : null;
+  const LIMIT = 1000; // Limite TheGraph par défaut
+  const allBalances = [];
+  let skip = 0;
+  let hasMore = true;
+  
+  try {
+    console.log(`🔍 Récupération de tous les vtokenBalanceHistoryItems pour ${userAddress}`);
+    
+    while (hasMore) {
+      const variables = { 
+        user: userAddress.toLowerCase(),
+        first: LIMIT,
+        skip: skip
+      };
+      
+      const data = await client.request(dTokenBalance_QUERY, variables);
+      const balances = data.vtokenBalanceHistoryItems || [];
+      
+      // Filtrer seulement USDC et WXDAI
+      const filteredBalances = balances.filter(item => {
+        const symbol = item.userReserve?.reserve?.symbol;
+        return symbol === 'USDC' || symbol === 'WXDAI';
+      });
+      
+      allBalances.push(...filteredBalances);
+      console.log(` Batch ${Math.floor(skip/LIMIT) + 1}: ${balances.length} balances, ${filteredBalances.length} filtrées (USDC/WXDAI)`);
+      
+      // Vérifier s'il y a plus de données
+      if (balances.length < LIMIT) {
+        hasMore = false;
+        console.log(`✅ Fin de pagination: ${balances.length} < ${LIMIT}`);
+      } else {
+        skip += LIMIT;
+        console.log(`⏭️  Pagination suivante: skip=${skip}`);
+      }
+    }
+    
+    console.log(`🎯 Total: ${allBalances.length} balances vtoken (USDC/WXDAI) récupérées`);
+    
+    if (req) {
+      req.stopTimer('graphql_vtoken_balances');
+      req.logEvent('graphql_vtoken_balances_completed', { 
+        address: userAddress,
+        totalBalances: allBalances.length
+      });
+    }
+    
+    return allBalances;
+    
+  } catch (error) {
+    if (req) {
+      req.stopTimer('graphql_vtoken_balances');
+      req.logEvent('graphql_vtoken_balances_error', { 
+        address: userAddress,
+        error: error.message 
+      });
+    }
+    
+    console.error('❌ Erreur lors de la récupération des vtoken balances:', error);
+    throw error;
+  }
+}
+
+/**
+ * Récupère tous les balances (atoken + vtoken) avec pagination
+ */
+async function fetchAllTokenBalances(userAddress, req = null) {
+  const timerName = req ? req.startTimer('graphql_all_token_balances') : null;
+  
+  try {
+    console.log(`🚀 Récupération de tous les balances pour ${userAddress}`);
+    
+    // Récupérer en parallèle pour optimiser
+    const [atokenBalances, vtokenBalances] = await Promise.all([
+      fetchAllATokenBalances(userAddress, req),
+      fetchAllVTokenBalances(userAddress, req)
+    ]);
+    
+    const result = {
+      atoken: atokenBalances,
+      vtoken: vtokenBalances,
+      total: atokenBalances.length + vtokenBalances.length
+    };
+    
+    console.log(`🎯 Total combiné: ${result.total} balances récupérées`);
+    
+    if (req) {
+      req.stopTimer('graphql_all_token_balances');
+      req.logEvent('graphql_all_token_balances_completed', { 
+        address: userAddress,
+        atokenCount: atokenBalances.length,
+        vtokenCount: vtokenBalances.length,
+        totalCount: result.total
+      });
+    }
+    
+    return result;
+    
+  } catch (error) {
+    if (req) {
+      req.stopTimer('graphql_all_token_balances');
+      req.logEvent('graphql_all_token_balances_error', { 
+        address: userAddress,
+        error: error.message 
+      });
+    }
+    
+    console.error('❌ Erreur lors de la récupération de tous les balances:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   fetchBorrows,
   fetchSupplies,
   fetchWithdraws,
   fetchRepays,
   fetchAllTransactions,
-  fetchNewTransactions
-}; 
+  fetchNewTransactions,
+  // Nouvelles fonctions pour les balances
+  fetchAllATokenBalances,
+  fetchAllVTokenBalances,
+  fetchAllTokenBalances,
+  // Queries exportées pour référence
+  sTokenBalance_QUERY,
+  dTokenBalance_QUERY
+};
