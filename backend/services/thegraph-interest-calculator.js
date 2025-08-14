@@ -377,26 +377,16 @@ async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null
         const currentDebtBalance = currentBalances[`debt${token}`]?.balance || "0";
         addTodayPoint(borrowInterest.dailyDetails, currentDebtBalance, 'debt', token);
         
-        // ✅ NOUVEAU: Extraire les transactions du token spécifique
-        const tokenTransactions = frontendTransactions[token]?.debt || [];
-        borrowInterest.dailyDetails = addWeeklyEstimatedPoints(
-          borrowInterest.dailyDetails, 
-          'debt', 
-          tokenTransactions  // ✅ Maintenant c'est un tableau !
-        );
+        // ❌ SUPPRIMER: Les points estimés hebdomadaires
+        // borrowInterest.dailyDetails = addWeeklyEstimatedPoints(...);
       }
       
       if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
         const currentSupplyBalance = currentBalances[`armm${token}`]?.balance || "0";
         addTodayPoint(supplyInterest.dailyDetails, currentSupplyBalance, 'supply', token);
         
-        // ✅ NOUVEAU: Extraire les transactions du token spécifique
-        const tokenTransactions = frontendTransactions[token]?.supply || [];
-        supplyInterest.dailyDetails = addWeeklyEstimatedPoints(
-          supplyInterest.dailyDetails, 
-          'supply', 
-          tokenTransactions  // ✅ Maintenant c'est un tableau !
-        );
+        // ❌ SUPPRIMER: Les points estimés hebdomadaires
+        // supplyInterest.dailyDetails = addWeeklyEstimatedPoints(...);
       }
       
       // Créer un relevé journalier combiné
@@ -578,112 +568,6 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
   console.log(`📅 Point d'aujourd'hui ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
   
   return dailyDetails;
-}
-
-/**
- * Ajoute des points estimés hebdomadaires en reconstruisant le balance à l'instant T
- * Point J+7 seulement s'il n'y a pas d'autres points dans l'intervalle
- */
-function addWeeklyEstimatedPoints(dailyDetails, tokenType, allTransactions = [], token = null) {
-  if (dailyDetails.length < 2) return dailyDetails;
-  
-  const estimatedPoints = [];
-  const sortedDetails = dailyDetails.sort((a, b) => a.timestamp - b.timestamp);
-  
-  // ✅ CORRECTION: Filtrer les transactions du bon token
-  const tokenTransactions = allTransactions.filter(tx => {
-    if (tokenType === 'debt') {
-      return tx.type === 'borrow' || tx.type === 'repay';
-    } else {
-      return tx.type === 'supply' || tx.type === 'withdraw';
-    }
-  });
-  
-  // Parcourir les points réels et ajouter des points estimés si nécessaire
-  for (let i = 0; i < sortedDetails.length - 1; i++) {
-    const currentPoint = sortedDetails[i];
-    const nextPoint = sortedDetails[i + 1];
-    
-    const currentTime = currentPoint.timestamp;
-    const nextTime = nextPoint.timestamp;
-    
-    // Calculer le temps écoulé en jours
-    const daysDiff = (nextTime - currentTime) / (24 * 60 * 60);
-    
-    // Si plus de 7 jours, ajouter des points estimés
-    if (daysDiff > 7) {
-      // Calculer combien de points estimés à ajouter
-      const estimatedPointsCount = Math.floor(daysDiff / 7);
-      
-      for (let j = 1; j <= estimatedPointsCount; j++) {
-        const estimatedTime = currentTime + (j * 7 * 24 * 60 * 60);
-        
-        // ✅ NOUVEAU: Reconstruire le balance à l'instant T
-        const estimatedBalance = reconstructBalanceAtTimestamp(
-          currentPoint, 
-          nextPoint, 
-          estimatedTime, 
-          tokenTransactions, // ✅ Utiliser les transactions filtrées
-          tokenType
-        );
-        
-        estimatedPoints.push({
-          date: formatDateYYYYMMDD(estimatedTime),
-          timestamp: estimatedTime,
-          [tokenType]: estimatedBalance.toString(),
-          dailyInterest: "0",
-          totalInterest: currentPoint.totalInterest,
-          transactionAmount: estimatedBalance.toString(),
-          transactionType: "estimated",
-          source: "estimated"
-        });
-      }
-    }
-  }
-  
-  return [...dailyDetails, ...estimatedPoints].sort((a, b) => a.timestamp - b.timestamp);
-}
-
-/**
- * Reconstruit le balance à un timestamp donné en utilisant les transactions
- */
-function reconstructBalanceAtTimestamp(beforePoint, afterPoint, targetTimestamp, transactions, tokenType) {
-  // Balance de départ (point avant)
-  let currentBalance = parseFloat(beforePoint[tokenType]);
-  
-  // Filtrer les transactions entre le point avant et le point après
-  const relevantTransactions = transactions.filter(tx => 
-    tx.timestamp > beforePoint.timestamp && 
-    tx.timestamp <= targetTimestamp &&
-    tx.token === (tokenType === 'debt' ? 'WXDAI' : 'USDC') // Adapter selon le token
-  );
-  
-  // Appliquer chaque transaction pour reconstruire le balance
-  relevantTransactions.forEach(tx => {
-    const amount = parseFloat(tx.amount) / Math.pow(10, tx.decimals || 18);
-    
-    switch (tx.type) {
-      case 'borrow':
-      case 'supply':
-        currentBalance += amount; // +
-        break;
-      case 'repay':
-      case 'withdraw':
-        currentBalance -= amount; // -
-        break;
-    }
-  });
-  
-  // Si pas de transactions, interpolation linéaire simple
-  if (relevantTransactions.length === 0) {
-    const timeDiff = afterPoint.timestamp - beforePoint.timestamp;
-    const ratio = (targetTimestamp - beforePoint.timestamp) / timeDiff;
-    
-    currentBalance = parseFloat(beforePoint[tokenType]) + 
-      (parseFloat(afterPoint[tokenType]) - parseFloat(beforePoint[tokenType])) * ratio;
-  }
-  
-  return Math.max(0, currentBalance); // Balance ne peut pas être négatif
 }
 
 /**

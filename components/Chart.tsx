@@ -30,7 +30,6 @@ interface ChartProps {
   type?: 'line' | 'area';
   tokenAddress?: string;
   userAddress?: string;
-  showEstimatedPoints?: boolean; // ✅ NOUVEAU: Ajouter cette prop
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -66,7 +65,6 @@ const Chart: React.FC<ChartProps> = ({
   type = 'line',
   tokenAddress,
   userAddress,
-  showEstimatedPoints = true // ✅ NOUVEAU: Par défaut true
 }) => {
   if (!data || data.length === 0) {
     return (

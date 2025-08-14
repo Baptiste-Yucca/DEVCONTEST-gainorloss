@@ -162,7 +162,7 @@ export default function Home() {
   const [isV3Collapsed, setIsV3Collapsed] = useState(false);
   const [isV2Collapsed, setIsV2Collapsed] = useState(false);
   // Ajouter un état pour contrôler l'affichage des points estimés
-  const [showEstimatedPoints, setShowEstimatedPoints] = useState(true);
+  // const [showEstimatedPoints, setShowEstimatedPoints] = useState(true);
 
   // Fonction pour formater les montants (conversion depuis base units)
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -178,21 +178,13 @@ export default function Home() {
   };
 
   // Corriger la fonction prepareChartData pour filtrer selon showEstimatedPoints
-  const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6, showEstimated = true) => {
+  const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6) => {
     if (!dailyDetails || dailyDetails.length === 0) return [];
     
-    // ✅ NOUVEAU: Filtrer selon la préférence de l'utilisateur
-    const filteredDetails = showEstimated 
-      ? dailyDetails 
-      : dailyDetails.filter(detail => detail.source === 'real');
-    
-    return filteredDetails.map(detail => ({
+    return dailyDetails.map(detail => ({
       date: detail.date,
       value: formatAmount(detail[valueKey] || '0', decimals),
-      formattedDate: formatDate(detail.date),
-      // ✅ NOUVEAU: Ajouter la source pour le composant Chart
-      source: detail.source || 'real',
-      isEstimated: detail.source === 'estimated'
+      formattedDate: formatDate(detail.date)
     }));
   };
 
@@ -622,20 +614,20 @@ export default function Home() {
                   
                   {/* ✅ NOUVEAU: Switch on/off */}
                   <button
-                    onClick={() => setShowEstimatedPoints(!showEstimatedPoints)}
+                    onClick={() => {}} // Supprimer la logique de filtrage
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                      showEstimatedPoints ? 'bg-blue-600' : 'bg-gray-200'
+                      false ? 'bg-blue-600' : 'bg-gray-200' // Supprimer la logique de filtrage
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        showEstimatedPoints ? 'translate-x-6' : 'translate-x-1'
+                        false ? 'translate-x-6' : 'translate-x-1' // Supprimer la logique de filtrage
                       }`}
                     />
                   </button>
                   
-                  <span className={`text-sm font-medium ${showEstimatedPoints ? 'text-blue-600' : 'text-gray-500'}`}>
-                    {showEstimatedPoints ? 'Activé' : 'Désactivé'}
+                  <span className={`text-sm font-medium ${false ? 'text-blue-600' : 'text-gray-500'}`}>
+                    {false ? 'Activé' : 'Désactivé'}
                   </span>
                   
                   <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -656,24 +648,24 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               {/* Graphique Dette USDC */}
               <Chart
-                data={prepareChartData(usdcBorrowDetails, 'debt', 6, showEstimatedPoints)}
+                data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
                 title="Évolution de la dette USDC"
                 color="#dc2626"
                 type="line"
                 tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
                 userAddress={address}
-                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
+                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
 
               {/* Graphique Supply USDC */}
               <Chart
-                data={prepareChartData(usdcSupplyDetails, 'supply', 6, showEstimatedPoints)}
+                data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
                 title="Évolution du supply USDC"
                 color="#059669"
                 type="area"
                 tokenAddress="0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1"
                 userAddress={address}
-                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
+                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
             </div>
 
@@ -708,24 +700,24 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               {/* Graphique Dette WXDAI */}
               <Chart
-                data={prepareChartData(wxdaiBorrowDetails, 'debt', 18, showEstimatedPoints)}
+                data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
                 title="Évolution de la dette WXDAI"
                 color="#dc2626"
                 type="line"
                 tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
                 userAddress={address}
-                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
+                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
                     
               {/* Graphique Supply WXDAI */}
               <Chart
-                data={prepareChartData(wxdaiSupplyDetails, 'supply', 18, showEstimatedPoints)}
+                data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
                 title="Évolution du supply WXDAI"
                 color="#059669"
                 type="area"
                 tokenAddress="0x0ca4f5554dd9da6217d62d8df2816c82bba4157b"
                 userAddress={address}
-                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
+                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
             </div>
 
@@ -783,24 +775,24 @@ export default function Home() {
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                               {/* Graphique Dette WXDAI v2 */}
                               <Chart
-                                data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18, showEstimatedPoints)}
+                                data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18)}
                                 title="Évolution de la dette WXDAI (v2)"
                                 color="#f59e0b"
                                 type="line"
                                 tokenAddress="0x0ade75f269a054673883319baa50e5e0360a775f"
                                 userAddress={address}
-                                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
+                                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
                               />
 
                               {/* Graphique Supply WXDAI v2 */}
                               <Chart
-                                data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18, showEstimatedPoints)}
+                                data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18)}
                                 title="Évolution du supply WXDAI (v2)"
                                 color="#3b82f6"
                                 type="area"
                                 tokenAddress="0xe91d153e0b41518a2ce8dd3d7944fa863463a97d"
                                 userAddress={address}
-                                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
+                                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
                               />
                             </div>
                           </>
