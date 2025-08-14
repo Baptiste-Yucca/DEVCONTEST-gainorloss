@@ -402,9 +402,9 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
 
 /**
  * Calcule les intérêts pour un token donné en utilisant TheGraph
- * Retourne le même format que l'ancien système
+ * Version optimisée : un seul multicall RPC pour tous les tokens
  */
-async function calculateInterestForTokenFromTheGraph(userAddress, token, req = null) {
+async function calculateInterestForTokenFromTheGraph(userAddress, token, req = null, sharedBalances = null) {
   const timerName = req ? req.startTimer(`thegraph_interest_${token}`) : null;
   
   console.log(`🚀 Calcul des intérêts pour ${token} via TheGraph`);
@@ -413,8 +413,11 @@ async function calculateInterestForTokenFromTheGraph(userAddress, token, req = n
     // Récupérer tous les balances depuis TheGraph
     const allBalances = await fetchAllTokenBalances(userAddress, req);
     
-    // Récupérer les balances actuels via RPC
-    const currentBalances = await getCurrentBalances(userAddress);
+    // Récupérer les balances actuels via RPC (seulement si pas déjà fait)
+    let currentBalances = sharedBalances;
+    if (!currentBalances) {
+      currentBalances = await getCurrentBalances(userAddress);
+    }
     
     // Calculer les intérêts d'emprunt
     const borrowInterest = calculateDebtInterestFromBalances(allBalances.vtoken, token);
@@ -468,6 +471,84 @@ async function calculateInterestForTokenFromTheGraph(userAddress, token, req = n
     }
     
     console.error(`❌ Erreur lors du calcul des intérêts TheGraph pour ${token}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Calcule les intérêts pour TOUS les tokens en une seule fois
+ * Version optimisée avec un seul multicall RPC
+ */
+async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null) {
+  const timerName = req ? req.startTimer(`thegraph_interest_all_tokens`) : null;
+  
+  console.log(`🚀 Calcul des intérêts pour tous les tokens via TheGraph`);
+  
+  try {
+    // Récupérer tous les balances depuis TheGraph (une seule fois)
+    const allBalances = await fetchAllTokenBalances(userAddress, req);
+    
+    // Récupérer les balances actuels via RPC (UNE SEULE FOIS)
+    const currentBalances = await getCurrentBalances(userAddress);
+    
+    // Calculer les intérêts pour chaque token
+    const results = {};
+    const tokens = ['USDC', 'WXDAI'];
+    
+    for (const token of tokens) {
+      // Calculer les intérêts d'emprunt
+      const borrowInterest = calculateDebtInterestFromBalances(allBalances.vtoken, token);
+      
+      // Calculer les intérêts de dépôt
+      const supplyInterest = calculateSupplyInterestFromBalances(allBalances.atoken, token);
+      
+      // Ajouter le point "aujourd'hui" si il y a des données historiques
+      if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
+        const currentDebtBalance = currentBalances[`debt${token}`]?.balance || "0";
+        addTodayPoint(borrowInterest.dailyDetails, currentDebtBalance, 'debt', token);
+      }
+      
+      if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
+        const currentSupplyBalance = currentBalances[`armm${token}`]?.balance || "0";
+        addTodayPoint(supplyInterest.dailyDetails, currentSupplyBalance, 'supply', token);
+      }
+      
+      // Créer un relevé journalier combiné
+      const dailyStatement = createDailyStatement(borrowInterest.dailyDetails, supplyInterest.dailyDetails, token);
+      
+      results[token] = {
+        token,
+        borrow: borrowInterest,
+        supply: supplyInterest,
+        dailyStatement: dailyStatement,
+        summary: {
+          totalBorrowInterest: borrowInterest.totalInterest,
+          totalSupplyInterest: supplyInterest.totalInterest,
+          netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
+        }
+      };
+    }
+    
+    if (req) {
+      req.stopTimer(`thegraph_interest_all_tokens`);
+      req.logEvent('thegraph_interest_all_tokens_completed', { 
+        address: userAddress,
+        tokens: Object.keys(results)
+      });
+    }
+    
+    return results;
+    
+  } catch (error) {
+    if (req) {
+      req.stopTimer(`thegraph_interest_all_tokens`);
+      req.logEvent('thegraph_interest_all_tokens_error', { 
+        address: userAddress,
+        error: error.message 
+      });
+    }
+    
+    console.error(`❌ Erreur lors du calcul des intérêts TheGraph pour tous les tokens:`, error);
     throw error;
   }
 }
@@ -609,6 +690,7 @@ function formatDateYYYYMMDD(timestamp) {
 
 module.exports = {
   calculateInterestForTokenFromTheGraph,
+  calculateInterestForAllTokensFromTheGraph, // Nouvelle fonction optimisée
   calculateSupplyInterestFromBalances,
   calculateDebtInterestFromBalances,
   createDailyStatement

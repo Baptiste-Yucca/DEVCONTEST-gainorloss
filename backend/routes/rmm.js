@@ -4,7 +4,7 @@ const { getTransactions } = require('../services/transaction-manager');
 const { calculateInterestForToken } = require('../services/interest-calculator');
 
 // Importer le nouveau service TheGraph
-const { calculateInterestForTokenFromTheGraph } = require('../services/thegraph-interest-calculator');
+const { calculateInterestForAllTokensFromTheGraph } = require('../services/thegraph-interest-calculator');
 
 // Import depuis les constantes centralisées
 const { TOKENS } = require('../../utils/constants.js');
@@ -212,57 +212,12 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         };
         });
 
-        // Calculer les intérêts pour chaque stablecoin
-        const interestCalculations = {};
-        for (const stablecoin of Object.keys(transactionsByStablecoin)) {
-          try {
-            // Utiliser le nouveau service TheGraph au lieu de l'ancien
-            console.log(`💰 Calcul des intérêts TheGraph pour ${stablecoin}`);
-            const interestResult = await calculateInterestForTokenFromTheGraph(address1, stablecoin, req);
-            interestCalculations[stablecoin] = interestResult;
-          } catch (error) {
-            console.error(`❌ Erreur lors du calcul des intérêts TheGraph pour ${stablecoin}:`, error);
-            
-            // Fallback vers l'ancien système si TheGraph échoue
-            try {
-              console.log(`🔄 Fallback vers l'ancien système pour ${stablecoin}`);
-              const allTokenTransactions = [
-                ...transactionsByStablecoin[stablecoin].debt.map(tx => ({ 
-                  ...tx, 
-                  transactionType: tx.type,
-                  amount: tx.amount || '0'
-                })),
-                ...transactionsByStablecoin[stablecoin].supply.map(tx => ({ 
-                  ...tx, 
-                  transactionType: tx.type,
-                  amount: tx.amount || '0'
-                }))
-              ];
+        // Utiliser la nouvelle fonction optimisée
+        const interestResults = await calculateInterestForAllTokensFromTheGraph(address1, req);
 
-              if (allTokenTransactions.length > 0) {
-                const interestResult = await calculateInterestForToken(allTokenTransactions, stablecoin, req);
-                interestCalculations[stablecoin] = interestResult;
-              } else {
-                console.log(` Aucune transaction pour ${stablecoin}, pas de calcul d'intérêts`);
-                interestCalculations[stablecoin] = {
-                  token: stablecoin,
-                  borrow: { totalInterest: "0", summary: { totalBorrows: "0", totalRepays: "0", currentDebt: "0", totalInterest: "0" } },
-                  supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", totalOtherIn: "0", totalOtherOut: "0", currentSupply: "0", totalInterest: "0" } },
-                  summary: { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
-                };
-              }
-            } catch (fallbackError) {
-              console.error(`❌ Fallback échoué pour ${stablecoin}:`, fallbackError);
-              // Retourner des valeurs par défaut
-              interestCalculations[stablecoin] = {
-                token: stablecoin,
-                error: `TheGraph: ${error.message}, Fallback: ${fallbackError.message}`,
-                borrow: { totalInterest: "0", summary: { totalBorrows: "0", totalRepays: "0", currentDebt: "0", totalInterest: "0" } },
-                supply: { totalInterest: "0", summary: { totalSupplies: "0", totalWithdraws: "0", totalOtherIn: "0", totalOtherOut: "0", currentSupply: "0", totalInterest: "0" } },
-                summary: { totalBorrowInterest: "0", totalSupplyInterest: "0", netInterest: "0" }
-              };
-            }
-          }
+        // Extraire les résultats par token
+        for (const [stablecoin, interestResult] of Object.entries(interestResults)) {
+          interestCalculations[stablecoin] = interestResult;
         }
 
         req.stopTimer(`address_${address}`);
