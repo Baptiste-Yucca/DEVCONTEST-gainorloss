@@ -64,6 +64,9 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           interestCalculations[stablecoin] = interestResult;
         }
 
+        // ✅ Récupérer les transactions depuis les résultats
+        const transactions = interestResults.transactions || {};
+
         req.stopTimer(`address_${address}`);
         req.logEvent('address_processed_successfully', { 
           address, 
@@ -76,6 +79,8 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
           data: {
             address,
             interests: interestCalculations,
+            // ✅ NOUVEAU: Transactions pour le frontend
+            transactions: transactions,
             summary: {
               stablecoins: Object.keys(interestCalculations).map(stablecoin => ({
                 symbol: stablecoin,

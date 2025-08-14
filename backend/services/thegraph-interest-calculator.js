@@ -344,15 +344,21 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
  * Version optimisée avec un seul multicall RPC
  */
 async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null) {
-  const timerName = req ? req.startTimer(`thegraph_interest_all_tokens`) : null;
-  
-  console.log(`🚀 Calcul des intérêts pour tous les tokens via TheGraph`);
+  const timerName = req ? req.startTimer(`thegraph_interest_calculation`) : null;
   
   try {
-    // Récupérer tous les balances depuis TheGraph (une seule fois)
+    console.log(`🚀 Calcul des intérêts V3 pour ${userAddress} via TheGraph`);
+    
+    // Récupérer les balances pour les calculs d'intérêts
     const allBalances = await fetchAllTokenBalances(userAddress, req);
     
-    // Récupérer les balances actuels via RPC (UNE SEULE FOIS)
+    // Récupérer les transactions V3 pour le frontend
+    const allTransactions = await fetchAllTransactionsV3(userAddress, req);
+    
+    // Transformer en format frontend
+    const frontendTransactions = transformTransactionsV3ToFrontendFormat(allTransactions);
+    
+    // Récupérer les balances actuels via RPC
     const currentBalances = await getCurrentBalances(userAddress);
     
     // Calculer les intérêts pour chaque token
@@ -394,18 +400,37 @@ async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null
     }
     
     if (req) {
-      req.stopTimer(`thegraph_interest_all_tokens`);
+      req.stopTimer(`thegraph_interest_calculation`);
       req.logEvent('thegraph_interest_all_tokens_completed', { 
         address: userAddress,
         tokens: Object.keys(results)
       });
     }
     
-    return results;
+    return {
+      USDC: {
+        token: 'USDC',
+        borrow: results.USDC.borrow,
+        supply: results.USDC.supply,
+        summary: results.USDC.summary,
+        dailyStatement: results.USDC.dailyStatement,
+        transactions: frontendTransactions.USDC.debt.concat(frontendTransactions.USDC.supply)
+      },
+      WXDAI: {
+        token: 'WXDAI',
+        borrow: results.WXDAI.borrow,
+        supply: results.WXDAI.supply,
+        summary: results.WXDAI.summary,
+        dailyStatement: results.WXDAI.dailyStatement,
+        transactions: frontendTransactions.WXDAI.debt.concat(frontendTransactions.WXDAI.supply)
+      },
+      // ✅ Transactions V3 pour le frontend
+      transactions: frontendTransactions
+    };
     
   } catch (error) {
     if (req) {
-      req.stopTimer(`thegraph_interest_all_tokens`);
+      req.stopTimer(`thegraph_interest_calculation`);
       req.logEvent('thegraph_interest_all_tokens_error', { 
         address: userAddress,
         error: error.message 
@@ -575,6 +600,9 @@ function formatDateYYYYMMDD(timestamp) {
   
   return `${year}${month}${day}`;
 }
+
+// Importer le nouveau service V3
+const { fetchAllTransactionsV3, transformTransactionsV3ToFrontendFormat } = require('./fetch-transactions');
 
 module.exports = {
   calculateInterestForAllTokensFromTheGraph,
