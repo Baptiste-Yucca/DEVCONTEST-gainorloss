@@ -1,42 +1,32 @@
-const { fetchAllTokenBalances } = require('./graphql');
+const { fetchAllTokenBalancesV2 } = require('./graphql-v2');
 
 /**
  * Configuration depuis les variables d'environnement
  */
 const GNOSIS_RPC_URL = process.env.GNOSIS_RPC_URL || 'https://rpc.gnosischain.com/';
 
-const TOKENS_V3 = {
-  armmUSDC: {
-    address: '0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1',
-    symbol: 'armmUSDC',
-    decimals: 6
-  },
-  armmWXDAI: {
-    address: '0x0ca4f5554dd9da6217d62d8df2816c82bba4157b',
-    symbol: 'armmWXDAI',
+const TOKENS_V2 = {
+  rmmWXDAI: {
+    address: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d',
+    symbol: 'rmmWXDAI',
     decimals: 18
   },
-  debtUSDC: {
-    address: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
-    symbol: 'debtUSDC',
-    decimals: 6
-  },
   debtWXDAI: {
-    address: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34',
+    address: '0x0ade75f269a054673883319baa50e5e0360a775f',
     symbol: 'debtWXDAI',
     decimals: 18
   }
 };
 
 /**
- * Récupère le balanceOf actuel via RPC
+ * Récupère le balanceOf actuel via RPC pour la V2
  */
-async function getCurrentBalances(userAddress) {
+async function getCurrentBalancesV2(userAddress) {
   try {
-    console.log(`🚀 Récupération RPC des balances pour ${userAddress}`);
+    console.log(`🚀 Récupération RPC des balances V2 pour ${userAddress}`);
     
-    // Préparer les appels balanceOf pour tous les tokens
-    const calls = Object.entries(TOKENS_V3).map(([key, token], index) => ({
+    // Préparer les appels balanceOf pour les tokens V2
+    const calls = Object.entries(TOKENS_V2).map(([key, token], index) => ({
       jsonrpc: "2.0",
       id: index + 1,
       method: "eth_call",
@@ -49,7 +39,7 @@ async function getCurrentBalances(userAddress) {
       ]
     }));
     
-    console.log(` Multicall RPC: ${calls.length} tokens`);
+    console.log(` Multicall RPC V2: ${calls.length} tokens`);
     
     const response = await fetch(GNOSIS_RPC_URL, {
       method: 'POST',
@@ -69,7 +59,7 @@ async function getCurrentBalances(userAddress) {
     
     // Traiter les résultats
     const balances = {};
-    Object.entries(TOKENS_V3).forEach(([key, token], index) => {
+    Object.entries(TOKENS_V2).forEach(([key, token], index) => {
       const result = data[index];
       
       if (result && result.result) {
@@ -92,36 +82,35 @@ async function getCurrentBalances(userAddress) {
       }
     });
     
-    console.log(`✅ Balances RPC récupérées pour ${userAddress}`);
+    console.log(`✅ Balances RPC V2 récupérées pour ${userAddress}`);
     return balances;
 
   } catch (error) {
-    console.error('❌ Erreur lors de la récupération des balances RPC:', error);
+    console.error('❌ Erreur lors de la récupération des balances RPC V2:', error);
     return null;
   }
 }
 
 /**
- * Calcule les intérêts pour les supply tokens (aTokens)
- * Version simplifiée : un seul point par jour (le dernier)
+ * Calcule les intérêts pour les supply tokens V2 (rmmWXDAI uniquement)
  */
-function calculateSupplyInterestFromBalances(atokenBalances, token) {
-  console.log(`💰 Calcul des intérêts de supply pour ${token} via TheGraph`);
+function calculateSupplyInterestFromBalancesV2(atokenBalances) {
+  console.log(`💰 Calcul des intérêts de supply V2 pour WXDAI via TheGraph`);
   
   if (!atokenBalances || atokenBalances.length === 0) {
-    return createEmptyResult('supply');
+    return createEmptyResultV2('supply');
   }
 
-  // Filtrer seulement le token demandé
+  // Filtrer seulement rmmWXDAI
   const tokenBalances = atokenBalances.filter(balance => 
-    balance.userReserve.reserve.symbol === token
+    balance.userReserve.reserve.symbol === 'rmmWXDAI'
   );
 
   if (tokenBalances.length === 0) {
-    return createEmptyResult('supply');
+    return createEmptyResultV2('supply');
   }
 
-  console.log(`📊 ${tokenBalances.length} balances atoken trouvées pour ${token}`);
+  console.log(`📊 ${tokenBalances.length} balances atoken V2 trouvées pour WXDAI`);
 
   // Trier par timestamp et dédupliquer par jour (garder le dernier)
   const sortedBalances = tokenBalances.sort((a, b) => a.timestamp - b.timestamp);
@@ -198,7 +187,7 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
     currentSupply = currentATokenBalance;
   }
 
-  console.log(`✅ Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
+  console.log(`✅ Calcul V2 terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} WXDAI`);
 
   return {
     totalInterest: totalInterest.toString(),
@@ -213,25 +202,25 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
 }
 
 /**
- * Calcule les intérêts pour les debt tokens (vTokens)
+ * Calcule les intérêts pour les debt tokens V2 (debtWXDAI uniquement)
  */
-function calculateDebtInterestFromBalances(vtokenBalances, token) {
-  console.log(`💰 Calcul des intérêts de dette pour ${token} via TheGraph`);
+function calculateDebtInterestFromBalancesV2(vtokenBalances) {
+  console.log(`💰 Calcul des intérêts de dette V2 pour WXDAI via TheGraph`);
   
   if (!vtokenBalances || vtokenBalances.length === 0) {
-    return createEmptyResult('debt');
+    return createEmptyResultV2('debt');
   }
 
-  // Filtrer seulement le token demandé
+  // Filtrer seulement rmmWXDAI
   const tokenBalances = vtokenBalances.filter(balance => 
-    balance.userReserve.reserve.symbol === token
+    balance.userReserve.reserve.symbol === 'rmmWXDAI'
   );
 
   if (tokenBalances.length === 0) {
-    return createEmptyResult('debt');
+    return createEmptyResultV2('debt');
   }
 
-  console.log(`📊 ${tokenBalances.length} balances vtoken trouvées pour ${token}`);
+  console.log(`📊 ${tokenBalances.length} balances vtoken V2 trouvées pour WXDAI`);
 
   // Trier par timestamp et dédupliquer par jour (garder le dernier)
   const sortedBalances = tokenBalances.sort((a, b) => a.timestamp - b.timestamp);
@@ -325,7 +314,7 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
     currentDebt = currentVariableDebt;
   }
 
-  console.log(`✅ Calcul terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} ${token}`);
+  console.log(`✅ Calcul V2 terminé: ${dailyDetails.length} jours, total des intérêts: ${Number(totalInterest)} WXDAI`);
 
   return {
     totalInterest: totalInterest.toString(),
@@ -340,88 +329,81 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
 }
 
 /**
- * Calcule les intérêts pour TOUS les tokens en une seule fois
- * Version optimisée avec un seul multicall RPC
+ * Calcule les intérêts pour la V2 (WXDAI uniquement)
  */
-async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null) {
-  const timerName = req ? req.startTimer(`thegraph_interest_all_tokens`) : null;
+async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
+  const timerName = req ? req.startTimer(`thegraph_v2_interest`) : null;
   
-  console.log(`🚀 Calcul des intérêts pour tous les tokens via TheGraph`);
+  console.log(`🚀 Calcul des intérêts V2 pour WXDAI via TheGraph`);
   
   try {
-    // Récupérer tous les balances depuis TheGraph (une seule fois)
-    const allBalances = await fetchAllTokenBalances(userAddress, req);
+    // Récupérer tous les balances depuis TheGraph V2
+    const allBalances = await fetchAllTokenBalancesV2(userAddress, req);
     
-    // Récupérer les balances actuels via RPC (UNE SEULE FOIS)
-    const currentBalances = await getCurrentBalances(userAddress);
+    // Récupérer les balances actuels via RPC
+    const currentBalances = await getCurrentBalancesV2(userAddress);
     
-    // Calculer les intérêts pour chaque token
-    const results = {};
-    const tokens = ['USDC', 'WXDAI'];
+    // Calculer les intérêts d'emprunt
+    const borrowInterest = calculateDebtInterestFromBalancesV2(allBalances.vtoken);
     
-    for (const token of tokens) {
-      // Calculer les intérêts d'emprunt
-      const borrowInterest = calculateDebtInterestFromBalances(allBalances.vtoken, token);
-      
-      // Calculer les intérêts de dépôt
-      const supplyInterest = calculateSupplyInterestFromBalances(allBalances.atoken, token);
-      
-      // Ajouter le point "aujourd'hui" si il y a des données historiques
-      if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
-        const currentDebtBalance = currentBalances[`debt${token}`]?.balance || "0";
-        addTodayPoint(borrowInterest.dailyDetails, currentDebtBalance, 'debt', token);
-      }
-      
-      if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
-        const currentSupplyBalance = currentBalances[`armm${token}`]?.balance || "0";
-        addTodayPoint(supplyInterest.dailyDetails, currentSupplyBalance, 'supply', token);
-      }
-      
-      // Créer un relevé journalier combiné
-      const dailyStatement = createDailyStatement(borrowInterest.dailyDetails, supplyInterest.dailyDetails, token);
-      
-      results[token] = {
-        token,
-        borrow: borrowInterest,
-        supply: supplyInterest,
-        dailyStatement: dailyStatement,
-        summary: {
-          totalBorrowInterest: borrowInterest.totalInterest,
-          totalSupplyInterest: supplyInterest.totalInterest,
-          netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
-        }
-      };
+    // Calculer les intérêts de dépôt
+    const supplyInterest = calculateSupplyInterestFromBalancesV2(allBalances.atoken);
+    
+    // Ajouter le point "aujourd'hui" si il y a des données historiques
+    if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
+      const currentDebtBalance = currentBalances['debtWXDAI']?.balance || "0";
+      addTodayPointV2(borrowInterest.dailyDetails, currentDebtBalance, 'debt');
     }
     
+    if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
+      const currentSupplyBalance = currentBalances['rmmWXDAI']?.balance || "0";
+      addTodayPointV2(supplyInterest.dailyDetails, currentSupplyBalance, 'supply');
+    }
+    
+    // Créer un relevé journalier combiné
+    const dailyStatement = createDailyStatementV2(borrowInterest.dailyDetails, supplyInterest.dailyDetails);
+    
     if (req) {
-      req.stopTimer(`thegraph_interest_all_tokens`);
-      req.logEvent('thegraph_interest_all_tokens_completed', { 
+      req.stopTimer(`thegraph_v2_interest`);
+      req.logEvent('thegraph_v2_interest_completed', { 
         address: userAddress,
-        tokens: Object.keys(results)
+        borrowInterest: borrowInterest.totalInterest,
+        supplyInterest: supplyInterest.totalInterest,
+        netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
       });
     }
     
-    return results;
+    return {
+      token: 'WXDAI',
+      borrow: borrowInterest,
+      supply: supplyInterest,
+      dailyStatement: dailyStatement,
+      summary: {
+        totalBorrowInterest: borrowInterest.totalInterest,
+        totalSupplyInterest: supplyInterest.totalInterest,
+        netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
+      }
+    };
     
   } catch (error) {
     if (req) {
-      req.stopTimer(`thegraph_interest_all_tokens`);
-      req.logEvent('thegraph_interest_all_tokens_error', { 
-        address: userAddress,
+      req.stopTimer(`thegraph_v2_interest`);
+      req.logEvent('thegraph_v2_interest_error', { 
+        address: userAddress, 
         error: error.message 
       });
     }
     
-    console.error(`❌ Erreur lors du calcul des intérêts TheGraph pour tous les tokens:`, error);
+    console.error(`❌ Erreur lors du calcul des intérêts V2 TheGraph:`, error);
     throw error;
   }
 }
 
 /**
- * Crée un relevé journalier combiné au format YYYYMMDD
+ * Crée un relevé journalier combiné V2 au format YYYYMMDD
  */
-function createDailyStatement(borrowDetails, supplyDetails, token) {
-  console.log(`📊 Création du relevé journalier pour ${token}`);
+function createDailyStatementV2(borrowDetails, supplyDetails) {
+  console.log(`📊 Création du relevé journalier V2 pour WXDAI`);
   
   // Combiner tous les détails journaliers
   const allDailyDetails = [];
@@ -501,15 +483,15 @@ function createDailyStatement(borrowDetails, supplyDetails, token) {
   // Convertir en tableau et trier par date
   const statementArray = Object.values(dailyStatement).sort((a, b) => a.timestamp - b.timestamp);
   
-  console.log(`📊 Relevé journalier créé: ${statementArray.length} jours pour ${token}`);
+  console.log(`📊 Relevé journalier V2 créé: ${statementArray.length} jours pour WXDAI`);
   
   return statementArray;
 }
 
 /**
- * Ajoute un point "aujourd'hui" aux dailyDetails
+ * Ajoute un point "aujourd'hui" aux dailyDetails V2
  */
-function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
+function addTodayPointV2(dailyDetails, currentBalance, balanceType) {
   if (dailyDetails.length === 0) return dailyDetails;
   
   // Récupérer le dernier point pour avoir le totalInterest
@@ -534,15 +516,15 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
   // Ajouter le point d'aujourd'hui
   dailyDetails.push(todayPoint);
   
-  console.log(`📅 Point d'aujourd'hui ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
+  console.log(`📅 Point d'aujourd'hui V2 ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
   
   return dailyDetails;
 }
 
 /**
- * Crée un résultat vide pour les cas sans données
+ * Crée un résultat vide pour les cas sans données V2
  */
-function createEmptyResult(type) {
+function createEmptyResultV2(type) {
   const emptySummary = type === 'supply' 
     ? {
         totalSupplies: "0",
@@ -577,8 +559,8 @@ function formatDateYYYYMMDD(timestamp) {
 }
 
 module.exports = {
-  calculateInterestForAllTokensFromTheGraph,
-  calculateSupplyInterestFromBalances,
-  calculateDebtInterestFromBalances,
-  createDailyStatement
+  calculateInterestForV2FromTheGraph,
+  calculateSupplyInterestFromBalancesV2,
+  calculateDebtInterestFromBalancesV2,
+  createDailyStatementV2
 };

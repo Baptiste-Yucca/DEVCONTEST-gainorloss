@@ -1,365 +1,227 @@
 const express = require('express');
 const router = express.Router();
 
-// Configuration du subgraph
-const SUBGRAPH_URL = 'https://api.thegraph.com/subgraphs/id/QmXT8Cpkjevu2sPN1fKkwb7Px9Wqj84DALA2TQ8nokhj7e';
-const RMM_CONTRACT = '0x7bb834017672b1135466661d8dd69c5dd0b3bf51';
+// Importer le service TheGraph V2
+const { calculateInterestForV2FromTheGraph } = require('../services/thegraph-interest-calculator-v2');
 
-// Queries GraphQL pour les différents types de transactions
-const QUERIES = {
-  borrows: `
-    query GetBorrows($user: String!) {
-      borrows(
-        where: { user: $user }
-        orderBy: timestamp
-        orderDirection: asc
-      ) {
-        id
-        amount
-        reserve { 
-          symbol 
-        }
-        timestamp
-      }
-    }
-  `,
+/**
+ * @route GET /api/rmm/v2/:address1/:address2?/:address3?
+ * @desc Endpoint V2 qui utilise TheGraph pour récupérer les données (WXDAI uniquement)
+ * @access Public
+ */
+router.get('/:address1/:address2?/:address3?', async (req, res) => {
+  const requestTimer = req.startTimer('rmm_v2_endpoint');
   
-  repays: `
-    query GetRepays($user: String!) {
-      repays(
-        where: { user: $user }
-        orderBy: timestamp
-        orderDirection: asc
-      ) {
-        id
-        amount
-        reserve { 
-          symbol 
-        }
-        timestamp
-      }
-    }
-  `,
-  
-  deposits: `
-    query GetDeposits($user: String!) {
-      deposits(
-        where: { user: $user }
-        orderBy: timestamp
-        orderDirection: asc
-      ) {
-        id
-        amount
-        reserve { 
-          symbol 
-        }
-        timestamp
-      }
-    }
-  `,
-  
-  redeemUnderlyings: `
-    query GetRedeemUnderlyings($user: String!) {
-      redeemUnderlyings(
-        where: { user: $user }
-        orderBy: timestamp
-        orderDirection: asc
-      ) {
-        id
-        amount
-        reserve { 
-          symbol 
-        }
-        timestamp
-      }
-    }
-  `
-};
-
-// Fonction pour interroger le subgraph
-async function querySubgraph(query, variables) {
   try {
-    const response = await fetch(SUBGRAPH_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        variables
-      })
+    const { address1, address2, address3 } = req.params;
+    const addresses = [address1, address2, address3].filter(addr => addr);
+
+    // Validation des adresses
+    for (const address of addresses) {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        return res.status(400).json({
+          error: 'Adresse invalide',
+          message: 'Toutes les adresses doivent être des adresses Ethereum valides (0x...)',
+          invalidAddress: address
+        });
+      }
+    }
+
+    if (addresses.length === 0) {
+      return res.status(400).json({
+        error: 'Aucune adresse fournie',
+        message: 'Au moins une adresse doit être fournie'
+      });
+    }
+
+    if (addresses.length > 3) {
+      return res.status(400).json({
+        error: 'Trop d\'adresses',
+        message: 'Maximum 3 adresses autorisées'
+      });
+    }
+
+    req.logEvent('rmm_v2_started', { 
+      addresses, 
+      count: addresses.length 
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.errors) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
-    }
-
-    return data.data;
-  } catch (error) {
-    console.error('Erreur lors de la requête subgraph:', error);
-    throw error;
-  }
-}
-
-// Fonction pour formater les montants (conversion depuis base units)
-function formatAmount(amount, decimals = 18) {
-  return parseFloat(amount) / Math.pow(10, decimals);
-}
-
-// Fonction pour formater les timestamps
-function formatTimestamp(timestamp) {
-  return new Date(parseInt(timestamp) * 1000).toISOString();
-}
-
-// Fonction pour extraire le hash de transaction depuis l'ID
-function extractTransactionHash(id) {
-  const parts = id.split(':');
-  if (parts.length >= 3) {
-    return parts[2]; // Le hash est le 3ème élément après les ":"
-  }
-  return null;
-}
-
-// Fonction pour filtrer les transactions par symboles de tokens
-function filterTransactionsBySymbol(transactions, allowedSymbols = ['rmmWXDAI']) {
-  return transactions.filter(tx => 
-    tx.reserve && 
-    tx.reserve.symbol && 
-    allowedSymbols.includes(tx.reserve.symbol)
-  );
-}
-
-// Fonction pour organiser les transactions par token natif
-function organizeTransactionsByToken(transactions) {
-  const organized = {
-    WXDAI: {
-      debt: [], // borrows + repays
-      supply: [] // deposits + withdraws
-    }
-  };
-
-  // Organiser les borrows et repays (debt) - seulement WXDAI
-  [...transactions.borrows, ...transactions.repays].forEach(tx => {
-    if (tx.reserve === 'rmmWXDAI') {
-      organized.WXDAI.debt.push(tx);
-    }
-  });
-
-  // Organiser les deposits et withdraws (supply) - seulement WXDAI
-  [...transactions.deposits, ...transactions.redeemUnderlyings].forEach(tx => {
-    if (tx.reserve === 'rmmWXDAI') {
-      organized.WXDAI.supply.push(tx);
-    }
-  });
-
-  // Trier par timestamp
-  Object.keys(organized).forEach(token => {
-    organized[token].debt.sort((a, b) => a.timestamp - b.timestamp);
-    organized[token].supply.sort((a, b) => a.timestamp - b.timestamp);
-  });
-
-  return organized;
-}
-
-// Fonction pour récupérer toutes les transactions d'un utilisateur
-async function fetchUserTransactions(userAddress) {
-  const allTransactions = {
-    borrows: [],
-    repays: [],
-    deposits: [],
-    redeemUnderlyings: []
-  };
-
-  // Récupérer tous les types de transactions
-  for (const [type, query] of Object.entries(QUERIES)) {
-    try {
-      const variables = {
-        user: userAddress.toLowerCase()
-      };
-
-      const data = await querySubgraph(query, variables);
-      const transactions = data[type] || [];
-
-      // Filtrer les transactions par symboles de tokens
-      const filteredTransactions = filterTransactionsBySymbol(transactions);
-
-      // Formater les transactions
-      const formattedTransactions = filteredTransactions.map(tx => {
-        const txHash = extractTransactionHash(tx.id);
-        const decimals = 18; // WXDAI = 18
-        
-        return {
-          txHash: txHash,
-          amount: tx.amount,
-          amountFormatted: formatAmount(tx.amount, decimals),
-          timestamp: tx.timestamp,
-          type: type === 'redeemUnderlyings' ? 'withdraw' : type.slice(0, -1), // Enlever le 's' final
-          reserve: tx.reserve.symbol
-        };
-      });
-
-      allTransactions[type] = formattedTransactions;
-
-    } catch (error) {
-      console.error(`Erreur lors de la récupération des ${type}:`, error);
-      allTransactions[type] = [];
-    }
-  }
-
-  // Organiser par token natif
-  return organizeTransactionsByToken(allTransactions);
-}
-
-// Route principale v2
-router.get('/:address', async (req, res) => {
-  try {
-    const { address } = req.params;
-
-    // Validation de l'adresse
-    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Adresse EVM invalide'
-      });
-    }
-
-    console.log(`🔍 Récupération des transactions RMM v2 pour: ${address}`);
-
-    // Récupérer toutes les transactions
-    const transactions = await fetchUserTransactions(address);
-
-    // Calculer les statistiques par token
-    const stats = {
-      WXDAI: {
-        debt: transactions.WXDAI.debt.length,
-        supply: transactions.WXDAI.supply.length,
-        total: transactions.WXDAI.debt.length + transactions.WXDAI.supply.length
-      }
-    };
-
-    // Calculer les montants totaux par token
-    const totals = {
-      WXDAI: {
-        debt: transactions.WXDAI.debt.reduce((sum, tx) => {
-          // Calculer la dette nette : emprunts positifs, remboursements négatifs
-          if (tx.type === 'borrow') {
-            return sum + tx.amountFormatted;
-          } else if (tx.type === 'repay') {
-            return sum - tx.amountFormatted;
-          }
-          return sum;
-        }, 0),
-        supply: transactions.WXDAI.supply.reduce((sum, tx) => {
-          // Calculer le supply net : dépôts positifs, retraits négatifs
-          if (tx.type === 'deposit') {
-            return sum + tx.amountFormatted;
-          } else if (tx.type === 'withdraw') {
-            return sum - tx.amountFormatted;
-          }
-          return sum;
-        }, 0)
-      }
-    };
-
-    // Préparer la réponse
-    const response = {
-      success: true,
-      data: {
-        address: address,
-        contract: RMM_CONTRACT,
-        subgraphUrl: 'https://api.thegraph.com/subgraphs/id/QmXT8Cpkjevu2sPN1fKkwb7Px9Wqj84DALA2TQ8nokhj7e',
-        stats,
-        totals,
-        transactions,
-        timestamp: new Date().toISOString()
-      }
-    };
-
-    console.log(`✅ Transactions récupérées: ${stats.WXDAI.total} transactions`);
-    res.json(response);
-
-  } catch (error) {
-    console.error('❌ Erreur dans la route RMM v2:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erreur interne du serveur'
-    });
-  }
-});
-
-// Route pour obtenir les transactions par type
-router.get('/:address/:type', async (req, res) => {
-  try {
-    const { address, type } = req.params;
-    const validTypes = ['borrows', 'repays', 'deposits', 'redeemUnderlyings'];
-
-    if (!validTypes.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        error: `Type invalide. Types valides: ${validTypes.join(', ')}`
-      });
-    }
-
-    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Adresse EVM invalide'
-      });
-    }
-
-    console.log(`🔍 Récupération des ${type} pour: ${address}`);
-
-    const query = QUERIES[type];
-    const variables = {
-      user: address.toLowerCase()
-    };
-
-    const data = await querySubgraph(query, variables);
-    const transactions = data[type] || [];
-
-    // Filtrer les transactions par symboles de tokens
-    const filteredTransactions = filterTransactionsBySymbol(transactions);
-
-    // Formater les transactions
-    const formattedTransactions = filteredTransactions.map(tx => {
-      const txHash = extractTransactionHash(tx.id);
-      const decimals = 18; // WXDAI = 18
+    const results = [];
+    for (const address of addresses) {
+      const addressTimer = req.startTimer(`address_${address}`);
       
-      return {
-        txHash: txHash,
-        amount: tx.amount,
-        amountFormatted: formatAmount(tx.amount, decimals),
-        timestamp: tx.timestamp,
-        type: type === 'redeemUnderlyings' ? 'withdraw' : type.slice(0, -1),
-        reserve: tx.reserve.symbol
-      };
+      try {
+        req.logEvent('processing_address_v2', { address });
+        
+        // Utiliser directement TheGraph V2 pour récupérer les intérêts
+        const interestResult = await calculateInterestForV2FromTheGraph(address, req);
+
+        // Convertir le format pour compatibilité frontend
+        const frontendCompatibleData = {
+          address,
+          contract: '0x7bb834017672b1135466661d8dd69c5dd0b3bf51', // Contract V2
+          subgraphUrl: 'https://api.thegraph.com/subgraphs/id/QmXT8Cpkjevu2sPN1fKkwb7Px9Wqj84DALA2TQ8nokhj7e',
+          // Format V3 compatible
+          interests: {
+            WXDAI: {
+              token: 'WXDAI',
+              borrow: {
+                totalInterest: interestResult.borrow.totalInterest,
+                dailyDetails: interestResult.borrow.dailyDetails
+              },
+              supply: {
+                totalInterest: interestResult.supply.totalInterest,
+                dailyDetails: interestResult.supply.dailyDetails
+              },
+              summary: {
+                totalBorrowInterest: interestResult.borrow.totalInterest,
+                totalSupplyInterest: interestResult.supply.totalInterest,
+                netInterest: (BigInt(interestResult.supply.totalInterest) - BigInt(interestResult.borrow.totalInterest)).toString()
+              }
+            }
+          },
+          // Format V2 compatible (pour rétrocompatibilité)
+          stats: {
+            USDC: { debt: 0, supply: 0, total: 0 }, // V2: pas d'USDC
+            WXDAI: { 
+              debt: interestResult.borrow.dailyDetails.filter(d => d.transactionType === 'borrow' || d.transactionType === 'repay').length,
+              supply: interestResult.supply.dailyDetails.filter(d => d.transactionType === 'supply' || d.transactionType === 'withdraw').length,
+              total: interestResult.borrow.dailyDetails.length + interestResult.supply.dailyDetails.length
+            }
+          },
+          totals: {
+            USDC: { debt: 0, supply: 0 }, // V2: pas d'USDC
+            WXDAI: { 
+              // Utiliser l'historique complet, pas seulement l'état final
+              debt: Math.max(...interestResult.borrow.dailyDetails.map(d => parseFloat(d.debt || '0') / Math.pow(10, 18))),
+              supply: Math.max(...interestResult.supply.dailyDetails.map(d => parseFloat(d.supply || '0') / Math.pow(10, 18)))
+            }
+          },
+          transactions: {
+            USDC: { debt: [], supply: [] }, // V2: pas d'USDC
+            WXDAI: {
+              debt: interestResult.borrow.dailyDetails
+                .filter(d => d.transactionType === 'borrow' || d.transactionType === 'repay')
+                .map(d => ({
+                  txHash: `v2_${d.timestamp}_${d.transactionType}`,
+                  amount: d.transactionAmount || '0',
+                  amountFormatted: parseFloat(d.transactionAmount || '0') / Math.pow(10, 18), // Convertir wei → WXDAI
+                  timestamp: d.timestamp,
+                  type: d.transactionType === 'borrow' ? 'borrow' : 'repay',
+                  reserve: 'rmmWXDAI'
+                })),
+              supply: interestResult.supply.dailyDetails
+                .filter(d => d.transactionType === 'supply' || d.transactionType === 'withdraw')
+                .map(d => ({
+                  txHash: `v2_${d.timestamp}_${d.transactionType}`,
+                  amount: d.transactionAmount || '0',
+                  amountFormatted: parseFloat(d.transactionAmount || '0') / Math.pow(10, 18), // Convertir wei → WXDAI
+                  timestamp: d.timestamp,
+                  type: d.transactionType === 'supply' ? 'deposit' : 'withdraw',
+                  reserve: 'rmmWXDAI'
+                }))
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        req.stopTimer(`address_${address}`);
+        req.logEvent('address_v2_processed_successfully', { 
+          address, 
+          token: interestResult.token
+        });
+
+        results.push({ 
+          address, 
+          success: true, 
+          data: {
+            address,
+            interests: {
+              WXDAI: {
+                token: 'WXDAI',
+                borrow: {
+                  totalInterest: interestResult.borrow.totalInterest,
+                  dailyDetails: interestResult.borrow.dailyDetails
+                },
+                supply: {
+                  totalInterest: interestResult.supply.totalInterest,
+                  dailyDetails: interestResult.supply.dailyDetails
+                },
+                summary: {
+                  totalBorrowInterest: interestResult.borrow.totalInterest,
+                  totalSupplyInterest: interestResult.supply.totalInterest,
+                  netInterest: (BigInt(interestResult.supply.totalInterest) - BigInt(interestResult.borrow.totalInterest)).toString()
+                }
+              }
+            },
+            // Garder aussi l'ancien format pour compatibilité
+            transactions: frontendCompatibleData.transactions,
+            summary: {
+              stablecoins: [{
+                symbol: 'WXDAI',
+                interests: {
+                  totalBorrowInterest: interestResult.borrow.totalInterest,
+                  totalSupplyInterest: interestResult.supply.totalInterest,
+                  netInterest: (BigInt(interestResult.supply.totalInterest) - BigInt(interestResult.borrow.totalInterest)).toString()
+                }
+              }]
+            }
+          }
+        });
+      } catch (error) {
+        req.stopTimer(`address_${address}`);
+        req.logEvent('address_v2_processing_error', { 
+          address, 
+          error: error.message 
+        });
+        
+        console.error(`Erreur pour l'adresse V2 ${address}:`, error);
+        results.push({ 
+          address, 
+          success: false, 
+          error: error.message 
+        });
+      }
+    }
+
+    const successfulResults = results.filter(r => r.success);
+    const failedResults = results.filter(r => !r.success);
+
+    req.stopTimer('rmm_v2_endpoint');
+    req.logEvent('rmm_v2_completed', { 
+      totalAddresses: addresses.length,
+      successful: successfulResults.length,
+      failed: failedResults.length
     });
 
+    // Format de réponse compatible frontend (même structure que V3)
     const response = {
       success: true,
       data: {
-        address,
-        type,
-        count: formattedTransactions.length,
-        transactions: formattedTransactions,
-        timestamp: new Date().toISOString()
+        addresses: addresses,
+        results: results,
+        summary: {
+          totalAddresses: addresses.length,
+          successful: successfulResults.length,
+          failed: failedResults.length,
+          stablecoins: ['WXDAI'], // V2: seulement WXDAI
+          version: 'v2'
+        }
       }
     };
 
-    console.log(`✅ ${type} récupérés: ${formattedTransactions.length} transactions`);
     res.json(response);
 
   } catch (error) {
-    console.error(`❌ Erreur lors de la récupération des ${req.params.type}:`, error);
+    req.stopTimer('rmm_v2_endpoint');
+    req.logEvent('rmm_v2_error', { 
+      error: error.message 
+    });
+    
+    console.error('Erreur dans /api/rmm/v2:', error);
     res.status(500).json({
-      success: false,
-      error: error.message || 'Erreur interne du serveur'
+      error: 'Erreur lors du traitement des adresses V2',
+      message: error.message
     });
   }
 });

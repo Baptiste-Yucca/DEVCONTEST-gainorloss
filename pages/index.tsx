@@ -685,9 +685,8 @@ export default function Home() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">Transactions RMM v2 - Montants</h2>
                   
-                  {/* Vérifier si le wallet a des transactions V2 */}
-                  {(!dataV2.data.transactions.WXDAI.debt || dataV2.data.transactions.WXDAI.debt.length === 0) && 
-                   (!dataV2.data.transactions.WXDAI.supply || dataV2.data.transactions.WXDAI.supply.length === 0) ? (
+                  {/* Vérifier si le wallet a des données V2 */}
+                  {!dataV2.data?.results?.[0]?.data?.interests?.WXDAI ? (
                     <div className="text-center py-12">
                       <div className="text-6xl mb-4">😢</div>
                       <p className="text-lg text-gray-600">
@@ -696,37 +695,50 @@ export default function Home() {
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-1 gap-6 mb-6">
-                        <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
-                          <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
-                          <p className="text-lg font-bold text-green-600">
-                            Dette: {dataV2.data.totals.WXDAI.debt.toFixed(2)} | Supply: {dataV2.data.totals.WXDAI.supply.toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
+                      {/* Extraire les données V2 comme V3 */}
+                      {(() => {
+                        const v2Result = dataV2.data.results[0];
+                        const v2WxdaiData = v2Result.data.interests.WXDAI;
+                        const v2WxdaiBorrowDetails = v2WxdaiData.borrow.dailyDetails || [];
+                        const v2WxdaiSupplyDetails = v2WxdaiData.supply.dailyDetails || [];
+                        
+                        return (
+                          <>
+                            <div className="grid grid-cols-1 gap-6 mb-6">
+                              <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
+                                <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
+                                <p className="text-lg font-bold text-green-600">
+                                  Dette: {formatAmount(v2WxdaiData.borrow.totalInterest, 18).toFixed(2)} | 
+                                  Supply: {formatAmount(v2WxdaiData.supply.totalInterest, 18).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
 
-                      {/* Graphiques WXDAI v2 */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        {/* Graphique Dette WXDAI v2 */}
-                        <Chart
-                          data={prepareV2ChartData(dataV2.data.transactions.WXDAI.debt)}
-                          title="Évolution de la dette WXDAI (v2)"
-                          color="#f59e0b"
-                          type="line"
-                          tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
-                          userAddress={address}
-                        />
+                            {/* Graphiques WXDAI v2 */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                              {/* Graphique Dette WXDAI v2 */}
+                              <Chart
+                                data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18)}
+                                title="Évolution de la dette WXDAI (v2)"
+                                color="#f59e0b"
+                                type="line"
+                                tokenAddress="0x0ade75f269a054673883319baa50e5e0360a775f"
+                                userAddress={address}
+                              />
 
-                        {/* Graphique Supply WXDAI v2 */}
-                        <Chart
-                          data={prepareV2ChartData(dataV2.data.transactions.WXDAI.supply)}
-                          title="Évolution du supply WXDAI (v2)"
-                          color="#3b82f6"
-                          type="area"
-                          tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
-                          userAddress={address}
-                        />
-                      </div>
+                              {/* Graphique Supply WXDAI v2 */}
+                              <Chart
+                                data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18)}
+                                title="Évolution du supply WXDAI (v2)"
+                                color="#3b82f6"
+                                type="area"
+                                tokenAddress="0xe91d153e0b41518a2ce8dd3d7944fa863463a97d"
+                                userAddress={address}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
                     </>
                   )}
                 </div>

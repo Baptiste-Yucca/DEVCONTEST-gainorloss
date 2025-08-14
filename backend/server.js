@@ -45,8 +45,8 @@ app.use(timetracker);
 
 // Routes API
 app.use('/api/health', require('./routes/health'));
-app.use('/api/rmm', require('./routes/rmm'));
-app.use('/api/rmm/v2', require('./routes/rmm-v2'));
+app.use('/api/rmm/v2', require('./routes/rmm-v2')); // Route V2 AVANT la route V3
+app.use('/api/rmm', require('./routes/rmm')); // Route V3 APRÈS la route V2
 app.use('/api/balances', require('./routes/balances'));
 
 
@@ -58,10 +58,9 @@ app.get('/', (req, res) => {
     description: 'API pour analyser les données du protocole RMM',
     endpoints: {
       health: '/api/health',
+      'rmm-v2': '/api/rmm/v2/:address1/:address2?/:address3?',
       rmm: '/api/rmm/v3/:address1/:address2?/:address3?',
-      'rmm-v2': '/api/rmm/v2/:address',
-      balances: '/api/balances/v3/:address',
-
+      balances: '/api/balances/v3/:address'
     },
     example: 'GET /api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f'
   });
@@ -75,12 +74,10 @@ app.use('*', (req, res) => {
     availableEndpoints: [
       'GET /',
       'GET /api/health',
+      'GET /api/rmm/v2/:address1/:address2?/:address3?',
       'GET /api/rmm/v3/:address1/:address2?/:address3?',
-      'GET /api/rmm/v2/:address',
-      'GET /api/rmm/v2/:address/:type',
       'GET /api/balances/v3/:address',
-      'POST /api/balances/v3/batch',
-
+      'POST /api/balances/v3/batch'
     ]
   });
 });
