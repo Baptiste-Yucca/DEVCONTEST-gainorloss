@@ -56,11 +56,12 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
         // Utiliser directement TheGraph V2 pour récupérer les intérêts
         const interestResult = await calculateInterestForV2FromTheGraph(address, req);
 
+        // ✅ NOUVEAU: Récupérer les transactions depuis les résultats
+        const transactions = interestResult.transactions || {};
+
         // Convertir le format pour compatibilité frontend
         const frontendCompatibleData = {
           address,
-          contract: '0x7bb834017672b1135466661d8dd69c5dd0b3bf51', // Contract V2
-          subgraphUrl: 'https://api.thegraph.com/subgraphs/id/QmXT8Cpkjevu2sPN1fKkwb7Px9Wqj84DALA2TQ8nokhj7e',
           // Format V3 compatible
           interests: {
             WXDAI: {
@@ -80,6 +81,8 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
               }
             }
           },
+          // ✅ NOUVEAU: Transactions pour le frontend
+          transactions: transactions,
           // Format V2 compatible (pour rétrocompatibilité)
           stats: {
             USDC: { debt: 0, supply: 0, total: 0 }, // V2: pas d'USDC
@@ -92,34 +95,8 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
           totals: {
             USDC: { debt: 0, supply: 0 }, // V2: pas d'USDC
             WXDAI: { 
-              // Utiliser l'historique complet, pas seulement l'état final
-              debt: Math.max(...interestResult.borrow.dailyDetails.map(d => parseFloat(d.debt || '0') / Math.pow(10, 18))),
-              supply: Math.max(...interestResult.supply.dailyDetails.map(d => parseFloat(d.supply || '0') / Math.pow(10, 18)))
-            }
-          },
-          transactions: {
-            USDC: { debt: [], supply: [] }, // V2: pas d'USDC
-            WXDAI: {
-              debt: interestResult.borrow.dailyDetails
-                .filter(d => d.transactionType === 'borrow' || d.transactionType === 'repay')
-                .map(d => ({
-                  txHash: `v2_${d.timestamp}_${d.transactionType}`,
-                  amount: d.transactionAmount || '0',
-                  amountFormatted: parseFloat(d.transactionAmount || '0') / Math.pow(10, 18), // Convertir wei → WXDAI
-                  timestamp: d.timestamp,
-                  type: d.transactionType === 'borrow' ? 'borrow' : 'repay',
-                  reserve: 'rmmWXDAI'
-                })),
-              supply: interestResult.supply.dailyDetails
-                .filter(d => d.transactionType === 'supply' || d.transactionType === 'withdraw')
-                .map(d => ({
-                  txHash: `v2_${d.timestamp}_${d.transactionType}`,
-                  amount: d.transactionAmount || '0',
-                  amountFormatted: parseFloat(d.transactionAmount || '0') / Math.pow(10, 18), // Convertir wei → WXDAI
-                  timestamp: d.timestamp,
-                  type: d.transactionType === 'supply' ? 'deposit' : 'withdraw',
-                  reserve: 'rmmWXDAI'
-                }))
+              debt: parseFloat(interestResult.borrow.summary.currentDebt || '0') / Math.pow(10, 18), // Convertir wei → WXDAI
+              supply: parseFloat(interestResult.supply.summary.currentSupply || '0') / Math.pow(10, 18) // Convertir wei → WXDAI
             }
           },
           timestamp: new Date().toISOString()
@@ -134,39 +111,7 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
         results.push({ 
           address, 
           success: true, 
-          data: {
-            address,
-            interests: {
-              WXDAI: {
-                token: 'WXDAI',
-                borrow: {
-                  totalInterest: interestResult.borrow.totalInterest,
-                  dailyDetails: interestResult.borrow.dailyDetails
-                },
-                supply: {
-                  totalInterest: interestResult.supply.totalInterest,
-                  dailyDetails: interestResult.supply.dailyDetails
-                },
-                summary: {
-                  totalBorrowInterest: interestResult.borrow.totalInterest,
-                  totalSupplyInterest: interestResult.supply.totalInterest,
-                  netInterest: (BigInt(interestResult.supply.totalInterest) - BigInt(interestResult.borrow.totalInterest)).toString()
-                }
-              }
-            },
-            // Garder aussi l'ancien format pour compatibilité
-            transactions: frontendCompatibleData.transactions,
-            summary: {
-              stablecoins: [{
-                symbol: 'WXDAI',
-                interests: {
-                  totalBorrowInterest: interestResult.borrow.totalInterest,
-                  totalSupplyInterest: interestResult.supply.totalInterest,
-                  netInterest: (BigInt(interestResult.supply.totalInterest) - BigInt(interestResult.borrow.totalInterest)).toString()
-                }
-              }]
-            }
-          }
+          data: frontendCompatibleData
         });
       } catch (error) {
         req.stopTimer(`address_${address}`);

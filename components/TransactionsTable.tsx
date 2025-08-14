@@ -175,7 +175,9 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span>Total: {filteredTransactions.length}</span>
               <span>Emprunts: {filteredTransactions.filter(tx => tx.type === 'borrow').length}</span>
+              <span>Remboursements: {filteredTransactions.filter(tx => tx.type === 'repay').length}</span>
               <span>Dépôts: {filteredTransactions.filter(tx => tx.type === 'deposit').length}</span>
+              <span>Retraits: {filteredTransactions.filter(tx => tx.type === 'withdraw').length}</span>
               <span>Période: {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}</span>
             </div>
           )}
@@ -275,32 +277,49 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
       {!isCollapsed && (
         <>
                     {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+            {/* Colonne 1: Total */}
             <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
               <h3 className="text-sm font-medium text-blue-700 mb-1">Total</h3>
               <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
             </div>
+            
+            {/* Colonne 2: Emprunts */}
             <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
               <h3 className="text-sm font-medium text-red-700 mb-1">Emprunts</h3>
               <p className="text-2xl font-bold text-red-600">
                 {filteredTransactions.filter(tx => tx.type === 'borrow').length}
               </p>
             </div>
+            
+            {/* Colonne 3: Remboursements */}
+            <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-purple-700 mb-1">Remboursements</h3>
+              <p className="text-2xl font-bold text-purple-600">
+                {filteredTransactions.filter(tx => tx.type === 'repay').length}
+              </p>
+            </div>
+            
+            {/* Colonne 4: Dépôts */}
             <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
               <h3 className="text-sm font-medium text-green-700 mb-1">Dépôts</h3>
               <p className="text-2xl font-bold text-green-600">
                 {filteredTransactions.filter(tx => tx.type === 'deposit').length}
               </p>
             </div>
+            
+            {/* Colonne 5: Retraits */}
             <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl">
               <h3 className="text-sm font-medium text-orange-700 mb-1">Retraits</h3>
               <p className="text-2xl font-bold text-orange-600">
                 {filteredTransactions.filter(tx => tx.type === 'withdraw').length}
               </p>
             </div>
-            <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-purple-700 mb-1">Période</h3>
-              <p className="text-sm font-bold text-purple-600">
+            
+            {/* Colonne 6: Période */}
+            <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl">
+              <h3 className="text-sm font-medium text-gray-700 mb-1">Période</h3>
+              <p className="text-sm font-bold text-gray-600">
                 {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}
               </p>
             </div>

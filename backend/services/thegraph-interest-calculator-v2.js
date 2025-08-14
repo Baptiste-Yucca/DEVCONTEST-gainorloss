@@ -1,4 +1,6 @@
 const { fetchAllTokenBalancesV2 } = require('./graphql-v2');
+// ✅ NOUVEAU: Importer le service des transactions V2
+const { fetchAllTransactionsV2, transformTransactionsV2ToFrontendFormat } = require('./fetch-transactions-v2');
 
 /**
  * Configuration depuis les variables d'environnement
@@ -340,6 +342,12 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
     // Récupérer tous les balances depuis TheGraph V2
     const allBalances = await fetchAllTokenBalancesV2(userAddress, req);
     
+    // ✅ NOUVEAU: Récupérer les transactions V2 pour le frontend
+    const allTransactions = await fetchAllTransactionsV2(userAddress, req);
+    
+    // ✅ NOUVEAU: Transformer en format frontend
+    const frontendTransactions = transformTransactionsV2ToFrontendFormat(allTransactions);
+    
     // Récupérer les balances actuels via RPC
     const currentBalances = await getCurrentBalancesV2(userAddress);
     
@@ -378,6 +386,8 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
       borrow: borrowInterest,
       supply: supplyInterest,
       dailyStatement: dailyStatement,
+      // ✅ NOUVEAU: Transactions pour le frontend
+      transactions: frontendTransactions,
       summary: {
         totalBorrowInterest: borrowInterest.totalInterest,
         totalSupplyInterest: supplyInterest.totalInterest,
