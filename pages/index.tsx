@@ -679,7 +679,7 @@ export default function Home() {
               />
             </div>
 
-            {/* Graphiques RMM v2 - Montants des transactions */}
+            {/* Graphiques RMM v2 - Montants */}
             {dataV2 && (
               <>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
@@ -704,13 +704,28 @@ export default function Home() {
                         
                         return (
                           <>
-                            <div className="grid grid-cols-1 gap-6 mb-6">
-                              <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
-                                <h3 className="text-sm font-medium text-green-700 mb-2">WXDAI</h3>
-                                <p className="text-lg font-bold text-green-600">
-                                  Dette: {formatAmount(v2WxdaiData.borrow.totalInterest, 18).toFixed(2)} | 
-                                  Supply: {formatAmount(v2WxdaiData.supply.totalInterest, 18).toFixed(2)}
-                                </p>
+                            {/* ✅ NOUVEAU: Résumé WXDAI V2 identique à V3 */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                              <h2 className="text-2xl font-bold text-gray-900 mb-6">Résumé WXDAI (V2)</h2>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
+                                  <h3 className="text-sm font-medium text-red-700 mb-2">Intérêts d'emprunt</h3>
+                                  <p className="text-3xl font-bold text-red-600">
+                                    {formatAmount(v2WxdaiData.borrow.totalInterest, 18).toFixed(2)} WXDAI
+                                  </p>
+                                </div>
+                                <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
+                                  <h3 className="text-sm font-medium text-green-700 mb-2">Intérêts de dépôt</h3>
+                                  <p className="text-3xl font-bold text-green-600">
+                                    {formatAmount(v2WxdaiData.supply.totalInterest, 18).toFixed(2)} WXDAI
+                                  </p>
+                                </div>
+                                <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
+                                  <h3 className="text-sm font-medium text-blue-700 mb-2">Gain net</h3>
+                                  <p className={`text-3xl font-bold ${parseFloat(v2WxdaiData.summary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {formatAmount(v2WxdaiData.summary.netInterest, 18).toFixed(2)} WXDAI
+                                  </p>
+                                </div>
                               </div>
                             </div>
 
