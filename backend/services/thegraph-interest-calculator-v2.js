@@ -359,13 +359,19 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
     
     // Ajouter le point "aujourd'hui" si il y a des données historiques
     if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
-      const currentDebtBalance = currentBalances['debtWXDAI']?.balance || "0";
+      const currentDebtBalance = currentBalances.debtWXDAI?.balance || "0";
       addTodayPointV2(borrowInterest.dailyDetails, currentDebtBalance, 'debt');
+      
+      // ✅ NOUVEAU: Ajouter des points estimés hebdomadaires
+      borrowInterest.dailyDetails = addWeeklyEstimatedPointsV2(borrowInterest.dailyDetails, 'debt', frontendTransactions.debt);
     }
     
     if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
-      const currentSupplyBalance = currentBalances['rmmWXDAI']?.balance || "0";
+      const currentSupplyBalance = currentBalances.rmmWXDAI?.balance || "0";
       addTodayPointV2(supplyInterest.dailyDetails, currentSupplyBalance, 'supply');
+      
+      // ✅ NOUVEAU: Ajouter des points estimés hebdomadaires
+      supplyInterest.dailyDetails = addWeeklyEstimatedPointsV2(supplyInterest.dailyDetails, 'supply', frontendTransactions.supply);
     }
     
     // Créer un relevé journalier combiné
@@ -529,6 +535,91 @@ function addTodayPointV2(dailyDetails, currentBalance, balanceType) {
   console.log(`📅 Point d'aujourd'hui V2 ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
   
   return dailyDetails;
+}
+
+/**
+ * Ajoute des points estimés hebdomadaires en reconstruisant le balance à l'instant T
+ * Point J+7 seulement s'il n'y a pas d'autres points dans l'intervalle
+ */
+function addWeeklyEstimatedPointsV2(dailyDetails, tokenType, transactions = []) {
+  if (dailyDetails.length < 2) return dailyDetails;
+  
+  const estimatedPoints = [];
+  const sortedDetails = dailyDetails.sort((a, b) => a.timestamp - b.timestamp);
+  
+  for (let i = 0; i < sortedDetails.length - 1; i++) {
+    const currentPoint = sortedDetails[i];
+    const nextPoint = sortedDetails[i + 1];
+    
+    const currentTime = currentPoint.timestamp;
+    const nextTime = nextPoint.timestamp;
+    
+    const daysDiff = (nextTime - currentTime) / (24 * 60 * 60);
+    
+    if (daysDiff > 7) {
+      const estimatedPointsCount = Math.floor(daysDiff / 7);
+      
+      for (let j = 1; j <= estimatedPointsCount; j++) {
+        const estimatedTime = currentTime + (j * 7 * 24 * 60 * 60);
+        
+        const estimatedBalance = reconstructBalanceAtTimestampV2(
+          currentPoint, 
+          nextPoint, 
+          estimatedTime, 
+          transactions
+        );
+        
+        estimatedPoints.push({
+          date: formatDateYYYYMMDD(estimatedTime),
+          timestamp: estimatedTime,
+          [tokenType]: estimatedBalance.toString(),
+          dailyInterest: "0",
+          totalInterest: currentPoint.totalInterest,
+          transactionAmount: estimatedBalance.toString(),
+          transactionType: "estimated",
+          source: "estimated"
+        });
+      }
+    }
+  }
+  
+  return [...dailyDetails, ...estimatedPoints].sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function reconstructBalanceAtTimestampV2(beforePoint, afterPoint, targetTimestamp, transactions) {
+  let currentBalance = parseFloat(beforePoint.debt || beforePoint.supply);
+  
+  // Filtrer les transactions V2 (WXDAI uniquement)
+  const relevantTransactions = transactions.filter(tx => 
+    tx.timestamp > beforePoint.timestamp && 
+    tx.timestamp <= targetTimestamp &&
+    tx.token === 'WXDAI'
+  );
+  
+  relevantTransactions.forEach(tx => {
+    const amount = parseFloat(tx.amount) / Math.pow(10, 18); // WXDAI = 18 decimals
+    
+    switch (tx.type) {
+      case 'borrow':
+      case 'supply':
+        currentBalance += amount;
+        break;
+      case 'repay':
+      case 'withdraw':
+        currentBalance -= amount;
+        break;
+    }
+  });
+  
+  if (relevantTransactions.length === 0) {
+    const timeDiff = afterPoint.timestamp - beforePoint.timestamp;
+    const ratio = (targetTimestamp - beforePoint.timestamp) / timeDiff;
+    
+    currentBalance = parseFloat(beforePoint.debt || beforePoint.supply) + 
+      (parseFloat(afterPoint.debt || afterPoint.supply) - parseFloat(beforePoint.debt || beforePoint.supply)) * ratio;
+  }
+  
+  return Math.max(0, currentBalance);
 }
 
 /**

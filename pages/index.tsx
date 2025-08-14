@@ -15,6 +15,7 @@ interface DailyDetail {
   totalInterest: string;
   transactionAmount?: string;
   transactionType?: string;
+  source?: 'real' | 'estimated'; // Ajouter un champ pour indiquer la source
 }
 
 // Types pour les données de l'API V2
@@ -160,6 +161,8 @@ export default function Home() {
   const [tokenBalances, setTokenBalances] = useState<TokenBalances | null>(null);
   const [isV3Collapsed, setIsV3Collapsed] = useState(false);
   const [isV2Collapsed, setIsV2Collapsed] = useState(false);
+  // Ajouter un état pour contrôler l'affichage des points estimés
+  const [showEstimatedPoints, setShowEstimatedPoints] = useState(true);
 
   // Fonction pour formater les montants (conversion depuis base units)
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -174,12 +177,22 @@ export default function Home() {
     return `${day}/${month}/${year}`;
   };
 
-  // Fonction pour préparer les données pour Recharts (V3)
-  const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6) => {
-    return dailyDetails.map(detail => ({
+  // Corriger la fonction prepareChartData pour filtrer selon showEstimatedPoints
+  const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6, showEstimated = true) => {
+    if (!dailyDetails || dailyDetails.length === 0) return [];
+    
+    // ✅ NOUVEAU: Filtrer selon la préférence de l'utilisateur
+    const filteredDetails = showEstimated 
+      ? dailyDetails 
+      : dailyDetails.filter(detail => detail.source === 'real');
+    
+    return filteredDetails.map(detail => ({
       date: detail.date,
       value: formatAmount(detail[valueKey] || '0', decimals),
-      formattedDate: formatDate(detail.date)
+      formattedDate: formatDate(detail.date),
+      // ✅ NOUVEAU: Ajouter la source pour le composant Chart
+      source: detail.source || 'real',
+      isEstimated: detail.source === 'estimated'
     }));
   };
 
@@ -601,30 +614,68 @@ export default function Home() {
               </div>
             )}
 
+            {/* Bouton switch pour les points estimés */}
+            <div className="flex items-center justify-center mb-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-gray-700">Points estimés :</span>
+                  
+                  {/* ✅ NOUVEAU: Switch on/off */}
+                  <button
+                    onClick={() => setShowEstimatedPoints(!showEstimatedPoints)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      showEstimatedPoints ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        showEstimatedPoints ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  
+                  <span className={`text-sm font-medium ${showEstimatedPoints ? 'text-blue-600' : 'text-gray-500'}`}>
+                    {showEstimatedPoints ? 'Activé' : 'Désactivé'}
+                  </span>
+                  
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                      <span>Points réels</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full bg-blue-300 opacity-60"></div>
+                      <span>Points estimés</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Graphiques USDC */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Graphique Dette USDC */}
+              {/* Graphique Dette USDC */}
               <Chart
-                data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
+                data={prepareChartData(usdcBorrowDetails, 'debt', 6, showEstimatedPoints)}
                 title="Évolution de la dette USDC"
-                color="#ef4444"
-                currentBalance={tokenBalances?.debtUSDC.balance === '0.00' ? '0' : tokenBalances?.debtUSDC.balance}
+                color="#dc2626"
                 type="line"
                 tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
                 userAddress={address}
+                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
               />
 
-            {/* Graphique Supply USDC */}
+              {/* Graphique Supply USDC */}
               <Chart
-                data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
+                data={prepareChartData(usdcSupplyDetails, 'supply', 6, showEstimatedPoints)}
                 title="Évolution du supply USDC"
-                color="#10b981"
-                currentBalance={tokenBalances?.armmUSDC.balance === '0.00' ? '0' : tokenBalances?.armmUSDC.balance}
+                color="#059669"
                 type="area"
-                tokenAddress="0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1"
+                tokenAddress="0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1"
                 userAddress={address}
+                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
               />
-              </div>
+            </div>
 
             {/* Résumé WXDAI */}
             {wxdaiSummary && (
@@ -655,26 +706,26 @@ export default function Home() {
 
             {/* Graphiques WXDAI */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Graphique Dette WXDAI */}
+              {/* Graphique Dette WXDAI */}
               <Chart
-                data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
+                data={prepareChartData(wxdaiBorrowDetails, 'debt', 18, showEstimatedPoints)}
                 title="Évolution de la dette WXDAI"
-                color="#f59e0b"
-                currentBalance={tokenBalances?.debtWXDAI.balance === '0.00' ? '0' : tokenBalances?.debtWXDAI.balance}
+                color="#dc2626"
                 type="line"
                 tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
                 userAddress={address}
+                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
               />
                     
               {/* Graphique Supply WXDAI */}
               <Chart
-                data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
+                data={prepareChartData(wxdaiSupplyDetails, 'supply', 18, showEstimatedPoints)}
                 title="Évolution du supply WXDAI"
-                color="#3b82f6"
-                currentBalance={tokenBalances?.armmWXDAI.balance === '0.00' ? '0' : tokenBalances?.armmWXDAI.balance}
+                color="#059669"
                 type="area"
-                tokenAddress="0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b"
+                tokenAddress="0x0ca4f5554dd9da6217d62d8df2816c82bba4157b"
                 userAddress={address}
+                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
               />
             </div>
 
@@ -732,22 +783,24 @@ export default function Home() {
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                               {/* Graphique Dette WXDAI v2 */}
                               <Chart
-                                data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18)}
+                                data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18, showEstimatedPoints)}
                                 title="Évolution de la dette WXDAI (v2)"
                                 color="#f59e0b"
                                 type="line"
                                 tokenAddress="0x0ade75f269a054673883319baa50e5e0360a775f"
                                 userAddress={address}
+                                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
                               />
 
                               {/* Graphique Supply WXDAI v2 */}
                               <Chart
-                                data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18)}
+                                data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18, showEstimatedPoints)}
                                 title="Évolution du supply WXDAI (v2)"
                                 color="#3b82f6"
                                 type="area"
                                 tokenAddress="0xe91d153e0b41518a2ce8dd3d7944fa863463a97d"
                                 userAddress={address}
+                                showEstimatedPoints={showEstimatedPoints} // ✅ NOUVEAU: Passer la prop
                               />
                             </div>
                           </>
