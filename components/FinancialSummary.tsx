@@ -95,69 +95,214 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   // État pour les filtres
   const [selectedTokens, setSelectedTokens] = useState<string[]>(['USDC', 'WXDAI', 'WXDAI_V2']);
 
-  // Calculs financiers unifiés
+  // ✅ NOUVEAU: Fonction d'interpolation linéaire
+  const interpolateLinear = (point1: any, point2: any, targetTimestamp: number, balanceType: 'debt' | 'supply') => {
+    const timestamp1 = point1.timestamp;
+    const timestamp2 = point2.timestamp;
+    const amount1 = parseFloat(point1[balanceType] || '0');
+    const amount2 = parseFloat(point2[balanceType] || '0');
+    
+    // Éviter la division par zéro
+    if (timestamp1 === timestamp2) return amount1;
+    
+    // Formule : y = ax + b
+    const slope = (amount2 - amount1) / (timestamp2 - timestamp1);
+    const intercept = amount1 - slope * timestamp1;
+    
+    // Calculer la valeur estimée
+    const estimatedAmount = slope * targetTimestamp + intercept;
+    
+    return Math.max(0, estimatedAmount); // Éviter les valeurs négatives
+  };
+
+  // ✅ NOUVEAU: Fonction pour trouver le point le plus proche avant une date
+  const findClosestPointBefore = (dailyDetails: any[], targetTimestamp: number) => {
+    let closestPoint = null;
+    let minDiff = Infinity;
+    
+    for (const point of dailyDetails) {
+      if (point.timestamp <= targetTimestamp) {
+        const diff = targetTimestamp - point.timestamp;
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestPoint = point;
+        }
+      }
+    }
+    
+    return closestPoint;
+  };
+
+  // ✅ NOUVEAU: Fonction pour trouver le point suivant après une date
+  const findNextPointAfter = (dailyDetails: any[], targetTimestamp: number) => {
+    for (const point of dailyDetails) {
+      if (point.timestamp > targetTimestamp) {
+        return point;
+      }
+    }
+    return null;
+  };
+
+  // ✅ NOUVEAU: Fonction pour calculer les intérêts sur une période personnalisée
+  const calculateInterestForCustomPeriod = (
+    dailyDetails: any[], 
+    startTimestamp: number, 
+    endTimestamp: number
+  ) => {
+    if (dailyDetails.length < 2) return 0;
+    
+    let totalInterest = 0;
+    
+    // Parcourir tous les points et sommer les periodInterest dans la plage
+    for (const point of dailyDetails) {
+      if (point.timestamp >= startTimestamp && point.timestamp <= endTimestamp) {
+        totalInterest += parseFloat(point.periodInterest || '0');
+      }
+    }
+    
+    return totalInterest;
+  };
+
+  // ✅ NOUVEAU: Calculs financiers avec interpolation conditionnelle
   const financialData = useMemo(() => {
     const data: any = {};
     
+    // Vérifier si on est en mode période personnalisée
+    const isCustomPeriod = selectedPeriod.start !== defaultPeriod.start || selectedPeriod.end !== defaultPeriod.end;
+    
+    if (isCustomPeriod) {
+      // ✅ MODE INTERPOLATION : Période personnalisée
+      const startTimestamp = new Date(selectedPeriod.start).getTime() / 1000;
+      const endTimestamp = new Date(selectedPeriod.end).getTime() / 1000;
+      
+      // USDC V3 avec interpolation
+      if (usdcData && selectedTokens.includes('USDC')) {
+        const debtInterest = calculateInterestForCustomPeriod(
+          usdcData.borrow?.dailyDetails || [], 
+          startTimestamp, 
+          endTimestamp
+        ) / Math.pow(10, 6);
+        
+        const supplyInterest = calculateInterestForCustomPeriod(
+          usdcData.supply?.dailyDetails || [], 
+          startTimestamp, 
+          endTimestamp
+        ) / Math.pow(10, 6);
+        
+        data.USDC = {
+          debt: debtInterest,
+          supply: supplyInterest,
+          net: supplyInterest - debtInterest,
+          version: 'V3',
+          contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
+        };
+      }
+      
+      // WXDAI V3 avec interpolation
+      if (wxdaiData && selectedTokens.includes('WXDAI')) {
+        const debtInterest = calculateInterestForCustomPeriod(
+          wxdaiData.borrow?.dailyDetails || [], 
+          startTimestamp, 
+          endTimestamp
+        ) / Math.pow(10, 18);
+        
+        const supplyInterest = calculateInterestForCustomPeriod(
+          wxdaiData.supply?.dailyDetails || [], 
+          startTimestamp, 
+          endTimestamp
+        ) / Math.pow(10, 18);
+        
+        data.WXDAI = {
+          debt: debtInterest,
+          supply: supplyInterest,
+          net: supplyInterest - debtInterest,
+          version: 'V3',
+          contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
+        };
+      }
+      
+      // WXDAI V2 avec interpolation
+      if (v2Data && selectedTokens.includes('WXDAI_V2')) {
+        const debtInterest = calculateInterestForCustomPeriod(
+          v2Data.borrow?.dailyDetails || [], 
+          startTimestamp, 
+          endTimestamp
+        ) / Math.pow(10, 18);
+        
+        const supplyInterest = calculateInterestForCustomPeriod(
+          v2Data.supply?.dailyDetails || [], 
+          startTimestamp, 
+          endTimestamp
+        ) / Math.pow(10, 18);
+        
+        data.WXDAI_V2 = {
+          debt: debtInterest,
+          supply: supplyInterest,
+          net: supplyInterest - debtInterest,
+          version: 'V2',
+          contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
+        };
+      }
+      
+    } else {
+      // ✅ MODE DÉFAUT : Toute la plage (valeurs du backend, pas de calculs)
       // USDC V3
-  if (usdcData && selectedTokens.includes('USDC')) {
-    // ✅ NOUVEAU: Récupérer depuis le dernier élément de dailyDetails
-    const lastDebtPoint = usdcData.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
-    const lastSupplyPoint = usdcData.supply?.dailyDetails?.[usdcData.supply.dailyDetails.length - 1];
-    
-    const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 6) : 0;
-    const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 6) : 0;
-    const netInterest = supplyInterest - debtInterest;
-    
-    data.USDC = {
-      debt: debtInterest,
-      supply: supplyInterest,
-      net: netInterest,
-      version: 'V3',
-      contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
-    };
-  }
-    
+      if (usdcData && selectedTokens.includes('USDC')) {
+        const lastDebtPoint = usdcData.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
+        const lastSupplyPoint = usdcData.supply?.dailyDetails?.[usdcData.supply.dailyDetails.length - 1];
+        
+        const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 6) : 0;
+        const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 6) : 0;
+        const netInterest = supplyInterest - debtInterest;
+        
+        data.USDC = {
+          debt: debtInterest,
+          supply: supplyInterest,
+          net: netInterest,
+          version: 'V3',
+          contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
+        };
+      }
+      
       // WXDAI V3
-  if (wxdaiData && selectedTokens.includes('WXDAI')) {
-    // ✅ NOUVEAU: Récupérer depuis le dernier élément de dailyDetails
-    const lastDebtPoint = wxdaiData.borrow?.dailyDetails?.[wxdaiData.borrow.dailyDetails.length - 1];
-    const lastSupplyPoint = wxdaiData.supply?.dailyDetails?.[wxdaiData.supply.dailyDetails.length - 1];
-    
-    const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 18) : 0;
-    const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 18) : 0;
-    const netInterest = supplyInterest - debtInterest;
-    
-    data.WXDAI = {
-      debt: debtInterest,
-      supply: supplyInterest,
-      net: netInterest,
-      version: 'V3',
-      contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
-    };
-  }
-    
+      if (wxdaiData && selectedTokens.includes('WXDAI')) {
+        const lastDebtPoint = wxdaiData.borrow?.dailyDetails?.[wxdaiData.borrow.dailyDetails.length - 1];
+        const lastSupplyPoint = wxdaiData.supply?.dailyDetails?.[wxdaiData.supply.dailyDetails.length - 1];
+        
+        const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 18) : 0;
+        const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 18) : 0;
+        const netInterest = supplyInterest - debtInterest;
+        
+        data.WXDAI = {
+          debt: debtInterest,
+          supply: supplyInterest,
+          net: netInterest,
+          version: 'V3',
+          contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
+        };
+      }
+      
       // WXDAI V2
-  if (v2Data && selectedTokens.includes('WXDAI_V2')) {
-    // ✅ NOUVEAU: Récupérer depuis le dernier élément de dailyDetails
-    const lastDebtPoint = v2Data.borrow?.dailyDetails?.[v2Data.borrow.dailyDetails.length - 1];
-    const lastSupplyPoint = v2Data.supply?.dailyDetails?.[v2Data.supply.dailyDetails.length - 1];
-    
-    const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 18) : 0;
-    const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 18) : 0;
-    const netInterest = supplyInterest - debtInterest;
-    
-    data.WXDAI_V2 = {
-      debt: debtInterest,
-      supply: supplyInterest,
-      net: netInterest,
-      version: 'V2',
-      contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
-    };
-  }
+      if (v2Data && selectedTokens.includes('WXDAI_V2')) {
+        const lastDebtPoint = v2Data.borrow?.dailyDetails?.[v2Data.borrow.dailyDetails.length - 1];
+        const lastSupplyPoint = v2Data.supply?.dailyDetails?.[v2Data.supply.dailyDetails.length - 1];
+        
+        const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 18) : 0;
+        const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 18) : 0;
+        const netInterest = supplyInterest - debtInterest;
+        
+        data.WXDAI_V2 = {
+          debt: debtInterest,
+          supply: supplyInterest,
+          net: netInterest,
+          version: 'V2',
+          contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
+        };
+      }
+    }
     
     return data;
-  }, [usdcData, wxdaiData, v2Data, selectedTokens]);
+  }, [usdcData, wxdaiData, v2Data, selectedTokens, selectedPeriod, defaultPeriod]); // ✅ Ajout de selectedPeriod et defaultPeriod
 
   // Calculs totaux
   const totals = useMemo(() => {
