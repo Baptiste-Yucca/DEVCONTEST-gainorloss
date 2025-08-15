@@ -535,9 +535,22 @@ export default function Home() {
     const usdcData = result?.data?.interests?.USDC;
     const wxdaiData = result?.data?.interests?.WXDAI;
     
-    const usdcSummary = usdcData?.summary;
-    const wxdaiSummary = wxdaiData?.summary;
-    
+    // ✅ NOUVEAU: Récupérer directement depuis les derniers points
+    const usdcLastDebtPoint = usdcData?.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
+    const usdcLastSupplyPoint = usdcData?.supply?.dailyDetails?.[usdcData.supply.dailyDetails.length - 1];
+
+    const wxdaiLastDebtPoint = wxdaiData?.borrow?.dailyDetails?.[wxdaiData.borrow.dailyDetails.length - 1];
+    const wxdaiLastSupplyPoint = wxdaiData?.supply?.dailyDetails?.[wxdaiData.supply.dailyDetails.length - 1];
+
+    // ✅ NOUVEAU: Calculer les valeurs finales
+    const usdcTotalDebtInterest = usdcLastDebtPoint ? parseFloat(usdcLastDebtPoint.totalInterest) : 0;
+    const usdcTotalSupplyInterest = usdcLastSupplyPoint ? parseFloat(usdcLastSupplyPoint.totalInterest) : 0;
+    const usdcNetInterest = usdcTotalSupplyInterest - usdcTotalDebtInterest;
+
+    const wxdaiTotalDebtInterest = wxdaiLastDebtPoint ? parseFloat(wxdaiLastDebtPoint.totalInterest) : 0;
+    const wxdaiTotalSupplyInterest = wxdaiLastSupplyPoint ? parseFloat(wxdaiLastSupplyPoint.totalInterest) : 0;
+    const wxdaiNetInterest = wxdaiTotalSupplyInterest - wxdaiTotalDebtInterest;
+
     const usdcBorrowDetails = usdcData?.borrow?.dailyDetails || [];
     const usdcSupplyDetails = usdcData?.supply?.dailyDetails || [];
     const wxdaiBorrowDetails = wxdaiData?.borrow?.dailyDetails || [];
@@ -588,26 +601,26 @@ export default function Home() {
             )}
 
             
-            {usdcSummary && (
+            {usdcData && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">USDC Summary</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
                     <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
                     <p className="text-3xl font-bold text-red-600">
-                      {formatAmount(usdcSummary.totalBorrowInterest).toFixed(2)} USDC
+                      {formatAmount(usdcTotalDebtInterest).toFixed(2)} USDC
                     </p>
                   </div>
                   <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
                     <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
                     <p className="text-3xl font-bold text-green-600">
-                      {formatAmount(usdcSummary.totalSupplyInterest).toFixed(2)} USDC
+                      {formatAmount(usdcTotalSupplyInterest).toFixed(2)} USDC
                     </p>
                   </div>
                   <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
                     <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
-                    <p className={`text-3xl font-bold ${parseFloat(usdcSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatAmount(usdcSummary.netInterest).toFixed(2)} USDC
+                    <p className={`text-3xl font-bold ${usdcNetInterest >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatAmount(usdcNetInterest).toFixed(2)} USDC
                     </p>
                   </div>
                 </div>
@@ -640,26 +653,26 @@ export default function Home() {
             </div>
 
             {/* WXDAI Summary */}
-            {wxdaiSummary && (
+            {wxdaiData && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">WXDAI Summary</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
                     <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
                     <p className="text-3xl font-bold text-red-600">
-                      {formatAmount(wxdaiSummary.totalBorrowInterest, 18).toFixed(2)} WXDAI
+                      {formatAmount(wxdaiTotalDebtInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
                   <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
                     <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
                     <p className="text-3xl font-bold text-green-600">
-                      {formatAmount(wxdaiSummary.totalSupplyInterest, 18).toFixed(2)} WXDAI
+                      {formatAmount(wxdaiTotalSupplyInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
                   <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
                     <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
-                    <p className={`text-3xl font-bold ${parseFloat(wxdaiSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatAmount(wxdaiSummary.netInterest, 18).toFixed(2)} WXDAI
+                    <p className={`text-3xl font-bold ${wxdaiNetInterest >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatAmount(wxdaiNetInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
                 </div>
@@ -734,8 +747,8 @@ export default function Home() {
                                 </div>
                                 <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
                                   <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
-                                  <p className={`text-3xl font-bold ${parseFloat(v2WxdaiData.summary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {formatAmount(v2WxdaiData.summary.netInterest, 18).toFixed(2)} WXDAI
+                                  <p className={`text-3xl font-bold ${(parseFloat(v2WxdaiData.supply.totalInterest) - parseFloat(v2WxdaiData.borrow.totalInterest)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {formatAmount(parseFloat(v2WxdaiData.supply.totalInterest) - parseFloat(v2WxdaiData.borrow.totalInterest), 18).toFixed(2)} WXDAI
                                   </p>
                                 </div>
                               </div>
@@ -775,7 +788,7 @@ export default function Home() {
             )}
 
             {/* Aucune donnée */}
-            {data && (!usdcSummary || (usdcBorrowDetails.length === 0 && usdcSupplyDetails.length === 0)) && (
+            {data && (!usdcData || (usdcBorrowDetails.length === 0 && usdcSupplyDetails.length === 0)) && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">No data</h2>
