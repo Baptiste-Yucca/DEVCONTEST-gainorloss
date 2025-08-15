@@ -516,13 +516,13 @@ export default function Home() {
     return (
       <>
         <Head>
-          <title>RMM Analytics - Analyse en cours</title>
+          <title>RMM Analytics - Analysis in progress</title>
         </Head>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center max-w-md">
             <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-blue-500 mx-auto mb-6"></div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Analyse en cours</h2>
-            <p className="text-gray-600 text-sm">Récupération des données RMM pour {address}</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Analysis in progress</h2>
+            <p className="text-gray-600 text-sm">RMM data recovery for {address}</p>
           </div>
         </div>
       </>
@@ -557,25 +557,23 @@ export default function Home() {
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">RMM Analytics</h1>
                   <p className="text-gray-600">
-                    Adresse: <span className="font-mono bg-gray-100 px-3 py-1 rounded-lg text-sm">{address}</span>
+                    Adress: <span className="font-mono bg-gray-100 px-3 py-1 rounded-lg text-sm">{address}</span>
                   </p>
                 </div>
                 <button 
                   onClick={resetForm}
                   className="bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium"
                 >
-                  Nouvelle analyse
+                  New analyse
                 </button>
               </div>
             </div>
-
-            {/* ✅ NOUVEAU: Récapitulatif financier unifié - PLACÉ ICI */}
             <FinancialSummary
               usdcData={usdcData}
               wxdaiData={wxdaiData}
               v2Data={dataV2?.data?.results?.[0]?.data?.interests?.WXDAI}
               userAddress={address}
-              transactions={prepareAllTransactions()} // ✅ NOUVEAU: Ajouter les transactions
+              transactions={prepareAllTransactions()} 
             />
 
             {/* Erreur */}
@@ -589,25 +587,25 @@ export default function Home() {
               </div>
             )}
 
-            {/* Résumé USDC */}
+            
             {usdcSummary && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Résumé USDC</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">USDC Summary</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
-                    <h3 className="text-sm font-medium text-red-700 mb-2">Intérêts d'emprunt</h3>
+                    <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
                     <p className="text-3xl font-bold text-red-600">
                       {formatAmount(usdcSummary.totalBorrowInterest).toFixed(2)} USDC
                     </p>
                   </div>
                   <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
-                    <h3 className="text-sm font-medium text-green-700 mb-2">Intérêts de dépôt</h3>
+                    <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
                     <p className="text-3xl font-bold text-green-600">
                       {formatAmount(usdcSummary.totalSupplyInterest).toFixed(2)} USDC
                     </p>
                   </div>
                   <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
-                    <h3 className="text-sm font-medium text-blue-700 mb-2">Gain net</h3>
+                    <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
                     <p className={`text-3xl font-bold ${parseFloat(usdcSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {formatAmount(usdcSummary.netInterest).toFixed(2)} USDC
                     </p>
@@ -621,7 +619,7 @@ export default function Home() {
               {/* Graphique Dette USDC */}
               <Chart
                 data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
-                title="Évolution de la dette USDC"
+                title="USDC Debt Evolution"
                 color="#dc2626"
                 type="line"
                 tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
@@ -632,7 +630,7 @@ export default function Home() {
               {/* Graphique Supply USDC */}
               <Chart
                 data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
-                title="Évolution du supply USDC"
+                title="USDC Supply Evolution"
                 color="#059669"
                 type="area"
                 tokenAddress="0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1"
@@ -641,25 +639,25 @@ export default function Home() {
               />
             </div>
 
-            {/* Résumé WXDAI */}
+            {/* WXDAI Summary */}
             {wxdaiSummary && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Résumé WXDAI</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">WXDAI Summary</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
-                    <h3 className="text-sm font-medium text-red-700 mb-2">Intérêts d'emprunt</h3>
+                    <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
                     <p className="text-3xl font-bold text-red-600">
                       {formatAmount(wxdaiSummary.totalBorrowInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
                   <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
-                    <h3 className="text-sm font-medium text-green-700 mb-2">Intérêts de dépôt</h3>
+                    <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
                     <p className="text-3xl font-bold text-green-600">
                       {formatAmount(wxdaiSummary.totalSupplyInterest, 18).toFixed(2)} WXDAI
                     </p>
                   </div>
                   <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
-                    <h3 className="text-sm font-medium text-blue-700 mb-2">Gain net</h3>
+                    <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
                     <p className={`text-3xl font-bold ${parseFloat(wxdaiSummary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {formatAmount(wxdaiSummary.netInterest, 18).toFixed(2)} WXDAI
                     </p>
@@ -673,7 +671,7 @@ export default function Home() {
               {/* Graphique Dette WXDAI */}
               <Chart
                 data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
-                title="Évolution de la dette WXDAI"
+                title="WXDAI Debt Evolution"
                 color="#dc2626"
                 type="line"
                 tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
@@ -684,7 +682,7 @@ export default function Home() {
               {/* Graphique Supply WXDAI */}
               <Chart
                 data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
-                title="Évolution du supply WXDAI"
+                title="WXDAI Supply Evolution"
                 color="#059669"
                 type="area"
                 tokenAddress="0x0ca4f5554dd9da6217d62d8df2816c82bba4157b"
@@ -697,14 +695,14 @@ export default function Home() {
             {dataV2 && (
               <>
                
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Transactions RMM v2</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">RMM v2 Transactions</h2>
                   
                   {/* Vérifier si le wallet a des données V2 */}
                   {!dataV2.data?.results?.[0]?.data?.interests?.WXDAI ? (
                     <div className="text-center py-12">
                       <div className="text-6xl mb-4">😢</div>
                       <p className="text-lg text-gray-600">
-                        Ce wallet est trop jeune et n'a jamais connu la V2 :'(
+                        This wallet is too young and has never known the V2 :'(
                       </p>
                     </div>
                   ) : (
@@ -720,22 +718,22 @@ export default function Home() {
                           <>
                             {/* ✅ NOUVEAU: Résumé WXDAI V2 identique à V3 */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-                              <h2 className="text-2xl font-bold text-gray-900 mb-6">Résumé WXDAI (V2)</h2>
+                              <h2 className="text-2xl font-bold text-gray-900 mb-6">WXDAI Summary (V2)</h2>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
-                                  <h3 className="text-sm font-medium text-red-700 mb-2">Intérêts d'emprunt</h3>
+                                  <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
                                   <p className="text-3xl font-bold text-red-600">
                                     {formatAmount(v2WxdaiData.borrow.totalInterest, 18).toFixed(2)} WXDAI
                                   </p>
                                 </div>
                                 <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
-                                  <h3 className="text-sm font-medium text-green-700 mb-2">Intérêts de dépôt</h3>
+                                  <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
                                   <p className="text-3xl font-bold text-green-600">
                                     {formatAmount(v2WxdaiData.supply.totalInterest, 18).toFixed(2)} WXDAI
                                   </p>
                                 </div>
                                 <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
-                                  <h3 className="text-sm font-medium text-blue-700 mb-2">Gain net</h3>
+                                  <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
                                   <p className={`text-3xl font-bold ${parseFloat(v2WxdaiData.summary.netInterest) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     {formatAmount(v2WxdaiData.summary.netInterest, 18).toFixed(2)} WXDAI
                                   </p>
@@ -748,7 +746,7 @@ export default function Home() {
                               {/* Graphique Dette WXDAI v2 */}
                               <Chart
                                 data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18)}
-                                title="Évolution de la dette WXDAI (v2)"
+                                title="WXDAI Debt Evolution (v2)"
                                 color="#f59e0b"
                                 type="line"
                                 tokenAddress="0x0ade75f269a054673883319baa50e5e0360a775f"
@@ -759,7 +757,7 @@ export default function Home() {
                               {/* Graphique Supply WXDAI v2 */}
                               <Chart
                                 data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18)}
-                                title="Évolution du supply WXDAI (v2)"
+                                title="WXDAI Supply Evolution (v2)"
                                 color="#3b82f6"
                                 type="area"
                                 tokenAddress="0xe91d153e0b41518a2ce8dd3d7944fa863463a97d"
@@ -780,8 +778,8 @@ export default function Home() {
             {data && (!usdcSummary || (usdcBorrowDetails.length === 0 && usdcSupplyDetails.length === 0)) && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Aucune donnée</h2>
-                <p className="text-gray-600">Aucune transaction RMM trouvée pour cette adresse</p>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">No data</h2>
+                <p className="text-gray-600">No RMM transaction found for this address</p>
               </div>
             )}
 
@@ -806,7 +804,7 @@ export default function Home() {
     <>
       <Head>
         <title>RMM Analytics</title>
-        <meta name="description" content="Analysez vos gains et pertes RMM" />
+        <meta name="description" content="Analyze your RMM earnings and losses" />
       </Head>
 
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -817,7 +815,7 @@ export default function Home() {
               RMM Analytics
             </h1>
             <p className="text-gray-600 text-lg">
-              Analysez vos gains et pertes RMM
+            Analyze your RMM earnings and losses
             </p>
           </div>
 
@@ -825,7 +823,7 @@ export default function Home() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-3">
-                Adresse EVM
+                EVM address
               </label>
               <input
                 type="text"
@@ -842,14 +840,14 @@ export default function Home() {
               disabled={!address.trim()}
               className="w-full bg-gray-900 text-white py-4 px-6 rounded-xl font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Analyser
+              Analyze
             </button>
           </form>
 
           {/* Note */}
           <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
             <p className="text-sm text-blue-800">
-              💡 <strong>Info:</strong> Saisissez votre adresse EVM pour voir vos transactions RMM et calculer vos gains/pertes.
+              💡 <strong>Info:</strong> Enter your EVM address to view your RMM transactions and calculate your earnigns/losses
             </p>
           </div>
         </div>

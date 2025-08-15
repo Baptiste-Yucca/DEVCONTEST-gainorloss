@@ -174,11 +174,11 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
           {isCollapsed && (
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span>Total: {filteredTransactions.length}</span>
-              <span>Emprunts: {filteredTransactions.filter(tx => tx.type === 'borrow').length}</span>
-              <span>Remboursements: {filteredTransactions.filter(tx => tx.type === 'repay').length}</span>
-              <span>Dépôts: {filteredTransactions.filter(tx => tx.type === 'deposit').length}</span>
-              <span>Retraits: {filteredTransactions.filter(tx => tx.type === 'withdraw').length}</span>
-              <span>Période: {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}</span>
+              <span>Borrow: {filteredTransactions.filter(tx => tx.type === 'borrow').length}</span>
+              <span>Repay: {filteredTransactions.filter(tx => tx.type === 'repay').length}</span>
+              <span>Deposit: {filteredTransactions.filter(tx => tx.type === 'deposit').length}</span>
+              <span>Withdraw: {filteredTransactions.filter(tx => tx.type === 'withdraw').length}</span>
+              <span>Period: {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}</span>
             </div>
           )}
                       {/* Filtres et Export (seulement si pas collapsed) */}
@@ -190,7 +190,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     onChange={(e) => setTokenFilter(e.target.value as FilterType)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">Tous les tokens</option>
+                    <option value="all">All tokens</option>
                     <option value="USDC">USDC</option>
                     <option value="WXDAI">WXDAI</option>
                   </select>
@@ -200,11 +200,11 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     onChange={(e) => setTypeFilter(e.target.value as TransactionType)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">Tous les types</option>
-                    <option value="borrow">Emprunts</option>
-                    <option value="repay">Remboursements</option>
-                    <option value="deposit">Dépôts</option>
-                    <option value="withdraw">Retraits</option>
+                    <option value="all">All types</option>
+                    <option value="borrow">Borrow</option>
+                    <option value="repay">Repay</option>
+                    <option value="deposit">Deposit</option>
+                    <option value="withdraw">Withdraw</option>
                   </select>
                   
                   <select
@@ -212,7 +212,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     onChange={(e) => setVersionFilter(e.target.value as VersionType)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">Toutes les versions</option>
+                    <option value="all">All versions</option>
                     <option value="V2">V2</option>
                     <option value="V3">V3</option>
                   </select>
@@ -220,7 +220,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
                 {/* Filtre par date */}
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Du:</span>
+                  <span className="text-sm text-gray-600">From:</span>
                   <input
                     type="date"
                     value={formatDateForInput(dateRange.start)}
@@ -233,7 +233,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   
-                  <span className="text-sm text-gray-600">Au:</span>
+                  <span className="text-sm text-gray-600">To:</span>
                   <input
                     type="date"
                     value={formatDateForInput(dateRange.end)}
@@ -260,13 +260,6 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                   >
                     🔄 Reset
                   </button>
-                  
-                  <button
-                    onClick={exportToCSV}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center gap-2"
-                  >
-                    📊 Export CSV
-                  </button>
                 </div>
               </>
             )}
@@ -286,7 +279,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             
             {/* Colonne 2: Emprunts */}
             <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-red-700 mb-1">Emprunts</h3>
+              <h3 className="text-sm font-medium text-red-700 mb-1">Borrow</h3>
               <p className="text-2xl font-bold text-red-600">
                 {filteredTransactions.filter(tx => tx.type === 'borrow').length}
               </p>
@@ -294,7 +287,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             
             {/* Colonne 3: Remboursements */}
             <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-purple-700 mb-1">Remboursements</h3>
+              <h3 className="text-sm font-medium text-purple-700 mb-1">Repay</h3>
               <p className="text-2xl font-bold text-purple-600">
                 {filteredTransactions.filter(tx => tx.type === 'repay').length}
               </p>
@@ -302,7 +295,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             
             {/* Colonne 4: Dépôts */}
             <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-green-700 mb-1">Dépôts</h3>
+              <h3 className="text-sm font-medium text-green-700 mb-1">Deposit</h3>
               <p className="text-2xl font-bold text-green-600">
                 {filteredTransactions.filter(tx => tx.type === 'deposit').length}
               </p>
@@ -310,7 +303,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             
             {/* Colonne 5: Retraits */}
             <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-orange-700 mb-1">Retraits</h3>
+              <h3 className="text-sm font-medium text-orange-700 mb-1">Withdraw</h3>
               <p className="text-2xl font-bold text-orange-600">
                 {filteredTransactions.filter(tx => tx.type === 'withdraw').length}
               </p>
@@ -318,7 +311,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             
             {/* Colonne 6: Période */}
             <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-gray-700 mb-1">Période</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-1">Period</h3>
               <p className="text-sm font-bold text-gray-600">
                 {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}
               </p>
@@ -333,7 +326,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Date</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Type</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Token</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Montant</th>
+              <th className="text-left py-3 px-4 font-semibold text-gray-900">Amount</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Hash</th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Version</th>
             </tr>
@@ -342,7 +335,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             {filteredTransactions.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center py-8 text-gray-500">
-                  Aucune transaction trouvée avec les filtres actuels
+                  No transaction found with the current filters
                 </td>
               </tr>
             ) : (
@@ -373,7 +366,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                         {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
                       </a>
                     ) : (
-                      <span className="text-gray-400 text-sm">Hash non disponible</span>
+                      <span className="text-gray-400 text-sm">Hash not available</span>
                     )}
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600">

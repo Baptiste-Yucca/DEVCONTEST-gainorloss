@@ -119,8 +119,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
 
   // ✅ NOUVEAU: Fonction d'export CSV avec transactions
   const exportToCSV = () => {
-    // Section 1: Récapitulatif financier
-    const financialHeaders = ['Token', 'Version', 'Intérêts Dette', 'Intérêts Supply', 'Gain Net'];
+    const financialHeaders = ['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net'];
     const financialDataRows = Object.entries(financialData).map(([token, data]) => [
       token,
       data.version,
@@ -148,9 +147,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       `Période: ${new Date(selectedPeriod.start).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })} à ${new Date(selectedPeriod.end).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
       `Généré le: ${new Date().toLocaleDateString('fr-FR')}`,
       ``, // Ligne vide
-      
-      // Section 1: Récapitulatif financier
-      `RÉCAPITULATIF FINANCIER`,
+      `Financial Summary`,
       financialHeaders.join(','),
       ...financialDataRows.map(row => row.join(',')), // ✅ CORRECTION: Utiliser financialDataRows
       ``, // Ligne vide
@@ -258,11 +255,9 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     doc.text(`Adresse: ${userAddress}`, 20, 45);
     doc.text(`Période: ${formatDateMMYYYY(selectedPeriod.start)} à ${formatDateMMYYYY(selectedPeriod.end)}`, 20, 55);
     doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 20, 65);
-    
-    // Tableau récapitulatif financier - CENTRÉ et COMPACT
     doc.setFontSize(16);
     doc.setTextColor(59, 130, 246);
-    doc.text('Récapitulatif Financier', 105, 85, { align: 'center' });
+    doc.text('Financial Summary', 105, 85, { align: 'center' });
     
     // Préparer les données du tableau
     const tableData = Object.entries(financialData).map(([token, data]) => [
@@ -285,7 +280,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // ✅ CORRECTION: Tableau financier centré et compact
     autoTable(doc, {
       startY: 95,
-      head: [['Token', 'Version', 'Intérêts Dette', 'Intérêts Supply', 'Gain Net']],
+      head: [['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -319,7 +314,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // Titre centré sur la nouvelle page
     doc.setFontSize(16);
     doc.setTextColor(59, 130, 246);
-    doc.text('Détail des Transactions', 105, 30, { align: 'center' });
+    doc.text('Transaction Details', 105, 30, { align: 'center' });
     
     // Préparer les données des transactions
     const txTableData = filteredTransactions.map(tx => [
@@ -377,20 +372,18 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // Sauvegarder
     const filename = `rmm_analytics_${userAddress}_${formatDateMMYYYY(selectedPeriod.start)}_${formatDateMMYYYY(selectedPeriod.end)}.pdf`;
     doc.save(filename);
-    
-    console.log('✅ PDF exporté avec succès:', filename);
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Récapitulatif Financier</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Financial Summary</h2>
         
         {/* Filtres */}
         <div className="flex items-center gap-4">
           {/* Sélection des tokens */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Tokens :</label>
+            <label className="text-sm font-medium text-gray-700">Token:</label>
             {['USDC', 'WXDAI', 'WXDAI_V2'].map(token => (
               <label key={token} className="flex items-center gap-2">
                 <input
@@ -412,14 +405,14 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           
           {/* Période */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Du :</label>
+            <label className="text-sm font-medium text-gray-700">From</label>
             <input
               type="date"
               value={selectedPeriod.start}
               onChange={(e) => setSelectedPeriod(prev => ({ ...prev, start: e.target.value }))}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <label className="text-sm font-medium text-gray-700">Au :</label>
+            <label className="text-sm font-medium text-gray-700">To</label>
             <input
               type="date"
               value={selectedPeriod.end}
@@ -511,7 +504,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
 
       {/* Informations de période */}
       <div className="text-center text-sm text-gray-600 mb-6">
-        Période analysée : du {new Date(selectedPeriod.start).toLocaleDateString('fr-FR')} au {new Date(selectedPeriod.end).toLocaleDateString('fr-FR')}
+      Period analyzed : from {new Date(selectedPeriod.start).toLocaleDateString('fr-FR')} to {new Date(selectedPeriod.end).toLocaleDateString('fr-FR')}
       </div>
 
       {/* Boutons d'export mis à jour */}
