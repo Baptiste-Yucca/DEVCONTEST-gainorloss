@@ -35,14 +35,65 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   wxdaiData,
   v2Data,
   userAddress,
-  transactions // ✅ NOUVEAU
+  transactions
 }) => {
+  // ✅ NOUVEAU: Calculer la période dynamiquement avec useMemo
+  const defaultPeriod = useMemo(() => {
+    const allDates: string[] = [];
+    
+    // Collecter toutes les dates des données V3
+    if (usdcData?.borrow?.dailyDetails) {
+      usdcData.borrow.dailyDetails.forEach(detail => allDates.push(detail.date));
+    }
+    if (usdcData?.supply?.dailyDetails) {
+      usdcData.supply.dailyDetails.forEach(detail => allDates.push(detail.date));
+    }
+    if (wxdaiData?.borrow?.dailyDetails) {
+      wxdaiData.borrow.dailyDetails.forEach(detail => allDates.push(detail.date));
+    }
+    if (wxdaiData?.supply?.dailyDetails) {
+      wxdaiData.supply.dailyDetails.forEach(detail => allDates.push(detail.date));
+    }
+    
+    // Collecter toutes les dates des données V2
+    if (v2Data?.borrow?.dailyDetails) {
+      v2Data.borrow.dailyDetails.forEach(detail => allDates.push(detail.date));
+    }
+    if (v2Data?.supply?.dailyDetails) {
+      v2Data.supply.dailyDetails.forEach(detail => allDates.push(detail.date));
+    }
+    
+    // Collecter toutes les dates des transactions
+    if (transactions) {
+      transactions.forEach(tx => {
+        const date = new Date(tx.timestamp * 1000);
+        const dateString = date.toISOString().split('T')[0];
+        allDates.push(dateString);
+      });
+    }
+    
+    // Trouver la date la plus ancienne
+    if (allDates.length > 0) {
+      const oldestDate = allDates.sort()[0]; // Tri alphabétique YYYYMMDD
+      console.log(`📅 Date de départ calculée: ${oldestDate} (plus ancien événement)`);
+      return {
+        start: oldestDate,
+        end: new Date().toISOString().split('T')[0] // Aujourd'hui
+      };
+    }
+    
+    // Fallback : 1er janvier de l'année en cours
+    return {
+      start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+      end: new Date().toISOString().split('T')[0]
+    };
+  }, [usdcData, wxdaiData, v2Data, transactions]);
+
+  // ✅ NOUVEAU: Utiliser la période calculée dynamiquement
+  const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string }>(defaultPeriod);
+
   // État pour les filtres
   const [selectedTokens, setSelectedTokens] = useState<string[]>(['USDC', 'WXDAI', 'WXDAI_V2']);
-  const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string }>({
-    start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], // 1er janvier
-    end: new Date().toISOString().split('T')[0] // Aujourd'hui
-  });
 
   // Calculs financiers unifiés
   const financialData = useMemo(() => {
