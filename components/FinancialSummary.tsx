@@ -99,38 +99,62 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   const financialData = useMemo(() => {
     const data: any = {};
     
-    // USDC V3
-    if (usdcData && selectedTokens.includes('USDC')) {
-      data.USDC = {
-        debt: parseFloat(usdcData.borrow.totalInterest) / Math.pow(10, 6), // USDC = 6 decimals
-        supply: parseFloat(usdcData.supply.totalInterest) / Math.pow(10, 6),
-        net: parseFloat(usdcData.summary.netInterest) / Math.pow(10, 6),
-        version: 'V3',
-        contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
-      };
-    }
+      // USDC V3
+  if (usdcData && selectedTokens.includes('USDC')) {
+    // ✅ NOUVEAU: Récupérer depuis le dernier élément de dailyDetails
+    const lastDebtPoint = usdcData.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
+    const lastSupplyPoint = usdcData.supply?.dailyDetails?.[usdcData.supply.dailyDetails.length - 1];
     
-    // WXDAI V3
-    if (wxdaiData && selectedTokens.includes('WXDAI')) {
-      data.WXDAI = {
-        debt: parseFloat(wxdaiData.borrow.totalInterest) / Math.pow(10, 18), // WXDAI = 18 decimals
-        supply: parseFloat(wxdaiData.supply.totalInterest) / Math.pow(10, 18),
-        net: parseFloat(wxdaiData.summary.netInterest) / Math.pow(10, 18),
-        version: 'V3',
-        contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
-      };
-    }
+    const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 6) : 0;
+    const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 6) : 0;
+    const netInterest = supplyInterest - debtInterest;
     
-    // WXDAI V2
-    if (v2Data && selectedTokens.includes('WXDAI_V2')) {
-      data.WXDAI_V2 = {
-        debt: parseFloat(v2Data.borrow.totalInterest) / Math.pow(10, 18),
-        supply: parseFloat(v2Data.supply.totalInterest) / Math.pow(10, 18),
-        net: parseFloat(v2Data.summary.netInterest) / Math.pow(10, 18),
-        version: 'V2',
-        contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
-      };
-    }
+    data.USDC = {
+      debt: debtInterest,
+      supply: supplyInterest,
+      net: netInterest,
+      version: 'V3',
+      contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
+    };
+  }
+    
+      // WXDAI V3
+  if (wxdaiData && selectedTokens.includes('WXDAI')) {
+    // ✅ NOUVEAU: Récupérer depuis le dernier élément de dailyDetails
+    const lastDebtPoint = wxdaiData.borrow?.dailyDetails?.[wxdaiData.borrow.dailyDetails.length - 1];
+    const lastSupplyPoint = wxdaiData.supply?.dailyDetails?.[wxdaiData.supply.dailyDetails.length - 1];
+    
+    const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 18) : 0;
+    const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 18) : 0;
+    const netInterest = supplyInterest - debtInterest;
+    
+    data.WXDAI = {
+      debt: debtInterest,
+      supply: supplyInterest,
+      net: netInterest,
+      version: 'V3',
+      contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
+    };
+  }
+    
+      // WXDAI V2
+  if (v2Data && selectedTokens.includes('WXDAI_V2')) {
+    // ✅ NOUVEAU: Récupérer depuis le dernier élément de dailyDetails
+    const lastDebtPoint = v2Data.borrow?.dailyDetails?.[v2Data.borrow.dailyDetails.length - 1];
+    const lastSupplyPoint = v2Data.supply?.dailyDetails?.[v2Data.supply.dailyDetails.length - 1];
+    
+    const debtInterest = lastDebtPoint ? parseFloat(lastDebtPoint.totalInterest) / Math.pow(10, 18) : 0;
+    const supplyInterest = lastSupplyPoint ? parseFloat(lastSupplyPoint.totalInterest) / Math.pow(10, 18) : 0;
+    const netInterest = supplyInterest - debtInterest;
+    
+    data.WXDAI_V2 = {
+      debt: debtInterest,
+      supply: supplyInterest,
+      net: netInterest,
+      version: 'V2',
+      contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
+    };
+  }
     
     return data;
   }, [usdcData, wxdaiData, v2Data, selectedTokens]);

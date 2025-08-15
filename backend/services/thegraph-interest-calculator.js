@@ -403,44 +403,37 @@ async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null
       // Créer un relevé journalier combiné
       const dailyStatement = createDailyStatement(borrowInterest.dailyDetails, supplyInterest.dailyDetails, token);
       
-      results[token] = {
-        token,
-        borrow: borrowInterest,
-        supply: supplyInterest,
-        dailyStatement: dailyStatement,
-        summary: {
-          totalBorrowInterest: borrowInterest.totalInterest,
-          totalSupplyInterest: supplyInterest.totalInterest,
-          netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
-        }
-      };
-    }
-    
-    if (req) {
-      req.stopTimer(`thegraph_interest_calculation`);
-      req.logEvent('thegraph_interest_all_tokens_completed', { 
-        address: userAddress,
-        tokens: Object.keys(results)
-      });
-    }
-    
-    return {
-      USDC: {
-        token: 'USDC',
-        borrow: results.USDC.borrow,
-        supply: results.USDC.supply,
-        summary: results.USDC.summary,
-        dailyStatement: results.USDC.dailyStatement,
-        transactions: frontendTransactions.USDC.debt.concat(frontendTransactions.USDC.supply)
-      },
-      WXDAI: {
-        token: 'WXDAI',
-        borrow: results.WXDAI.borrow,
-        supply: results.WXDAI.supply,
-        summary: results.WXDAI.summary,
-        dailyStatement: results.WXDAI.dailyStatement,
-        transactions: frontendTransactions.WXDAI.debt.concat(frontendTransactions.WXDAI.supply)
-      },
+              results[token] = {
+          token,
+          borrow: borrowInterest,
+          supply: supplyInterest,
+          dailyStatement: dailyStatement
+        };
+      }
+      
+      if (req) {
+        req.stopTimer(`thegraph_interest_calculation`);
+        req.logEvent('thegraph_interest_all_tokens_completed', { 
+          address: userAddress,
+          tokens: Object.keys(results)
+        });
+      }
+      
+      return {
+        USDC: {
+          token: 'USDC',
+          borrow: results.USDC.borrow,
+          supply: results.USDC.supply,
+          dailyStatement: results.USDC.dailyStatement,
+          transactions: frontendTransactions.USDC.debt.concat(frontendTransactions.USDC.supply)
+        },
+              WXDAI: {
+          token: 'WXDAI',
+          borrow: results.WXDAI.borrow,
+          supply: results.WXDAI.supply,
+          dailyStatement: results.WXDAI.dailyStatement,
+          transactions: frontendTransactions.WXDAI.debt.concat(frontendTransactions.WXDAI.supply)
+        },
       // ✅ Transactions V3 pour le frontend
       transactions: frontendTransactions
     };
@@ -558,6 +551,7 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
   const lastPoint = dailyDetails[dailyDetails.length - 1];
 
   const periodInterest = balanceType === 'debt' ? currentBalance - lastPoint.debt : currentBalance - lastPoint.supply;
+  const newtotalInterest = BigInt(lastPoint.totalInterest) + BigInt(periodInterest);
   
   // Créer le point d'aujourd'hui
   const today = new Date();
@@ -569,7 +563,7 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
     timestamp: todayTimestamp,
     [balanceType]: currentBalance, // 'debt' ou 'supply'
     periodInterest: periodInterest.toString(), // ✅ CORRECTION: Sera calculé après
-    totalInterest: lastPoint.totalInterest, // Sera mis à jour après
+    totalInterest: newtotalInterest.toString(), // Sera mis à jour après
     transactionAmount: "0", // ✅ CORRECTION: Pas de transaction pour BalanceOf
     transactionType: "BalanceOf",
     source: "real"

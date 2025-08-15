@@ -67,6 +67,8 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         // ✅ Récupérer les transactions depuis les résultats
         const transactions = interestResults.transactions || {};
 
+
+
         req.stopTimer(`address_${address}`);
         req.logEvent('address_processed_successfully', { 
           address, 
@@ -80,17 +82,7 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
             address,
             interests: interestCalculations,
             // ✅ NOUVEAU: Transactions pour le frontend
-            transactions: transactions,
-            summary: {
-              stablecoins: Object.keys(interestCalculations).map(stablecoin => ({
-                symbol: stablecoin,
-                interests: interestCalculations[stablecoin]?.summary || { 
-                  totalBorrowInterest: "0", 
-                  totalSupplyInterest: "0", 
-                  netInterest: "0" 
-                }
-              }))
-            }
+            transactions: transactions
           }
         });
       } catch (error) {
