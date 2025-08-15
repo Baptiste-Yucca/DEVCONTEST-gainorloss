@@ -373,18 +373,32 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
     // Ajouter le point "aujourd'hui" si il y a des données historiques
     if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
       const currentDebtBalance = currentBalances.debtWXDAI?.balance || "0";
+      
+      // Ajouter le point d'aujourd'hui
       addTodayPointV2(borrowInterest.dailyDetails, currentDebtBalance, 'debt');
       
-      // ❌ SUPPRIMER: Les points estimés hebdomadaires
-      // borrowInterest.dailyDetails = addWeeklyEstimatedPointsV2(...);
+      // ✅ NOUVEAU: Calculer les intérêts du dernier point
+      const lastPointIndex = borrowInterest.dailyDetails.length - 1;
+      borrowInterest.dailyDetails[lastPointIndex] = calculateLastPointInterestV2(
+        borrowInterest.dailyDetails[lastPointIndex],
+        currentDebtBalance,
+        'debt'
+      );
     }
     
     if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
       const currentSupplyBalance = currentBalances.rmmWXDAI?.balance || "0";
+      
+      // Ajouter le point d'aujourd'hui
       addTodayPointV2(supplyInterest.dailyDetails, currentSupplyBalance, 'supply');
       
-      // ❌ SUPPRIMER: Les points estimés hebdomadaires
-      // supplyInterest.dailyDetails = addWeeklyEstimatedPointsV2(...);
+      // ✅ NOUVEAU: Calculer les intérêts du dernier point
+      const lastPointIndex = supplyInterest.dailyDetails.length - 1;
+      supplyInterest.dailyDetails[lastPointIndex] = calculateLastPointInterestV2(
+        supplyInterest.dailyDetails[lastPointIndex],
+        currentSupplyBalance,
+        'supply'
+      );
     }
     
     // Créer un relevé journalier combiné
@@ -535,9 +549,9 @@ function addTodayPointV2(dailyDetails, currentBalance, balanceType) {
     date: todayDate,
     timestamp: todayTimestamp,
     [balanceType]: currentBalance, // 'debt' ou 'supply'
-    periodInterest: "0", // ✅ RENOMMÉ: dailyInterest → periodInterest
-    totalInterest: lastPoint.totalInterest, // Même que le dernier point
-    transactionAmount: currentBalance,
+    periodInterest: "0", // ✅ CORRECTION: Sera calculé après
+    totalInterest: lastPoint.totalInterest, // Sera mis à jour après
+    transactionAmount: "0", // ✅ CORRECTION: Pas de transaction pour BalanceOf
     transactionType: "BalanceOf",
     source: "real"
   };
@@ -548,6 +562,52 @@ function addTodayPointV2(dailyDetails, currentBalance, balanceType) {
   console.log(`📅 Point d'aujourd'hui V2 ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
   
   return dailyDetails;
+}
+
+/**
+ * ✅ NOUVEAU: Calcule les intérêts du dernier point avec le balanceOf actuel V2
+ */
+function calculateLastPointInterestV2(lastPoint, currentBalance, balanceType) {
+  if (!lastPoint || !currentBalance) return lastPoint;
+  
+  const currentBalanceWei = BigInt(currentBalance);
+  const lastPointBalance = BigInt(lastPoint[balanceType]); // 'supply' ou 'debt'
+  
+  // Calculer les intérêts générés depuis le dernier point
+  let periodInterest = 0n;
+  
+  if (balanceType === 'supply') {
+    // Pour les supply tokens, calculer la différence
+    const totalIncrease = currentBalanceWei > lastPointBalance ? 
+      currentBalanceWei - lastPointBalance : 0n;
+    
+    // Les mouvements de capital sont déjà dans transactionAmount
+    const capitalMovements = BigInt(lastPoint.transactionAmount || '0');
+    
+    periodInterest = totalIncrease - capitalMovements;
+  } else if (balanceType === 'debt') {
+    // Pour les debt tokens, même logique
+    const totalIncrease = currentBalanceWei > lastPointBalance ? 
+      currentBalanceWei - lastPointBalance : 0n;
+    
+    const capitalMovements = BigInt(lastPoint.transactionAmount || '0');
+    
+    periodInterest = totalIncrease - capitalMovements;
+  }
+  
+  // Mettre à jour le dernier point
+  const updatedLastPoint = {
+    ...lastPoint,
+    periodInterest: periodInterest.toString(),
+    totalInterest: (BigInt(lastPoint.totalInterest) + periodInterest).toString(),
+    transactionAmount: "0", // ✅ CORRECTION: Pas de transaction pour BalanceOf
+    transactionType: "BalanceOf",
+    source: "rpc" // ✅ CORRECTION: Source RPC, pas real
+  };
+  
+  console.log(`💰 Intérêts du dernier point V2 calculés: ${periodInterest} pour ${balanceType}`);
+  
+  return updatedLastPoint;
 }
 
 /**

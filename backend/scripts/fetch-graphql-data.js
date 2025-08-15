@@ -225,15 +225,6 @@ async function main() {
     
     await saveDataToFile(summary, 'summary.json');
     
-    console.log('\n📊 Résumé:');
-    console.log(`   Emprunts: ${summary.data.borrows}`);
-    console.log(`   Dépôts: ${summary.data.supplies}`);
-    console.log(`   Retraits: ${summary.data.withdraws}`);
-    console.log(`   Remboursements: ${summary.data.repays}`);
-    console.log(`   Total: ${summary.total} transactions`);
-    
-    console.log('\n✅ Récupération terminée avec succès!');
-    
   } catch (error) {
     console.error('❌ Erreur lors de la récupération:', error);
     process.exit(1);

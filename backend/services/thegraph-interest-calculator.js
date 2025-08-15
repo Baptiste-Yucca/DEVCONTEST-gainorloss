@@ -383,17 +383,21 @@ async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null
       // Calculer les intérêts de dépôt
       const supplyInterest = calculateSupplyInterestFromBalances(allBalances.atoken, token);
       
-      // Ajouter le point "aujourd'hui" si il y a des données historiques
+      // ✅ NOUVEAU: Ajouter le point "aujourd'hui" et calculer les intérêts
       if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
         const currentDebtBalance = currentBalances[`debt${token}`]?.balance || "0";
+        
+        // Ajouter le point d'aujourd'hui
         addTodayPoint(borrowInterest.dailyDetails, currentDebtBalance, 'debt', token);
- 
+        
       }
       
       if (supplyInterest.dailyDetails.length > 0 && currentBalances) {
         const currentSupplyBalance = currentBalances[`armm${token}`]?.balance || "0";
+        
+        // Ajouter le point d'aujourd'hui
         addTodayPoint(supplyInterest.dailyDetails, currentSupplyBalance, 'supply', token);
-
+        
       }
       
       // Créer un relevé journalier combiné
@@ -552,19 +556,21 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
   
   // Récupérer le dernier point pour avoir le totalInterest
   const lastPoint = dailyDetails[dailyDetails.length - 1];
+
+  const periodInterest = balanceType === 'debt' ? currentBalance - lastPoint.debt : currentBalance - lastPoint.supply;
   
   // Créer le point d'aujourd'hui
   const today = new Date();
   const todayDate = formatDateYYYYMMDD(Math.floor(today.getTime() / 1000));
   const todayTimestamp = Math.floor(today.getTime() / 1000);
-  
+
   const todayPoint = {
     date: todayDate,
     timestamp: todayTimestamp,
     [balanceType]: currentBalance, // 'debt' ou 'supply'
-    periodInterest: "0",
-    totalInterest: lastPoint.totalInterest, // Même que le dernier point
-    transactionAmount: currentBalance,
+    periodInterest: periodInterest.toString(), // ✅ CORRECTION: Sera calculé après
+    totalInterest: lastPoint.totalInterest, // Sera mis à jour après
+    transactionAmount: "0", // ✅ CORRECTION: Pas de transaction pour BalanceOf
     transactionType: "BalanceOf",
     source: "real"
   };
@@ -572,9 +578,53 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
   // Ajouter le point d'aujourd'hui
   dailyDetails.push(todayPoint);
   
-  console.log(`📅 Point d'aujourd'hui ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
-  
   return dailyDetails;
+}
+
+/**
+ * ✅ NOUVEAU: Calcule les intérêts du dernier point avec le balanceOf actuel
+ */
+function calculateLastPointInterest(lastPoint, currentBalance, balanceType, token) {
+  if (!lastPoint || !currentBalance) return lastPoint;
+  
+  const currentBalanceWei = BigInt(currentBalance);
+  const lastPointBalance = BigInt(lastPoint[balanceType]); // 'supply' ou 'debt'
+  
+  // Calculer les intérêts générés depuis le dernier point
+  let periodInterest = 0n;
+  
+  if (balanceType === 'supply') {
+    // Pour les supply tokens, calculer la différence
+    const totalIncrease = currentBalanceWei > lastPointBalance ? 
+      currentBalanceWei - lastPointBalance : 0n;
+    
+    // Les mouvements de capital sont déjà dans transactionAmount
+    const capitalMovements = BigInt(lastPoint.transactionAmount || '0');
+    
+    periodInterest = totalIncrease - capitalMovements;
+  } else if (balanceType === 'debt') {
+    // Pour les debt tokens, même logique
+    const totalIncrease = currentBalanceWei > lastPointBalance ? 
+      currentBalanceWei - lastPointBalance : 0n;
+    
+    const capitalMovements = BigInt(lastPoint.transactionAmount || '0');
+    
+    periodInterest = totalIncrease - capitalMovements;
+  }
+  
+  // Mettre à jour le dernier point
+  const updatedLastPoint = {
+    ...lastPoint,
+    periodInterest: periodInterest.toString(),
+    totalInterest: (BigInt(lastPoint.totalInterest) + periodInterest).toString(),
+    transactionAmount: "0", 
+    transactionType: "BalanceOf",
+    source: "real" 
+  };
+  
+  console.log(`💰 Intérêts du dernier point calculés: ${periodInterest} pour ${balanceType} ${token}`);
+  
+  return updatedLastPoint;
 }
 
 /**
