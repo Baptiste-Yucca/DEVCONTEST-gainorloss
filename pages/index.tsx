@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Head from 'next/head';
 import Chart from '../components/Chart';
 import TransactionsTable from '../components/TransactionsTable';
+import FinancialSummary from '../components/FinancialSummary';
 
 // Types pour les données de l'API V3
 interface DailyDetail {
@@ -568,6 +569,15 @@ export default function Home() {
               </div>
             </div>
 
+            {/* ✅ NOUVEAU: Récapitulatif financier unifié - PLACÉ ICI */}
+            <FinancialSummary
+              usdcData={usdcData}
+              wxdaiData={wxdaiData}
+              v2Data={dataV2?.data?.results?.[0]?.data?.interests?.WXDAI}
+              userAddress={address}
+              transactions={prepareAllTransactions()} // ✅ NOUVEAU: Ajouter les transactions
+            />
+
             {/* Erreur */}
             {error && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
@@ -605,44 +615,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-
-            {/* Bouton switch pour les points estimés */}
-            <div className="flex items-center justify-center mb-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-gray-700">Points estimés :</span>
-                  
-                  {/* ✅ NOUVEAU: Switch on/off */}
-                  <button
-                    onClick={() => {}} // Supprimer la logique de filtrage
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                      false ? 'bg-blue-600' : 'bg-gray-200' // Supprimer la logique de filtrage
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        false ? 'translate-x-6' : 'translate-x-1' // Supprimer la logique de filtrage
-                      }`}
-                    />
-                  </button>
-                  
-                  <span className={`text-sm font-medium ${false ? 'text-blue-600' : 'text-gray-500'}`}>
-                    {false ? 'Activé' : 'Désactivé'}
-                  </span>
-                  
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <span>Points réels</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-blue-300 opacity-60"></div>
-                      <span>Points estimés</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Graphiques USDC */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

@@ -19,6 +19,8 @@
     "graphql": "^16.10.0",
     "graphql-request": "^7.1.2",
     "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "next": "^15.2.4",
     "react": "^19.1.0",
     "react-chartjs-2": "^5.3.0",

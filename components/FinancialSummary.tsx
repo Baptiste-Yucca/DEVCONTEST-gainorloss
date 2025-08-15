@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from 'react';
+// ✅ CORRECTION: Importer jsPDF et autoTable correctement
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface FinancialSummaryProps {
   // Données V3
@@ -20,19 +23,19 @@ interface FinancialSummaryProps {
     summary: { netInterest: string };
   };
   
-  // Transactions pour le tableau
-  transactions: any[];
-  
   // Adresse utilisateur
   userAddress: string;
+  
+  // ✅ NOUVEAU: Transactions pour le tableau
+  transactions: any[];
 }
 
 const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   usdcData,
   wxdaiData,
   v2Data,
-  transactions,
-  userAddress
+  userAddress,
+  transactions // ✅ NOUVEAU
 }) => {
   // État pour les filtres
   const [selectedTokens, setSelectedTokens] = useState<string[]>(['USDC', 'WXDAI', 'WXDAI_V2']);
@@ -90,78 +93,292 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     return { debt: totalDebt, supply: totalSupply, net: totalNet };
   }, [financialData]);
 
-  // Fonction d'interpolation pour une date spécifique
-  const interpolateForDate = (dailyDetails: any[], targetDate: string, tokenType: string) => {
-    if (!dailyDetails.length) return null;
+  // ✅ NOUVEAU: Filtrer les transactions selon les critères
+  const filteredTransactions = useMemo(() => {
+    if (!transactions || transactions.length === 0) return [];
     
-    const targetTimestamp = new Date(targetDate).getTime() / 1000;
-    
-    // Trouver les points avant et après
-    const beforePoint = dailyDetails.find(p => p.timestamp <= targetTimestamp);
-    const afterPoint = dailyDetails.find(p => p.timestamp > targetTimestamp);
-    
-    if (!beforePoint || !afterPoint) {
-      // Retourner le point le plus proche
-      return dailyDetails.reduce((closest, current) => 
-        Math.abs(current.timestamp - targetTimestamp) < Math.abs(closest.timestamp - targetTimestamp) 
-          ? current : closest
-      );
-    }
-    
-    // Interpolation linéaire
-    const timeDiff = afterPoint.timestamp - beforePoint.timestamp;
-    const ratio = (targetTimestamp - beforePoint.timestamp) / timeDiff;
-    
-    const interpolatedBalance = parseFloat(beforePoint[tokenType]) + 
-      (parseFloat(afterPoint[tokenType]) - parseFloat(beforePoint[tokenType])) * ratio;
-    
-    return {
-      ...beforePoint,
-      [tokenType]: interpolatedBalance.toString(),
-      source: "interpolated"
-    };
-  };
+    return transactions.filter(tx => {
+      // Filtre par token
+      const tokenMatch = selectedTokens.some(selectedToken => {
+        if (selectedToken === 'USDC') return tx.token === 'USDC';
+        if (selectedToken === 'WXDAI') return tx.token === 'WXDAI' && tx.version === 'V3';
+        if (selectedToken === 'WXDAI_V2') return tx.token === 'WXDAI' && tx.version === 'V2';
+        return false;
+      });
+      
+      if (!tokenMatch) return false;
+      
+      // Filtre par période
+      const txDate = new Date(tx.timestamp * 1000);
+      const startDate = new Date(selectedPeriod.start);
+      const endDate = new Date(selectedPeriod.end);
+      
+      return txDate >= startDate && txDate <= endDate;
+    });
+  }, [transactions, selectedTokens, selectedPeriod]);
 
-  // Calcul des intérêts pour une période
-  const calculateInterestForPeriod = (dailyDetails: any[], startDate: string, endDate: string, tokenType: string) => {
-    const startPoint = interpolateForDate(dailyDetails, startDate, tokenType);
-    const endPoint = interpolateForDate(dailyDetails, endDate, tokenType);
-    
-    if (!startPoint || !endPoint) return 0;
-    
-    // Calcul de l'intérêt basé sur la différence de balance
-    return parseFloat(endPoint[tokenType]) - parseFloat(startPoint[tokenType]);
-  };
-
-  // Fonction d'export CSV
+  // ✅ NOUVEAU: Fonction d'export CSV avec transactions
   const exportToCSV = () => {
-    const headers = ['Token', 'Version', 'Intérêts Dette', 'Intérêts Supply', 'Gain Net'];
-    const csvData = [
-      headers.join(','),
-      ...Object.entries(financialData).map(([token, data]) => [
-        token,
-        data.version,
-        data.debt.toFixed(2),
-        data.supply.toFixed(2),
-        data.net.toFixed(2)
-      ].join(','))
+    // Section 1: Récapitulatif financier
+    const financialHeaders = ['Token', 'Version', 'Intérêts Dette', 'Intérêts Supply', 'Gain Net'];
+    const financialDataRows = Object.entries(financialData).map(([token, data]) => [
+      token,
+      data.version,
+      data.debt.toFixed(2),
+      data.supply.toFixed(2),
+      data.net.toFixed(2)
+    ]);
+    
+    // Section 2: Transactions (si il y en a)
+    const transactionHeaders = ['Date', 'Type', 'Token', 'Version', 'Montant', 'Hash'];
+    const transactionData = filteredTransactions.map(tx => [
+      new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+      tx.type,
+      tx.token,
+      tx.version,
+      (parseFloat(tx.amount) / Math.pow(10, tx.token === 'USDC' ? 6 : 18)).toFixed(2),
+      tx.txHash || 'N/A'
+    ]);
+    
+    // Combiner les deux sections avec des séparateurs
+    const csvContent = [
+      // En-tête du fichier
+      `RMM Analytics - Rapport Financier`,
+      `Adresse: ${userAddress}`,
+      `Période: ${new Date(selectedPeriod.start).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })} à ${new Date(selectedPeriod.end).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
+      `Généré le: ${new Date().toLocaleDateString('fr-FR')}`,
+      ``, // Ligne vide
+      
+      // Section 1: Récapitulatif financier
+      `RÉCAPITULATIF FINANCIER`,
+      financialHeaders.join(','),
+      ...financialDataRows.map(row => row.join(',')), // ✅ CORRECTION: Utiliser financialDataRows
+      ``, // Ligne vide
+      
+      // Section 2: Transactions (si il y en a)
+      ...(filteredTransactions.length > 0 ? [
+        `DÉTAIL DES TRANSACTIONS`,
+        transactionHeaders.join(','),
+        ...transactionData.map(row => row.join(','))
+      ] : [])
     ].join('\n');
 
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `financial_summary_${userAddress}_${selectedPeriod.start}_${selectedPeriod.end}.csv`);
+    link.setAttribute('download', `rmm_analytics_${userAddress}_${selectedPeriod.start}_${selectedPeriod.end}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Fonction d'export PDF (placeholder pour l'instant)
+  // ✅ NOUVEAU: Fonction d'export JSON
+  const exportToJSON = () => {
+    // Préparer les données pour l'export JSON
+    const exportData = {
+      metadata: {
+        title: 'RMM Analytics - Rapport Financier',
+        address: userAddress,
+        period: {
+          start: selectedPeriod.start,
+          end: selectedPeriod.end,
+          startFormatted: new Date(selectedPeriod.start).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
+          endFormatted: new Date(selectedPeriod.end).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+        },
+        generatedAt: new Date().toISOString(),
+        filters: {
+          selectedTokens,
+          selectedPeriod
+        }
+      },
+      financialSummary: Object.entries(financialData).map(([token, data]) => ({
+        token,
+        version: data.version,
+        debtInterest: data.debt,
+        supplyInterest: data.supply,
+        netInterest: data.net,
+        contract: data.contract
+      })),
+      totals: {
+        totalDebt: totals.debt,
+        totalSupply: totals.supply,
+        netTotal: totals.net
+      },
+      transactions: filteredTransactions.map(tx => ({
+        date: new Date(tx.timestamp * 1000).toISOString(),
+        dateFormatted: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+        type: tx.type,
+        token: tx.token,
+        version: tx.version,
+        amount: parseFloat(tx.amount) / Math.pow(10, tx.token === 'USDC' ? 6 : 18),
+        amountRaw: tx.amount,
+        decimals: tx.token === 'USDC' ? 6 : 18,
+        txHash: tx.txHash || null,
+        gnosisscanUrl: tx.txHash ? `https://gnosisscan.io/tx/${tx.txHash}` : null
+      }))
+    };
+    
+    // Créer et télécharger le fichier JSON
+    const jsonContent = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rmm_analytics_${userAddress}_${selectedPeriod.start}_${selectedPeriod.end}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log('✅ JSON exporté avec succès');
+  };
+
+  // ✅ NOUVEAU: Fonction d'export PDF sans liens hypertextes
   const exportToPDF = () => {
-    console.log('Export PDF pour la période:', selectedPeriod);
-    // TODO: Implémenter l'export PDF avec jsPDF
+    const doc = new jsPDF();
+    
+    // En-tête
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246);
+    doc.text('RMM Analytics - Rapport Financier', 105, 30, { align: 'center' });
+    
+    // Format des dates MM/YYYY
+    const formatDateMMYYYY = (dateString: string) => {
+      const date = new Date(dateString);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      return `${month.toString().padStart(2, '0')}/${year}`;
+    };
+    
+    // Informations
+    doc.setFontSize(12);
+    doc.setTextColor(75, 85, 99);
+    doc.text(`Adresse: ${userAddress}`, 20, 45);
+    doc.text(`Période: ${formatDateMMYYYY(selectedPeriod.start)} à ${formatDateMMYYYY(selectedPeriod.end)}`, 20, 55);
+    doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 20, 65);
+    
+    // Tableau récapitulatif financier - CENTRÉ et COMPACT
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Récapitulatif Financier', 105, 85, { align: 'center' });
+    
+    // Préparer les données du tableau
+    const tableData = Object.entries(financialData).map(([token, data]) => [
+      token,
+      data.version,
+      `${data.debt.toFixed(2)} ${token.includes('USDC') ? 'USDC' : 'WXDAI'}`,
+      `${data.supply.toFixed(2)} ${token.includes('USDC') ? 'USDC' : 'WXDAI'}`,
+      `${data.net.toFixed(2)} ${token.includes('USDC') ? 'USDC' : 'WXDAI'}`
+    ]);
+    
+    // Ajouter la ligne des totaux
+    tableData.push([
+      'TOTAL',
+      '-',
+      `${totals.debt.toFixed(2)} USD`,
+      `${totals.supply.toFixed(2)} USD`,
+      `${totals.net.toFixed(2)} USD`
+    ]);
+    
+    // ✅ CORRECTION: Tableau financier centré et compact
+    autoTable(doc, {
+      startY: 95,
+      head: [['Token', 'Version', 'Intérêts Dette', 'Intérêts Supply', 'Gain Net']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [59, 130, 246], // Using a blue color for the header
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        textColor: [75, 85, 99]
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      styles: {
+        fontSize: 10,
+        cellPadding: 3 // ✅ RÉDUIT: Espacement entre colonnes
+      },
+      columnStyles: {
+        0: { cellWidth: 25 }, // Token - plus compact
+        1: { cellWidth: 20 }, // Version - plus compact
+        2: { cellWidth: 35, halign: 'right' }, // Intérêts Dette - plus compact
+        3: { cellWidth: 35, halign: 'right' }, // Intérêts Supply - plus compact
+        4: { cellWidth: 35, halign: 'right' }  // Gain Net - plus compact
+      },
+      margin: { left: 20, right: 20 } // ✅ AJOUTÉ: Marges pour centrer
+    });
+    
+    // ✅ NOUVEAU: Tableau des transactions sur une NOUVELLE PAGE
+    doc.addPage();
+    
+    // Titre centré sur la nouvelle page
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Détail des Transactions', 105, 30, { align: 'center' });
+    
+    // Préparer les données des transactions
+    const txTableData = filteredTransactions.map(tx => [
+      new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+      tx.type,
+      tx.token,
+      tx.version,
+      `${(parseFloat(tx.amount) / Math.pow(10, tx.token === 'USDC' ? 6 : 18)).toFixed(2)}`,
+      tx.txHash || 'N/A'
+    ]);
+    
+    // En-têtes du tableau des transactions
+    const txHeaders = ['Date', 'Type', 'Token', 'RMM', 'Montant', 'Hash'];
+    
+    // ✅ CORRECTION: Optimisation de l'espace pour le tableau des transactions
+    autoTable(doc, {
+      startY: 40,
+      head: [txHeaders],
+      body: txTableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [59, 130, 246], // Using a blue color for the header
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        textColor: [75, 85, 99],
+        fontSize: 7
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251]
+      },
+      styles: {
+        fontSize: 7,
+        cellPadding: 2
+      },
+      
+      // ✅ CORRECTION 1: Marges réduites au minimum
+      margin: { left: 10, right: 10 }, // Réduit de 15 à 10px
+      
+      // ✅ CORRECTION 2: Largeurs de colonnes optimisées pour remplir la page
+      columnStyles: {
+        0: { cellWidth: 25 }, // Date - un peu plus large
+        1: { cellWidth: 20 }, // Type - un peu plus large  
+        2: { cellWidth: 12 }, // Token - un peu plus large
+        3: { cellWidth: 10 }, // Version - un peu plus large
+        4: { cellWidth: 20, halign: 'right' }, // Montant - un peu plus large
+        5: { cellWidth: 100, halign: 'center' }  // Hash - plus large pour éviter le retour à la ligne
+      }
+      // Total: 25+20+20+15+25+55 = 160px (mieux réparti sur la page)
+    });
+    
+    // ✅ SUPPRIMÉ: Plus de pieds de page
+    
+    // Sauvegarder
+    const filename = `rmm_analytics_${userAddress}_${formatDateMMYYYY(selectedPeriod.start)}_${formatDateMMYYYY(selectedPeriod.end)}.pdf`;
+    doc.save(filename);
+    
+    console.log('✅ PDF exporté avec succès:', filename);
   };
 
   return (
@@ -229,7 +446,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
                   className="ml-2 text-blue-600 hover:text-blue-800"
                   title="Voir l'historique sur GnosisScan"
                 >
-                  ��
+                  
                 </a>
               </th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">
@@ -241,7 +458,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
                   className="ml-2 text-blue-600 hover:text-blue-800"
                   title="Voir l'historique sur GnosisScan"
                 >
-                  ��
+                  
                 </a>
               </th>
               <th className="text-left py-3 px-4 font-semibold text-gray-900">Gain Net</th>
@@ -285,7 +502,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
               <td className="py-3 px-4 font-semibold">
                 <span className={totals.net >= 0 ? 'text-green-600' : 'text-red-600'}>
                   {totals.net.toFixed(2)} USD
-                </td>
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -296,19 +514,30 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         Période analysée : du {new Date(selectedPeriod.start).toLocaleDateString('fr-FR')} au {new Date(selectedPeriod.end).toLocaleDateString('fr-FR')}
       </div>
 
-      {/* Boutons d'export */}
+      {/* Boutons d'export mis à jour */}
       <div className="flex items-center justify-center gap-4">
         <button
           onClick={exportToCSV}
           className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+          title="Export CSV avec récapitulatif financier et transactions"
         >
-          �� Export CSV
+          📊 Export CSV
         </button>
+        
+        <button
+          onClick={exportToJSON}
+          className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+          title="Export JSON avec toutes les données structurées"
+        >
+          🔗 Export JSON
+        </button>
+        
         <button
           onClick={exportToPDF}
           className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium flex items-center gap-2"
+          title="Export PDF avec rapport formaté"
         >
-          �� Export PDF
+          📄 Export PDF
         </button>
       </div>
     </div>
