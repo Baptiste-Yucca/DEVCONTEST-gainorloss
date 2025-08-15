@@ -12,7 +12,7 @@ interface DailyDetail {
   supply?: string;
   dailyRate: number;
   apr: number;
-  dailyInterest: string;
+  periodInterest: string;
   totalInterest: string;
   transactionAmount?: string;
   transactionType?: string;

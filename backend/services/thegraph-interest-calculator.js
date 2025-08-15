@@ -186,7 +186,7 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
       date: formatDateYYYYMMDD(currentBalance.timestamp),
       timestamp: currentBalance.timestamp,
       supply: currentATokenBalance.toString(),
-      dailyInterest: dayTotalInterest > 0n ? dayTotalInterest.toString() : "0",
+      periodInterest: dayTotalInterest > 0n ? dayTotalInterest.toString() : "0",
       totalInterest: (totalInterest + (dayTotalInterest > 0n ? dayTotalInterest : 0n)).toString(),
       transactionAmount: daySupply > 0n ? daySupply.toString() : (dayWithdraw > 0n ? dayWithdraw.toString() : "0"),
       transactionType: daySupply > 0n ? 'supply' : (dayWithdraw > 0n ? 'withdraw' : 'none'),
@@ -313,7 +313,7 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
       date: formatDateYYYYMMDD(currentBalance.timestamp),
       timestamp: currentBalance.timestamp,
       debt: currentVariableDebt.toString(),
-      dailyInterest: dayTotalInterest.toString(),
+      periodInterest: dayTotalInterest.toString(),
       totalInterest: (totalInterest + dayTotalInterest).toString(),
       transactionAmount: dayBorrow > 0n ? dayBorrow.toString() : (dayRepay > 0n ? dayRepay.toString() : "0"),
       transactionType: dayBorrow > 0n ? 'borrow' : (dayRepay > 0n ? 'repay' : 'none'),
@@ -465,7 +465,7 @@ function createDailyStatement(borrowDetails, supplyDetails, token) {
       type: 'borrow',
       debt: detail.debt || 0,
       supply: 0,
-      dailyInterest: detail.dailyInterest,
+      periodInterest: detail.periodInterest,
       totalInterest: detail.totalInterest,
       transactionAmount: detail.transactionAmount,
       transactionType: detail.transactionType,
@@ -481,7 +481,7 @@ function createDailyStatement(borrowDetails, supplyDetails, token) {
       type: 'supply',
       debt: 0,
       supply: detail.supply || 0,
-      dailyInterest: detail.dailyInterest,
+      periodInterest: detail.periodInterest,
       totalInterest: detail.totalInterest,
       transactionAmount: detail.transactionAmount,
       transactionType: detail.transactionType,
@@ -512,10 +512,10 @@ function createDailyStatement(borrowDetails, supplyDetails, token) {
     // Mettre à jour les montants
     if (detail.type === 'borrow') {
       dailyStatement[dateKey].debt = detail.debt;
-      dailyStatement[dateKey].borrowInterest = detail.dailyInterest;
+      dailyStatement[dateKey].borrowInterest = detail.periodInterest;
     } else {
       dailyStatement[dateKey].supply = detail.supply;
-      dailyStatement[dateKey].supplyInterest = detail.dailyInterest;
+      dailyStatement[dateKey].supplyInterest = detail.periodInterest;
     }
     
     dailyStatement[dateKey].totalInterest = dailyStatement[dateKey].borrowInterest + dailyStatement[dateKey].supplyInterest;
@@ -555,7 +555,7 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
     date: todayDate,
     timestamp: todayTimestamp,
     [balanceType]: currentBalance, // 'debt' ou 'supply'
-    dailyInterest: "0",
+    periodInterest: "0",
     totalInterest: lastPoint.totalInterest, // Même que le dernier point
     transactionAmount: currentBalance,
     transactionType: "BalanceOf",
