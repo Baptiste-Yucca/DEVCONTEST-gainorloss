@@ -133,17 +133,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     return closestPoint;
   };
 
-  // ✅ NOUVEAU: Fonction pour trouver le point suivant après une date
-  const findNextPointAfter = (dailyDetails: any[], targetTimestamp: number) => {
-    for (const point of dailyDetails) {
-      if (point.timestamp > targetTimestamp) {
-        return point;
-      }
-    }
-    return null;
-  };
 
-  // ✅ NOUVEAU: Fonction pour calculer les intérêts sur une période personnalisée
   const calculateInterestForCustomPeriod = (
     dailyDetails: any[], 
     startTimestamp: number, 
@@ -362,10 +352,10 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // Combiner les deux sections avec des séparateurs
     const csvContent = [
       // En-tête du fichier
-      `RMM Analytics - Rapport Financier`,
-      `Adresse: ${userAddress}`,
-      `Période: ${new Date(selectedPeriod.start).toLocaleDateString('fr-CH')} à ${new Date(selectedPeriod.end).toLocaleDateString('fr-CH')}`,
-      `Généré le: ${new Date().toLocaleDateString('fr-CH')}`,
+      `RMM Analytics - Financial Summary`,
+      `Address: ${userAddress}`,
+      `Period: ${new Date(selectedPeriod.start).toLocaleDateString('fr-CH')} to ${new Date(selectedPeriod.end).toLocaleDateString('fr-CH')}`,
+      `Generated on: ${new Date().toLocaleDateString('fr-CH')}`,
       ``, // Ligne vide
       `Financial Summary`,
       financialHeaders.join(','),
@@ -374,7 +364,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       
       // Section 2: Transactions (si il y en a)
       ...(filteredTransactions.length > 0 ? [
-        `DÉTAIL DES TRANSACTIONS`,
+        `TRANSACTION DETAILS`,
         transactionHeaders.join(','),
         ...transactionData.map(row => row.join(','))
       ] : [])
@@ -401,14 +391,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         period: {
           start: selectedPeriod.start,
           end: selectedPeriod.end,
-          startFormatted: new Date(selectedPeriod.start).toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' }),
-          endFormatted: new Date(selectedPeriod.end).toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' })
         },
         generatedAt: new Date().toISOString(),
-        filters: {
-          selectedTokens,
-          selectedPeriod
-        }
       },
       financialSummary: Object.entries(financialData).map(([tokenKey, data]) => ({
         token: getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
@@ -433,7 +417,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         amountRaw: tx.amount,
         decimals: tx.token === 'USDC' ? 6 : 18,
         txHash: tx.txHash || null,
-        gnosisscanUrl: tx.txHash ? `https://gnosisscan.io/tx/${tx.txHash}` : null
       }))
     };
     
@@ -449,7 +432,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     link.click();
     document.body.removeChild(link);
     
-    console.log('✅ JSON exporté avec succès');
   };
 
   // ✅ NOUVEAU: Fonction d'export PDF sans liens hypertextes
@@ -489,7 +471,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       `${totals.net.toFixed(2)} USD`
     ]);
     
-   
+
     autoTable(doc, {
       startY: 95,
       head: [['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net']],
@@ -508,17 +490,18 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       },
       styles: {
         fontSize: 10,
-        cellPadding: 3 // ✅ RÉDUIT: Espacement entre colonnes
+        cellPadding: 3 
       },
       columnStyles: {
         0: { cellWidth: 25 }, // Token - plus compact
-        1: { cellWidth: 20 }, // Version - plus compact
+        1: { cellWidth: 20, halign: 'center' }, // Version - plus compact
         2: { cellWidth: 35, halign: 'right' }, // Intérêts Dette - plus compact
         3: { cellWidth: 35, halign: 'right' }, // Intérêts Supply - plus compact
         4: { cellWidth: 35, halign: 'right' }  // Gain Net - plus compact
       },
-      tableWidth: 'auto',              // largeur = largeur réelle du contenu
-      margin: { left: 20, right: 20 },   // puis calcule et ré-appelle si tu veux être sûr
+      // no halign available
+      tableWidth: 'auto', 
+      margin: { left: 30, right: 30 }
     });
     
     // ✅ NOUVEAU: Tableau des transactions sur une NOUVELLE PAGE
