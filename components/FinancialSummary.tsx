@@ -340,8 +340,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   // ✅ NOUVEAU: Fonction d'export CSV avec transactions
   const exportToCSV = () => {
     const financialHeaders = ['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net'];
-    const financialDataRows = Object.entries(financialData).map(([token, data]) => [
-      token,
+    const financialDataRows = Object.entries(financialData).map(([tokenKey, data]) => [
+      getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
       data.version,
       data.debt.toFixed(2),
       data.supply.toFixed(2),
@@ -410,8 +410,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           selectedPeriod
         }
       },
-      financialSummary: Object.entries(financialData).map(([token, data]) => ({
-        token,
+      financialSummary: Object.entries(financialData).map(([tokenKey, data]) => ({
+        token: getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
         version: data.version,
         debtInterest: data.debt,
         supplyInterest: data.supply,
@@ -472,12 +472,12 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     doc.text('Financial Summary', 105, 85, { align: 'center' });
     
     // Préparer les données du tableau
-    const tableData = Object.entries(financialData).map(([token, data]) => [
-      token,
+    const tableData = Object.entries(financialData).map(([tokenKey, data]) => [
+      getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
       data.version,
-      `${data.debt.toFixed(2)} ${token.includes('USDC') ? 'USDC' : 'WXDAI'}`,
-      `${data.supply.toFixed(2)} ${token.includes('USDC') ? 'USDC' : 'WXDAI'}`,
-      `${data.net.toFixed(2)} ${token.includes('USDC') ? 'USDC' : 'WXDAI'}`
+      `${data.debt.toFixed(2)} ${tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}`,
+      `${data.supply.toFixed(2)} ${tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}`,
+      `${data.net.toFixed(2)} ${tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}`
     ]);
     
     // Ajouter la ligne des totaux
@@ -587,6 +587,11 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     doc.save(filename);
   };
 
+  // ✅ NOUVEAU: Fonction pour mapper l'affichage des tokens
+  const getDisplayTokenName = (tokenKey: string): string => {
+    return tokenKey === 'WXDAI_V2' ? 'WXDAI' : tokenKey;
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
       <div className="flex items-center justify-between mb-6">
@@ -597,21 +602,25 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           {/* Sélection des tokens */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Token:</label>
-            {['USDC', 'WXDAI', 'WXDAI_V2'].map(token => (
-              <label key={token} className="flex items-center gap-2">
+            {[
+              { key: 'USDC', label: 'USDC' },
+              { key: 'WXDAI', label: 'WXDAI' },
+              { key: 'WXDAI_V2', label: 'V2' } // ✅ NOUVEAU: Label "V2" au lieu de "WXDAI_V2"
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={selectedTokens.includes(token)}
+                  checked={selectedTokens.includes(key)}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedTokens([...selectedTokens, token]);
+                      setSelectedTokens([...selectedTokens, key]);
                     } else {
-                      setSelectedTokens(selectedTokens.filter(t => t !== token));
+                      setSelectedTokens(selectedTokens.filter(t => t !== key));
                     }
                   }}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-600">{token}</span>
+                <span className="text-sm text-gray-600">{label}</span>
               </label>
             ))}
           </div>
@@ -671,29 +680,34 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
             </tr>
           </thead>
           <tbody>
-            {Object.entries(financialData).map(([token, data]) => (
-              <tr key={token} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="py-3 px-4 text-sm font-medium text-gray-900">{token}</td>
-                <td className="py-3 px-4">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    data.version === 'V2' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
-                  }`}>
-                    {data.version}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-sm font-medium text-red-600">
-                  {data.debt.toFixed(2)} {token.includes('USDC') ? 'USDC' : 'WXDAI'}
-                </td>
-                <td className="py-3 px-4 text-sm font-medium text-green-600">
-                  {data.supply.toFixed(2)} {token.includes('USDC') ? 'USDC' : 'WXDAI'}
-                </td>
-                <td className="py-3 px-4 text-sm font-medium">
-                  <span className={data.net >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {data.net.toFixed(2)} {token.includes('USDC') ? 'USDC' : 'WXDAI'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {Object.entries(financialData).map(([tokenKey, data]) => {
+              // ✅ NOUVEAU: Mapper l'affichage du token
+              const displayToken = tokenKey === 'WXDAI_V2' ? 'WXDAI' : tokenKey;
+              
+              return (
+                <tr key={tokenKey} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-sm font-medium text-gray-900">{displayToken}</td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      data.version === 'V2' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                    }`}>
+                      {data.version}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm font-medium text-red-600">
+                    {data.debt.toFixed(2)} {tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}
+                  </td>
+                  <td className="py-3 px-4 text-sm font-medium text-green-600">
+                    {data.supply.toFixed(2)} {tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}
+                  </td>
+                  <td className="py-3 px-4 text-sm font-medium">
+                    <span className={data.net >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {data.net.toFixed(2)} {tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
             
             {/* Ligne des totaux */}
             <tr className="border-t-2 border-gray-200 bg-gray-50">
