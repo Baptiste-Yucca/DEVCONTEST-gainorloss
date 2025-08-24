@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-// ✅ CORRECTION: Importer jsPDF et autoTable correctement
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { TOKENS } from '../utils/constants';
 
 interface FinancialSummaryProps {
   // Données V3
@@ -95,45 +96,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   // État pour les filtres
   const [selectedTokens, setSelectedTokens] = useState<string[]>(['USDC', 'WXDAI', 'WXDAI_V2']);
 
-  // ✅ NOUVEAU: Fonction d'interpolation linéaire
-  const interpolateLinear = (point1: any, point2: any, targetTimestamp: number, balanceType: 'debt' | 'supply') => {
-    const timestamp1 = point1.timestamp;
-    const timestamp2 = point2.timestamp;
-    const amount1 = parseFloat(point1[balanceType] || '0');
-    const amount2 = parseFloat(point2[balanceType] || '0');
-    
-    // Éviter la division par zéro
-    if (timestamp1 === timestamp2) return amount1;
-    
-    // Formule : y = ax + b
-    const slope = (amount2 - amount1) / (timestamp2 - timestamp1);
-    const intercept = amount1 - slope * timestamp1;
-    
-    // Calculer la valeur estimée
-    const estimatedAmount = slope * targetTimestamp + intercept;
-    
-    return Math.max(0, estimatedAmount); // Éviter les valeurs négatives
-  };
-
-  // ✅ NOUVEAU: Fonction pour trouver le point le plus proche avant une date
-  const findClosestPointBefore = (dailyDetails: any[], targetTimestamp: number) => {
-    let closestPoint = null;
-    let minDiff = Infinity;
-    
-    for (const point of dailyDetails) {
-      if (point.timestamp <= targetTimestamp) {
-        const diff = targetTimestamp - point.timestamp;
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestPoint = point;
-        }
-      }
-    }
-    
-    return closestPoint;
-  };
-
-
   const calculateInterestForCustomPeriod = (
     dailyDetails: any[], 
     startTimestamp: number, 
@@ -153,19 +115,18 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     return totalInterest;
   };
 
-  // ✅ NOUVEAU: Calculs financiers avec interpolation conditionnelle
+
   const financialData = useMemo(() => {
     const data: any = {};
     
-    // Vérifier si on est en mode période personnalisée
+
     const isCustomPeriod = selectedPeriod.start !== defaultPeriod.start || selectedPeriod.end !== defaultPeriod.end;
     
     if (isCustomPeriod) {
-      // ✅ MODE INTERPOLATION : Période personnalisée
       const startTimestamp = new Date(selectedPeriod.start).getTime() / 1000;
       const endTimestamp = new Date(selectedPeriod.end).getTime() / 1000;
       
-      // USDC V3 avec interpolation
+      // USDC V3 interpolation
       if (usdcData && selectedTokens.includes('USDC')) {
         const debtInterest = calculateInterestForCustomPeriod(
           usdcData.borrow?.dailyDetails || [], 
@@ -184,11 +145,11 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           supply: supplyInterest,
           net: supplyInterest - debtInterest,
           version: 'V3',
-          contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
+          contract: TOKENS.USDC.debtAddress
         };
       }
       
-      // WXDAI V3 avec interpolation
+      // WXDAI V3 interpolation
       if (wxdaiData && selectedTokens.includes('WXDAI')) {
         const debtInterest = calculateInterestForCustomPeriod(
           wxdaiData.borrow?.dailyDetails || [], 
@@ -207,11 +168,11 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           supply: supplyInterest,
           net: supplyInterest - debtInterest,
           version: 'V3',
-          contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
+          contract: TOKENS.WXDAI.debtAddress
         };
       }
       
-      // WXDAI V2 avec interpolation
+      // WXDAI V2 interpolation
       if (v2Data && selectedTokens.includes('WXDAI_V2')) {
         const debtInterest = calculateInterestForCustomPeriod(
           v2Data.borrow?.dailyDetails || [], 
@@ -230,12 +191,11 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           supply: supplyInterest,
           net: supplyInterest - debtInterest,
           version: 'V2',
-          contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
+          contract: TOKENS.WXDAI.debtV2Address
         };
       }
       
     } else {
-      // ✅ MODE DÉFAUT : Toute la plage (valeurs du backend, pas de calculs)
       // USDC V3
       if (usdcData && selectedTokens.includes('USDC')) {
         const lastDebtPoint = usdcData.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
@@ -250,7 +210,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           supply: supplyInterest,
           net: netInterest,
           version: 'V3',
-          contract: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6'
+          contract: TOKENS.USDC.debtAddress
         };
       }
       
@@ -268,7 +228,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           supply: supplyInterest,
           net: netInterest,
           version: 'V3',
-          contract: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34'
+          contract: TOKENS.WXDAI.debtAddress
         };
       }
       
@@ -286,7 +246,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           supply: supplyInterest,
           net: netInterest,
           version: 'V2',
-          contract: '0x0ade75f269a054673883319baa50e5e0360a775f'
+          contract: TOKENS.WXDAI.debtV2Address
         };
       }
     }
@@ -303,7 +263,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     return { debt: totalDebt, supply: totalSupply, net: totalNet };
   }, [financialData]);
 
-  // ✅ NOUVEAU: Filtrer les transactions selon les critères
   const filteredTransactions = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
     
@@ -317,8 +276,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       });
       
       if (!tokenMatch) return false;
-      
-      // Filtre par période
+
       const txDate = new Date(tx.timestamp * 1000);
       const startDate = new Date(selectedPeriod.start);
       const endDate = new Date(selectedPeriod.end);
@@ -327,7 +285,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     });
   }, [transactions, selectedTokens, selectedPeriod]);
 
-  // ✅ NOUVEAU: Fonction d'export CSV avec transactions
   const exportToCSV = () => {
     const financialHeaders = ['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net'];
     const financialDataRows = Object.entries(financialData).map(([tokenKey, data]) => [
@@ -338,7 +295,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       data.net.toFixed(2)
     ]);
     
-    // Section 2: Transactions (si il y en a)
+
     const transactionHeaders = ['Date', 'Type', 'Token', 'Version', 'Montant', 'Hash'];
     const transactionData = filteredTransactions.map(tx => [
       new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH'),
@@ -351,18 +308,17 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     
     // Combiner les deux sections avec des séparateurs
     const csvContent = [
-      // En-tête du fichier
+
       `RMM Analytics - Financial Summary`,
       `Address: ${userAddress}`,
       `Period: ${new Date(selectedPeriod.start).toLocaleDateString('fr-CH')} to ${new Date(selectedPeriod.end).toLocaleDateString('fr-CH')}`,
       `Generated on: ${new Date().toLocaleDateString('fr-CH')}`,
-      ``, // Ligne vide
-      `Financial Summary`,
+      ``, 
       financialHeaders.join(','),
-      ...financialDataRows.map(row => row.join(',')), // ✅ CORRECTION: Utiliser financialDataRows
-      ``, // Ligne vide
+      ...financialDataRows.map(row => row.join(',')), 
+      ``, 
       
-      // Section 2: Transactions (si il y en a)
+ 
       ...(filteredTransactions.length > 0 ? [
         `TRANSACTION DETAILS`,
         transactionHeaders.join(','),
@@ -381,9 +337,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     document.body.removeChild(link);
   };
 
-  // ✅ NOUVEAU: Fonction d'export JSON
+
   const exportToJSON = () => {
-    // Préparer les données pour l'export JSON
     const exportData = {
       metadata: {
         title: 'RMM Analytics - Rapport Financier',
@@ -395,7 +350,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         generatedAt: new Date().toISOString(),
       },
       financialSummary: Object.entries(financialData).map(([tokenKey, data]) => ({
-        token: getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
+        token: getDisplayTokenName(tokenKey),
         version: data.version,
         debtInterest: data.debt,
         supplyInterest: data.supply,
@@ -420,7 +375,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       }))
     };
     
-    // Créer et télécharger le fichier JSON
     const jsonContent = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
     const link = document.createElement('a');
@@ -433,8 +387,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     document.body.removeChild(link);
     
   };
-
-  // ✅ NOUVEAU: Fonction d'export PDF sans liens hypertextes
   const exportToPDF = () => {
     const doc = new jsPDF();
     
@@ -453,16 +405,14 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     doc.setTextColor(59, 130, 246);
     doc.text('Financial Summary', 105, 85, { align: 'center' });
     
-    // Préparer les données du tableau
     const tableData = Object.entries(financialData).map(([tokenKey, data]) => [
-      getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
+      getDisplayTokenName(tokenKey),
       data.version,
       `${data.debt.toFixed(2)} ${tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}`,
       `${data.supply.toFixed(2)} ${tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}`,
       `${data.net.toFixed(2)} ${tokenKey.includes('USDC') ? 'USDC' : 'WXDAI'}`
     ]);
     
-    // Ajouter la ligne des totaux
     tableData.push([
       'TOTAL',
       '-',
@@ -493,21 +443,20 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         cellPadding: 3 
       },
       columnStyles: {
-        0: { cellWidth: 25 }, // Token - plus compact
-        1: { cellWidth: 20, halign: 'center' }, // Version - plus compact
-        2: { cellWidth: 35, halign: 'right' }, // Intérêts Dette - plus compact
-        3: { cellWidth: 35, halign: 'right' }, // Intérêts Supply - plus compact
-        4: { cellWidth: 35, halign: 'right' }  // Gain Net - plus compact
+        0: { cellWidth: 25 },
+        1: { cellWidth: 20, halign: 'center' }, 
+        2: { cellWidth: 35, halign: 'right' }, 
+        3: { cellWidth: 35, halign: 'right' },
+        4: { cellWidth: 35, halign: 'right' } 
       },
       // no halign available
       tableWidth: 'auto', 
       margin: { left: 30, right: 30 }
     });
     
-    // ✅ NOUVEAU: Tableau des transactions sur une NOUVELLE PAGE
     doc.addPage();
     
-    // Titre centré sur la nouvelle page
+    
     doc.setFontSize(16);
     doc.setTextColor(59, 130, 246);
     doc.text('Transaction Details', 105, 30, { align: 'center' });
@@ -532,7 +481,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       body: txTableData,
       theme: 'grid',
       headStyles: {
-        fillColor: [59, 130, 246], // Using a blue color for the header
+        fillColor: [59, 130, 246],
         textColor: [255, 255, 255],
         fontStyle: 'bold'
       },
@@ -547,25 +496,19 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         fontSize: 7,
         cellPadding: 2
       },
-      
-      // ✅ CORRECTION 1: Marges réduites au minimum
-      margin: { left: 10, right: 10 }, // Réduit de 15 à 10px
-      
-      // ✅ CORRECTION 2: Largeurs de colonnes optimisées pour remplir la page
+
+      margin: { left: 10, right: 10 }, 
       columnStyles: {
-        0: { cellWidth: 25 }, // Date - un peu plus large
-        1: { cellWidth: 20 }, // Type - un peu plus large  
-        2: { cellWidth: 12 }, // Token - un peu plus large
-        3: { cellWidth: 10 }, // Version - un peu plus large
-        4: { cellWidth: 20, halign: 'right' }, // Montant - un peu plus large
-        5: { cellWidth: 100, halign: 'center' }  // Hash - plus large pour éviter le retour à la ligne
+        0: { cellWidth: 25 }, // Date 
+        1: { cellWidth: 20 }, // Type 
+        2: { cellWidth: 12 }, // Token 
+        3: { cellWidth: 10 }, // Version 
+        4: { cellWidth: 20, halign: 'right' }, // Amount 
+        5: { cellWidth: 100, halign: 'center' }  // Hash
       }
-      // Total: 25+20+20+15+25+55 = 160px (mieux réparti sur la page)
+
     });
-    
-    // ✅ SUPPRIMÉ: Plus de pieds de page
-    
-    // Sauvegarder
+  
     const filename = `rmm_analytics_${userAddress}_${selectedPeriod.start}_${selectedPeriod.end}.pdf`;
     doc.save(filename);
   };
@@ -588,7 +531,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
             {[
               { key: 'USDC', label: 'USDC' },
               { key: 'WXDAI', label: 'WXDAI' },
-              { key: 'WXDAI_V2', label: 'V2' } // ✅ NOUVEAU: Label "V2" au lieu de "WXDAI_V2"
+              { key: 'WXDAI_V2', label: 'V2' }
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center gap-2">
                 <input
@@ -638,7 +581,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
               <th className="text-left py-3 px-4 font-semibold text-gray-900">
                 Intérêts Dette
                 <a 
-                  href={`https://gnosisscan.io/token/0x69c731aE5f5356a779f44C355aBB685d84e5E9e6?a=${userAddress}`}
+                  href={`https://gnosisscan.io/token/${TOKENS.USDC.debtAddress}?a=${userAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-2 text-blue-600 hover:text-blue-800"
@@ -650,7 +593,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
               <th className="text-left py-3 px-4 font-semibold text-gray-900">
                 Intérêts Supply
                 <a 
-                  href={`https://gnosisscan.io/token/0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1?a=${userAddress}`}
+                  href={`https://gnosisscan.io/token/${TOKENS.USDC.supplyAddress}?a=${userAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="ml-2 text-blue-600 hover:text-blue-800"
