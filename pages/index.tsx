@@ -563,19 +563,19 @@ export default function Home() {
         </Head>
 
         <div className="min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            {/* En-tête */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">RMM Analytics</h1>
-                  <p className="text-gray-600">
-                    Adress: <span className="font-mono bg-gray-100 px-3 py-1 rounded-lg text-sm">{address}</span>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+            {/* ✅ HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">RMM Analytics</h1>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Address: <span className="font-mono bg-gray-100 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm break-all">{address}</span>
                   </p>
                 </div>
                 <button 
                   onClick={resetForm}
-                  className="bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium"
+                  className="w-full sm:w-auto bg-gray-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm sm:text-base"
                 >
                   New analyse
                 </button>
