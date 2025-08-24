@@ -1,6 +1,8 @@
 const { fetchAllTokenBalancesV2 } = require('./graphql-v2');
 // ✅ NOUVEAU: Importer le service des transactions V2
 const { fetchAllTransactionsV2, transformTransactionsV2ToFrontendFormat } = require('./fetch-transactions-v2');
+// ✅ NOUVEAU: Importer le service GnosisScan
+const { fetchSupplyTokenTransactionsViaGnosisScan } = require('./gnosisscan');
 
 /**
  * Configuration depuis les variables d'environnement
@@ -361,9 +363,12 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
     
     // ✅ NOUVEAU: Récupérer les transactions V2 pour le frontend
     const allTransactions = await fetchAllTransactionsV2(userAddress, req);
-    
-    // ✅ NOUVEAU: Transformer en format frontend
-    const frontendTransactions = transformTransactionsV2ToFrontendFormat(allTransactions);
+
+    // ✅ NOUVEAU: Récupérer les transactions GnosisScan V2
+    const gnosisTransactions = await fetchSupplyTokenTransactionsViaGnosisScan(userAddress, allTransactions, 'V2', req);
+
+    // ✅ NOUVEAU: Transformer en format frontend (avec GnosisScan)
+    const frontendTransactions = transformTransactionsV2ToFrontendFormat(allTransactions, gnosisTransactions);
     
     // Récupérer les balances actuels via RPC
     const currentBalances = await getCurrentBalancesV2(userAddress);

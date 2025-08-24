@@ -1,4 +1,6 @@
 const { fetchAllTokenBalances } = require('./graphql');
+const { fetchSupplyTokenTransactionsViaGnosisScan } = require('./gnosisscan');
+const { fetchAllTransactionsV3, transformTransactionsV3ToFrontendFormat } = require('./fetch-transactions');
 
 /**
  * Configuration depuis les variables d'environnement
@@ -359,11 +361,12 @@ async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null
     // Récupérer les balances pour les calculs d'intérêts
     const allBalances = await fetchAllTokenBalances(userAddress, req);
     
-    // Récupérer les transactions V3 pour le frontend
+    // 1 the graph + others via gnosisscan 
     const allTransactions = await fetchAllTransactionsV3(userAddress, req);
-    
-    // Transformer en format frontend
-    const frontendTransactions = transformTransactionsV3ToFrontendFormat(allTransactions);
+    const gnosisTransactions = await fetchSupplyTokenTransactionsViaGnosisScan(userAddress, allTransactions, 'V3', req);
+
+    // 2 transformation unifiée
+    const frontendTransactions = transformTransactionsV3ToFrontendFormat(allTransactions, gnosisTransactions);
     
     // Récupérer les balances actuels via RPC
     const currentBalances = await getCurrentBalances(userAddress);
@@ -653,9 +656,6 @@ function formatDateYYYYMMDD(timestamp) {
   
   return `${year}${month}${day}`;
 }
-
-// Importer le nouveau service V3
-const { fetchAllTransactionsV3, transformTransactionsV3ToFrontendFormat } = require('./fetch-transactions');
 
 module.exports = {
   calculateInterestForAllTokensFromTheGraph,
