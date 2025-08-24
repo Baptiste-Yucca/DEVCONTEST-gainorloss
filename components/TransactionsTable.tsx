@@ -146,10 +146,11 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8">
+      {/* ✅ HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
           {onToggleCollapse && (
             <button
               onClick={onToggleCollapse}
@@ -169,10 +170,10 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
           )}
         </div>
         
-        <div className="flex items-center gap-4">
-          {/* Statistiques rapides quand collapsed */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* ✅ STATISTIQUES: Responsive avec flex-wrap pour éviter le débordement */}
           {isCollapsed && (
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-sm text-gray-600">
               <span>Total: {filteredTransactions.length}</span>
               <span>Borrow: {filteredTransactions.filter(tx => tx.type === 'borrow').length}</span>
               <span>Repay: {filteredTransactions.filter(tx => tx.type === 'repay').length}</span>
@@ -181,10 +182,13 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
               <span>Period: {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}</span>
             </div>
           )}
-                      {/* Filtres et Export (seulement si pas collapsed) */}
-            {!isCollapsed && (
-              <>
-                <div className="flex items-center gap-2">
+          
+          {/* ✅ FILTRES ET EXPORT: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+          {!isCollapsed && (
+            <>
+              {/* ✅ FILTRES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={tokenFilter}
                     onChange={(e) => setTokenFilter(e.target.value as FilterType)}
@@ -218,36 +222,40 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                   </select>
                 </div>
 
-                {/* Filtre par date */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">From:</span>
-                  <input
-                    type="date"
-                    value={formatDateForInput(dateRange.start)}
-                    onChange={(e) => {
-                      const newDate = new Date(e.target.value);
-                      setDateRange(prev => ({ ...prev, start: newDate }));
-                    }}
-                    min={formatDateForInput(getDateRange().min)}
-                    max={formatDateForInput(dateRange.end)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                {/* ✅ FILTRE PAR DATE: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">From:</span>
+                    <input
+                      type="date"
+                      value={formatDateForInput(dateRange.start)}
+                      onChange={(e) => {
+                        const newDate = new Date(e.target.value);
+                        setDateRange(prev => ({ ...prev, start: newDate }));
+                      }}
+                      min={formatDateForInput(getDateRange().min)}
+                      max={formatDateForInput(dateRange.end)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   
-                  <span className="text-sm text-gray-600">To:</span>
-                  <input
-                    type="date"
-                    value={formatDateForInput(dateRange.end)}
-                    onChange={(e) => {
-                      const newDate = new Date(e.target.value);
-                      setDateRange(prev => ({ ...prev, end: newDate }));
-                    }}
-                    min={formatDateForInput(dateRange.start)}
-                    max={formatDateForInput(getDateRange().max)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">To:</span>
+                    <input
+                      type="date"
+                      value={formatDateForInput(dateRange.end)}
+                      onChange={(e) => {
+                        const newDate = new Date(e.target.value);
+                        setDateRange(prev => ({ ...prev, end: newDate }));
+                      }}
+                      min={formatDateForInput(dateRange.start)}
+                      max={formatDateForInput(getDateRange().max)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
                 
-                {/* Boutons d'action */}
+                {/* ✅ BOUTONS D'ACTION: Responsive */}
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
@@ -261,129 +269,130 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     🔄 Reset
                   </button>
                 </div>
-              </>
-            )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Contenu conditionnel */}
+      {/* ✅ CONTENU CONDITIONNEL */}
       {!isCollapsed && (
         <>
-                    {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+          {/* ✅ STATISTIQUES: Responsive avec grid adaptatif */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
             {/* Colonne 1: Total */}
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-blue-700 mb-1">Total</h3>
-              <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
+            <div className="bg-blue-50 border border-blue-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-blue-700 mb-1">Total</h3>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
             </div>
             
             {/* Colonne 2: Emprunts */}
-            <div className="bg-red-50 border border-red-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-red-700 mb-1">Borrow</h3>
-              <p className="text-2xl font-bold text-red-600">
+            <div className="bg-red-50 border border-red-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-red-700 mb-1">Borrow</h3>
+              <p className="text-lg sm:text-2xl font-bold text-red-600">
                 {filteredTransactions.filter(tx => tx.type === 'borrow').length}
               </p>
             </div>
             
             {/* Colonne 3: Remboursements */}
-            <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-purple-700 mb-1">Repay</h3>
-              <p className="text-2xl font-bold text-purple-600">
+            <div className="bg-purple-50 border border-purple-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-purple-700 mb-1">Repay</h3>
+              <p className="text-lg sm:text-2xl font-bold text-purple-600">
                 {filteredTransactions.filter(tx => tx.type === 'repay').length}
               </p>
             </div>
             
             {/* Colonne 4: Dépôts */}
-            <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-green-700 mb-1">Deposit</h3>
-              <p className="text-2xl font-bold text-green-600">
+            <div className="bg-green-50 border border-green-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-green-700 mb-1">Deposit</h3>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">
                 {filteredTransactions.filter(tx => tx.type === 'deposit').length}
               </p>
             </div>
             
             {/* Colonne 5: Retraits */}
-            <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-orange-700 mb-1">Withdraw</h3>
-              <p className="text-2xl font-bold text-orange-600">
+            <div className="bg-orange-50 border border-orange-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-orange-700 mb-1">Withdraw</h3>
+              <p className="text-lg sm:text-2xl font-bold text-orange-600">
                 {filteredTransactions.filter(tx => tx.type === 'withdraw').length}
               </p>
             </div>
             
             {/* Colonne 6: Période */}
-            <div className="bg-gray-50 border border-gray-100 p-4 rounded-xl">
-              <h3 className="text-sm font-medium text-gray-700 mb-1">Period</h3>
-              <p className="text-sm font-bold text-gray-600">
+            <div className="bg-gray-50 border border-gray-100 p-3 sm:p-4 rounded-xl col-span-2 sm:col-span-1">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-1">Period</h3>
+              <p className="text-xs sm:text-sm font-bold text-gray-600">
                 {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}
               </p>
             </div>
           </div>
 
-      {/* Tableau des transactions */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Date</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Type</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Token</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Amount</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Hash</th>
-              <th className="text-left py-3 px-4 font-semibold text-gray-900">Version</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTransactions.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-500">
-                  No transaction found with the current filters
-                </td>
-              </tr>
-            ) : (
-              filteredTransactions.map((tx, index) => (
-                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-sm text-gray-600">
-                    {formatDate(tx.timestamp)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTransactionColor(tx.type)}`}>
-                      {getTransactionIcon(tx.type)} {tx.type}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
-                    {tx.token}
-                  </td>
-                  <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                    {formatAmount(tx.amount, tx.token === 'USDC' ? 6 : 18).toFixed(2)} {tx.token}
-                  </td>
-                  <td className="py-3 px-4">
-                    {tx.txHash ? (
-                      <a
-                        href={`https://gnosisscan.io/tx/${tx.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 text-sm font-mono truncate block max-w-xs"
-                      >
-                        {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
-                      </a>
-                    ) : (
-                      <span className="text-gray-400 text-sm">Hash not available</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-600">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      tx.version === 'V2' ? 'bg-blue-100 text-blue-700' : 
-                      tx.version === 'V3' ? 'bg-green-100 text-green-700' : 
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {tx.version || 'N/A'}
-                    </span>
-                  </td>
+          {/* ✅ TABLEAU: Responsive avec scroll horizontal sur mobile */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Date</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Type</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Token</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Amount</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Hash</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Version</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-gray-500 text-sm">
+                      No transaction found with the current filters
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((tx, index) => (
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                        {formatDate(tx.timestamp)}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTransactionColor(tx.type)}`}>
+                          {getTransactionIcon(tx.type)} {tx.type}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                        {tx.token}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">
+                        {formatAmount(tx.amount, tx.token === 'USDC' ? 6 : 18).toFixed(2)} {tx.token}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4">
+                        {tx.txHash ? (
+                          <a
+                            href={`https://gnosisscan.io/tx/${tx.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-mono truncate block max-w-xs"
+                          >
+                            {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs sm:text-sm">Hash not available</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          tx.version === 'V2' ? 'bg-blue-100 text-blue-700' : 
+                          tx.version === 'V3' ? 'bg-green-100 text-green-700' : 
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {tx.version || 'N/A'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </div>

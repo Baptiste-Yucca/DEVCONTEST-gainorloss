@@ -520,13 +520,14 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-      <div className="flex items-center justify-between mb-6">
+      {/* ✅ HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Financial Summary</h2>
         
-        {/* Filtres */}
-        <div className="flex items-center gap-4">
-          {/* Sélection des tokens */}
-          <div className="flex items-center gap-2">
+        {/* ✅ FILTRES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* ✅ TOKENS: Responsive avec flex-wrap pour éviter le débordement */}
+          <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Token:</label>
             {[
               { key: 'USDC', label: 'USDC' },
@@ -551,22 +552,26 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
             ))}
           </div>
           
-          {/* Période */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">From</label>
-            <input
-              type="date"
-              value={selectedPeriod.start}
-              onChange={(e) => setSelectedPeriod(prev => ({ ...prev, start: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <label className="text-sm font-medium text-gray-700">To</label>
-            <input
-              type="date"
-              value={selectedPeriod.end}
-              onChange={(e) => setSelectedPeriod(prev => ({ ...prev, end: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          {/* ✅ DATES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">From</label>
+              <input
+                type="date"
+                value={selectedPeriod.start}
+                onChange={(e) => setSelectedPeriod(prev => ({ ...prev, start: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">To</label>
+              <input
+                type="date"
+                value={selectedPeriod.end}
+                onChange={(e) => setSelectedPeriod(prev => ({ ...prev, end: e.target.value }))}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
         </div>
       </div>
