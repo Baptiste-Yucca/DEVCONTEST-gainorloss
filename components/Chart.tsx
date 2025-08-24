@@ -150,7 +150,7 @@ const Chart: React.FC<ChartProps> = ({
                 stroke={color}
                 strokeWidth={2}
                 fill={`url(#gradient-${color})`}
-                dot={{ fill: color, strokeWidth: 2, r: 4 }}
+                dot={{ fill: color, strokeWidth: 2, r: 2 }}
                 activeDot={{ r: 6, stroke: color, strokeWidth: 2 }}
               />
             </AreaChart>
@@ -181,7 +181,7 @@ const Chart: React.FC<ChartProps> = ({
                 dataKey="value"
                 stroke={color}
                 strokeWidth={2}
-                dot={{ fill: color, strokeWidth: 2, r: 4 }}
+                dot={{ fill: color, strokeWidth: 2, r: 2 }}
                 activeDot={{ r: 6, stroke: color, strokeWidth: 2 }}
               />
             </LineChart>
