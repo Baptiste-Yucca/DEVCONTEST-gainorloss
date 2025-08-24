@@ -28,7 +28,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
   transactions, 
   userAddress, 
   title, 
-  isCollapsed = true, 
+  isCollapsed = false, 
   onToggleCollapse 
 }) => {
   const [tokenFilter, setTokenFilter] = useState<FilterType>('all');

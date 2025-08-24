@@ -577,7 +577,7 @@ export default function Home() {
                   onClick={resetForm}
                   className="w-full sm:w-auto bg-gray-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm sm:text-base"
                 >
-                  New analyse
+                  Try another address
                 </button>
               </div>
             </div>
