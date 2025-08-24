@@ -4,30 +4,30 @@ const { fetchAllTokenBalances } = require('./graphql');
  * Configuration depuis les variables d'environnement
  */
 const GNOSIS_RPC_URL = process.env.GNOSIS_RPC_URL || 'https://rpc.gnosischain.com/';
+const RAY = BigInt(10 ** 27);
+const { TOKENS } = require('../../utils/constants');
 
-// ✅ NOUVEAU: Constante RAY pour les calculs RMM
-const RAY = BigInt(10 ** 27); // 1e27
 
 const TOKENS_V3 = {
   armmUSDC: {
-    address: '0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1',
-    symbol: 'armmUSDC',
-    decimals: 6
+    address: TOKENS.USDC.supplyAddress,
+    symbol: TOKENS.USDC.supplySymbol,
+    decimals: TOKENS.USDC.decimals
   },
   armmWXDAI: {
-    address: '0x0ca4f5554dd9da6217d62d8df2816c82bba4157b',
-    symbol: 'armmWXDAI',
-    decimals: 18
+    address: TOKENS.WXDAI.supplyAddress,
+    symbol: TOKENS.WXDAI.supplySymbol,
+    decimals: TOKENS.WXDAI.decimals
   },
   debtUSDC: {
-    address: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
-    symbol: 'debtUSDC',
-    decimals: 6
+    address: TOKENS.USDC.debtAddress,
+    symbol: TOKENS.USDC.debtSymbol,
+    decimals: TOKENS.USDC.decimals
   },
   debtWXDAI: {
-    address: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34',
-    symbol: 'debtWXDAI',
-    decimals: 18
+    address: TOKENS.WXDAI.debtAddress,
+    symbol: TOKENS.WXDAI.debtSymbol,
+    decimals: TOKENS.WXDAI.decimals
   }
 };
 
@@ -104,10 +104,6 @@ async function getCurrentBalances(userAddress) {
   }
 }
 
-/**
- * Calcule les intérêts pour les supply tokens (aTokens)
- * Version simplifiée : un seul point par jour (le dernier)
- */
 function calculateSupplyInterestFromBalances(atokenBalances, token) {
   console.log(`💰 Calcul des intérêts de supply pour ${token} via TheGraph`);
   

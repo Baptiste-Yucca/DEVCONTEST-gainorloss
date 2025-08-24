@@ -10,16 +10,20 @@ const GNOSIS_RPC_URL = process.env.GNOSIS_RPC_URL || 'https://rpc.gnosischain.co
 // ✅ NOUVEAU: Constante RAY pour les calculs RMM
 const RAY = BigInt(10 ** 27); // 1e27
 
+// ✅ NOUVEAU: Importer depuis constants.js (chemin correct)
+const { TOKENS } = require('../../utils/constants');
+
+// ✅ NOUVEAU: Créer TOKENS_V2 dynamiquement
 const TOKENS_V2 = {
   rmmWXDAI: {
-    address: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d',
-    symbol: 'rmmWXDAI',
-    decimals: 18
+    address: TOKENS.WXDAI.supplyAddress,
+    symbol: TOKENS.WXDAI.supplySymbol,
+    decimals: TOKENS.WXDAI.decimals
   },
   debtWXDAI: {
-    address: '0x0ade75f269a054673883319baa50e5e0360a775f',
-    symbol: 'debtWXDAI',
-    decimals: 18
+    address: TOKENS.WXDAI.debtAddress,
+    symbol: TOKENS.WXDAI.debtSymbol,
+    decimals: TOKENS.WXDAI.decimals
   }
 };
 
