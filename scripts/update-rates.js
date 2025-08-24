@@ -52,7 +52,7 @@ function dateYYYYMMDDToTimestamp(dateStr) {
  */
 async function updateRates() {
   console.log('🔄 Début de la mise à jour des taux d\'intérêt');
-  console.log(`⏰ ${new Date().toLocaleString('fr-FR')}`);
+  console.log(`⏰ ${new Date().toLocaleString('fr-CH')}`);
   
   let totalNewRates = 0;
   let hasErrors = false;
@@ -67,7 +67,7 @@ async function updateRates() {
         
         // Calculer le timestamp pour 28 jours en arrière
         const fromTimestamp = Math.floor(Date.now() / 1000) - (28 * 24 * 60 * 60);
-        console.log(`📅 Récupération des taux depuis 28 jours: ${new Date(fromTimestamp * 1000).toLocaleDateString('fr-FR')}`);
+        console.log(`📅 Récupération des taux depuis 28 jours: ${new Date(fromTimestamp * 1000).toLocaleDateString('fr-CH')}`);
         
         // Récupérer les taux depuis l'API
         const ratesData = await fetchRatesFromAPI(tokenConfig.reserveId, fromTimestamp);
@@ -106,7 +106,7 @@ async function updateRates() {
           const lastRateData = newRatesData[newRatesData.length - 1];
           const firstDate = new Date(firstRateData.x.year, firstRateData.x.month, firstRateData.x.date);
           const lastDate = new Date(lastRateData.x.year, lastRateData.x.month, lastRateData.x.date);
-          console.log(`📊 Nouveaux taux: ${firstDate.toLocaleDateString('fr-FR')} → ${lastDate.toLocaleDateString('fr-FR')}`);
+          console.log(`📊 Nouveaux taux: ${firstDate.toLocaleDateString('fr-CH')} → ${lastDate.toLocaleDateString('fr-CH')}`);
         }
         
         // Insérer les nouveaux taux dans la base

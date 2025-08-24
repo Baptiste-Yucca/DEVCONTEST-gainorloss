@@ -51,7 +51,7 @@ async function debugAPI() {
       
       console.log(`Date JavaScript créée: ${dateObj.toISOString()}`);
       console.log(`Timestamp calculé: ${timestamp}`);
-      console.log(`Date vérifiée: ${new Date(timestamp * 1000).toLocaleDateString('fr-FR')}`);
+      console.log(`Date vérifiée: ${new Date(timestamp * 1000).toLocaleDateString('fr-CH')}`);
       
       // Vérifier si rate.timestamp existe
       console.log(`Champ timestamp dans l'API: ${rate.timestamp || 'INEXISTANT'}`);

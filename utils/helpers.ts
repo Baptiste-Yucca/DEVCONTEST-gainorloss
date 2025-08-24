@@ -31,5 +31,5 @@ export const formatAmount = (amount: string, reserveId: string): string => {
 };
 
 export const formatTimestamp = (timestamp: number): string => {
-  return new Date(timestamp * 1000).toLocaleString('fr-FR');
+  return new Date(timestamp * 1000).toLocaleString('fr-CH');
 }; 

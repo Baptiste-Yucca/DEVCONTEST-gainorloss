@@ -48,7 +48,7 @@ function analyzeTransactions() {
   
   allTransactions.forEach((tx, index) => {
     const amount = weiToWxdai(tx.amount);
-    const date = new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR');
+    const date = new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH');
     
     if (tx.type === 'supply') {
       totalSupply += amount;

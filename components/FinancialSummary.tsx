@@ -351,7 +351,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // Section 2: Transactions (si il y en a)
     const transactionHeaders = ['Date', 'Type', 'Token', 'Version', 'Montant', 'Hash'];
     const transactionData = filteredTransactions.map(tx => [
-      new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+      new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH'),
       tx.type,
       tx.token,
       tx.version,
@@ -364,8 +364,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       // En-tête du fichier
       `RMM Analytics - Rapport Financier`,
       `Adresse: ${userAddress}`,
-      `Période: ${new Date(selectedPeriod.start).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })} à ${new Date(selectedPeriod.end).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`,
-      `Généré le: ${new Date().toLocaleDateString('fr-FR')}`,
+      `Période: ${new Date(selectedPeriod.start).toLocaleDateString('fr-CH')} à ${new Date(selectedPeriod.end).toLocaleDateString('fr-CH')}`,
+      `Généré le: ${new Date().toLocaleDateString('fr-CH')}`,
       ``, // Ligne vide
       `Financial Summary`,
       financialHeaders.join(','),
@@ -401,8 +401,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         period: {
           start: selectedPeriod.start,
           end: selectedPeriod.end,
-          startFormatted: new Date(selectedPeriod.start).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }),
-          endFormatted: new Date(selectedPeriod.end).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+          startFormatted: new Date(selectedPeriod.start).toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' }),
+          endFormatted: new Date(selectedPeriod.end).toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' })
         },
         generatedAt: new Date().toISOString(),
         filters: {
@@ -425,7 +425,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       },
       transactions: filteredTransactions.map(tx => ({
         date: new Date(tx.timestamp * 1000).toISOString(),
-        dateFormatted: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+        dateFormatted: new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH'),
         type: tx.type,
         token: tx.token,
         version: tx.version,
@@ -456,25 +456,17 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    // En-tête
+
     doc.setFontSize(20);
     doc.setTextColor(59, 130, 246);
-    doc.text('RMM Analytics - Rapport Financier', 105, 30, { align: 'center' });
-    
-    // Format des dates MM/YYYY
-    const formatDateMMYYYY = (dateString: string) => {
-      const date = new Date(dateString);
-      const month = date.getMonth() + 1;
-      const year = date.getFullYear();
-      return `${month.toString().padStart(2, '0')}/${year}`;
-    };
+    doc.text('RMM Analytics - Financial Summary', 105, 30, { align: 'center' });
     
     // Informations
     doc.setFontSize(12);
     doc.setTextColor(75, 85, 99);
-    doc.text(`Adresse: ${userAddress}`, 20, 45);
-    doc.text(`Période: ${formatDateMMYYYY(selectedPeriod.start)} à ${formatDateMMYYYY(selectedPeriod.end)}`, 20, 55);
-    doc.text(`Généré le: ${new Date().toLocaleDateString('fr-FR')}`, 20, 65);
+    doc.text(`Address: ${userAddress}`, 20, 45);
+    doc.text(`Period: ${new Date(selectedPeriod.start).toLocaleDateString('fr-CH')} à ${new Date(selectedPeriod.end).toLocaleDateString('fr-CH')}`, 20, 55);
+    doc.text(`Generated on: ${new Date().toLocaleDateString('fr-CH')}`, 20, 65);
     doc.setFontSize(16);
     doc.setTextColor(59, 130, 246);
     doc.text('Financial Summary', 105, 85, { align: 'center' });
@@ -497,7 +489,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
       `${totals.net.toFixed(2)} USD`
     ]);
     
-    // ✅ CORRECTION: Tableau financier centré et compact
+   
     autoTable(doc, {
       startY: 95,
       head: [['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net']],
@@ -525,7 +517,8 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
         3: { cellWidth: 35, halign: 'right' }, // Intérêts Supply - plus compact
         4: { cellWidth: 35, halign: 'right' }  // Gain Net - plus compact
       },
-      margin: { left: 20, right: 20 } // ✅ AJOUTÉ: Marges pour centrer
+      tableWidth: 'auto',              // largeur = largeur réelle du contenu
+      margin: { left: 20, right: 20 },   // puis calcule et ré-appelle si tu veux être sûr
     });
     
     // ✅ NOUVEAU: Tableau des transactions sur une NOUVELLE PAGE
@@ -538,7 +531,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     
     // Préparer les données des transactions
     const txTableData = filteredTransactions.map(tx => [
-      new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+      new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH'),
       tx.type,
       tx.token,
       tx.version,
@@ -590,7 +583,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // ✅ SUPPRIMÉ: Plus de pieds de page
     
     // Sauvegarder
-    const filename = `rmm_analytics_${userAddress}_${formatDateMMYYYY(selectedPeriod.start)}_${formatDateMMYYYY(selectedPeriod.end)}.pdf`;
+    const filename = `rmm_analytics_${userAddress}_${selectedPeriod.start}_${selectedPeriod.end}.pdf`;
     doc.save(filename);
   };
 
@@ -724,7 +717,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
 
       {/* Informations de période */}
       <div className="text-center text-sm text-gray-600 mb-6">
-      Period analyzed : from {new Date(selectedPeriod.start).toLocaleDateString('fr-FR')} to {new Date(selectedPeriod.end).toLocaleDateString('fr-FR')}
+      Period analyzed : from {new Date(selectedPeriod.start).toLocaleDateString('fr-CH')} to {new Date(selectedPeriod.end).toLocaleDateString('fr-CH')}
       </div>
 
       {/* Boutons d'export mis à jour */}

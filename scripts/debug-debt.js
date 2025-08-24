@@ -44,7 +44,7 @@ function calculateCumulativeDebt() {
   
   for (let i = 0; i < transactions.length; i++) {
     const tx = transactions[i];
-    const date = new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR');
+    const date = new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH');
     
     if (tx.type === 'borrow') {
       currentDebt += tx.amount;

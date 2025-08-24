@@ -208,7 +208,7 @@ export default function Home() {
       chartData.push({
         date: new Date(tx.timestamp * 1000).toISOString().split('T')[0],
         value: cumulativeDebt, // Utiliser la dette cumulée au lieu du montant individuel
-        formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-FR'),
+        formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH'),
         type: tx.type,
         amount: tx.amountFormatted,
         timestamp: tx.timestamp

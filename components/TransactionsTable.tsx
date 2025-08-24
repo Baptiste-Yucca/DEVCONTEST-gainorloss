@@ -28,7 +28,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
   transactions, 
   userAddress, 
   title, 
-  isCollapsed = false, 
+  isCollapsed = true, 
   onToggleCollapse 
 }) => {
   const [tokenFilter, setTokenFilter] = useState<FilterType>('all');
@@ -69,7 +69,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
   // Fonction pour formater les dates
   const formatDate = (timestamp: number): string => {
-    return new Date(timestamp * 1000).toLocaleDateString('fr-FR', {
+    return new Date(timestamp * 1000).toLocaleDateString('fr-CH', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
