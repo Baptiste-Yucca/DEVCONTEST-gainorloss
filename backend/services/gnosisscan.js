@@ -22,8 +22,7 @@ async function fetchAllTokenTransactions(
   endBlock = 99999999, 
   req = null
 ) {
-  const timerName = req ? req.startTimer(`gnosisscan_token_transactions_${tokenAddress}`) : null;
-  
+
   try {
     console.log(`🔄 Récupération de toutes les transactions de token ${tokenAddress} pour ${userAddress}`);
     console.log(`📊 Blocs: ${startBlock} → ${endBlock}`);
@@ -107,34 +106,10 @@ async function fetchAllTokenTransactions(
       }
     }
     
-    console.log(`🎯 Total final: ${totalTransactions} transactions récupérées en ${currentPage} pages`);
-    
-    if (req) {
-      req.stopTimer(`gnosisscan_token_transactions_${tokenAddress}`);
-      req.logEvent('gnosisscan_token_transactions_completed', {
-        userAddress,
-        tokenAddress,
-        startBlock,
-        endBlock,
-        totalTransactions,
-        totalPages: currentPage
-      });
-    }
-    
+    console.log(`🎯 Total final: ${totalTransactions} transactions récupérées en ${currentPage} pages`);  
     return allTransactions;
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer(`gnosisscan_token_transactions_${tokenAddress}`);
-      req.logEvent('gnosisscan_token_transactions_error', {
-        userAddress,
-        tokenAddress,
-        startBlock,
-        endBlock,
-        error: error.message
-      });
-    }
-    
+  } catch (error) { 
     console.error(`❌ Erreur lors de la récupération des transactions de token:`, error);
     throw error;
   }
@@ -200,7 +175,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
   version = 'V3', 
   req = null
 ) {
-  const timerName = req ? req.startTimer(`gnosisscan_supply_transactions_${version}`) : null;
   
   try {
     console.log(`🚀 Récupération des transactions supply ${version} pour ${userAddress}`);
@@ -313,31 +287,9 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
     
     console.log(`🎯 Total final ${version}: ${totalTransactions} transactions uniques`);
     
-    if (req) {
-      req.stopTimer(`gnosisscan_supply_transactions_${version}`);
-      req.logEvent('gnosisscan_supply_transactions_completed', {
-        userAddress,
-        version,
-        totalTransactions,
-        tokens: Object.keys(tokensToFetch),
-        transactionsByToken: Object.fromEntries(
-          Object.entries(allFormattedTransactions).map(([token, txs]) => [token, txs.length])
-        )
-      });
-    }
-    
     return allFormattedTransactions;
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer(`gnosisscan_supply_transactions_${version}`);
-      req.logEvent('gnosisscan_supply_transactions_error', {
-        userAddress,
-        version,
-        error: error.message
-      });
-    }
-    
+  } catch (error) {  
     console.error(`❌ Erreur lors de la récupération des transactions supply ${version}:`, error);
     throw error;
   }

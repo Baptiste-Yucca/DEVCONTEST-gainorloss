@@ -348,13 +348,9 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
   };
 }
 
-/**
- * Calcule les intérêts pour TOUS les tokens en une seule fois
- * Version optimisée avec un seul multicall RPC
- */
-async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null) {
-  const timerName = req ? req.startTimer(`thegraph_interest_calculation`) : null;
-  
+
+async function retrieveInterestAndTransactionsForAllTokens(userAddress, req = null) {
+
   try {
     console.log(`🚀 Calcul des intérêts V3 pour ${userAddress} via TheGraph`);
     
@@ -409,43 +405,23 @@ async function calculateInterestForAllTokensFromTheGraph(userAddress, req = null
           dailyStatement: dailyStatement
         };
       }
-      
-      if (req) {
-        req.stopTimer(`thegraph_interest_calculation`);
-        req.logEvent('thegraph_interest_all_tokens_completed', { 
-          address: userAddress,
-          tokens: Object.keys(results)
-        });
-      }
-      
       return {
         USDC: {
           token: 'USDC',
           borrow: results.USDC.borrow,
           supply: results.USDC.supply,
-          dailyStatement: results.USDC.dailyStatement,
-          transactions: frontendTransactions.USDC.debt.concat(frontendTransactions.USDC.supply)
+          dailyStatement: results.USDC.dailyStatement
         },
               WXDAI: {
           token: 'WXDAI',
           borrow: results.WXDAI.borrow,
           supply: results.WXDAI.supply,
-          dailyStatement: results.WXDAI.dailyStatement,
-          transactions: frontendTransactions.WXDAI.debt.concat(frontendTransactions.WXDAI.supply)
+          dailyStatement: results.WXDAI.dailyStatement
         },
-      // ✅ Transactions V3 pour le frontend
       transactions: frontendTransactions
     };
     
   } catch (error) {
-    if (req) {
-      req.stopTimer(`thegraph_interest_calculation`);
-      req.logEvent('thegraph_interest_all_tokens_error', { 
-        address: userAddress,
-        error: error.message 
-      });
-    }
-    
     console.error(`❌ Erreur lors du calcul des intérêts TheGraph pour tous les tokens:`, error);
     throw error;
   }
@@ -658,7 +634,7 @@ function formatDateYYYYMMDD(timestamp) {
 }
 
 module.exports = {
-  calculateInterestForAllTokensFromTheGraph,
+  retrieveInterestAndTransactionsForAllTokens,
   calculateSupplyInterestFromBalances,
   calculateDebtInterestFromBalances,
   createDailyStatement

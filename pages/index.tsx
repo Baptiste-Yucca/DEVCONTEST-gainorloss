@@ -29,36 +29,6 @@ interface V2Transaction {
   reserve: 'rmmWXDAI';
 }
 
-interface V2Transactions {
-  USDC: {
-    debt: V2Transaction[];
-    supply: V2Transaction[];
-  };
-  WXDAI: {
-    debt: V2Transaction[];
-    supply: V2Transaction[];
-  };
-}
-
-interface V2ApiResponse {
-  success: boolean;
-  data: {
-    address: string;
-    contract: string;
-    subgraphUrl: string;
-    stats: {
-      USDC: { debt: number; supply: number; total: number };
-      WXDAI: { debt: number; supply: number; total: number };
-    };
-    totals: {
-      USDC: { debt: number; supply: number };
-      WXDAI: { debt: number; supply: number };
-    };
-    transactions: V2Transactions;
-    timestamp: string;
-  };
-}
-
 // Types pour les balances des tokens
 interface TokenBalance {
   token: string;
@@ -786,7 +756,7 @@ export default function Home() {
             )}
 
             {/* Aucune donnée */}
-            {data && (!usdcData || (usdcBorrowDetails.length === 0 && usdcSupplyDetails.length === 0)) && (
+            {data?.data.results.length === 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">No data</h2>

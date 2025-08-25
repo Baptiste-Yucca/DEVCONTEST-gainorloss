@@ -104,7 +104,6 @@ function extractTxHashFromId(id) {
  * Récupère toutes les transactions V2 d'une adresse avec pagination
  */
 async function fetchAllTransactionsV2(userAddress, req = null) {
-  const timerName = req ? req.startTimer('fetch_all_transactions_v2') : null;
   const LIMIT = 1000;
   const allTransactions = {
     borrows: [],
@@ -151,29 +150,9 @@ async function fetchAllTransactionsV2(userAddress, req = null) {
     
     console.log(`🎯 Total V2: ${totalTransactions} transactions récupérées`);
     
-    if (req) {
-      req.stopTimer('fetch_all_transactions_v2');
-      req.logEvent('fetch_all_transactions_v2_completed', { 
-        address: userAddress,
-        totalTransactions,
-        borrows: allTransactions.borrows.length,
-        supplies: allTransactions.supplies.length,
-        withdraws: allTransactions.withdraws.length,
-        repays: allTransactions.repays.length
-      });
-    }
-    
     return allTransactions;
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer('fetch_all_transactions_v2');
-      req.logEvent('fetch_all_transactions_v2_error', { 
-        address: userAddress,
-        error: error.message 
-      });
-    }
-    
+  } catch (error) {   
     console.error('❌ Erreur lors de la récupération des transactions V2:', error);
     throw error;
   }

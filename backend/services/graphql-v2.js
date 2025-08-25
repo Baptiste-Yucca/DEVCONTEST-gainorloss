@@ -52,7 +52,6 @@ const dTokenBalance_V2_QUERY = `query VTokenMovementsV2($user: String!, $first: 
  * Récupère tous les atokenBalanceHistoryItems V2 avec pagination
  */
 async function fetchAllATokenBalancesV2(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_v2_atoken_balances') : null;
   const LIMIT = 1000; // Limite TheGraph par défaut
   const allBalances = [];
   let skip = 0;
@@ -90,26 +89,11 @@ async function fetchAllATokenBalancesV2(userAddress, req = null) {
     );
     
     console.log(`🎯 Total: ${wxdaiBalances.length} balances atoken V2 (WXDAI) récupérées sur ${allBalances.length} total`);
-    
-    if (req) {
-      req.stopTimer('graphql_v2_atoken_balances');
-      req.logEvent('graphql_v2_atoken_balances_completed', { 
-        address: userAddress,
-        totalBalances: wxdaiBalances.length
-      });
-    }
+
     
     return wxdaiBalances;
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_v2_atoken_balances');
-      req.logEvent('graphql_v2_atoken_balances_error', { 
-        address: userAddress, 
-        error: error.message 
-      });
-    }
-    
+  } catch (error) {   
     console.error('❌ Erreur lors de la récupération des balances atoken V2:', error);
     throw error;
   }
@@ -119,7 +103,7 @@ async function fetchAllATokenBalancesV2(userAddress, req = null) {
  * Récupère tous les vtokenBalanceHistoryItems V2 avec pagination
  */
 async function fetchAllVTokenBalancesV2(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_v2_vtoken_balances') : null;
+
   const LIMIT = 1000; // Limite TheGraph par défaut
   const allBalances = [];
   let skip = 0;
@@ -158,25 +142,9 @@ async function fetchAllVTokenBalancesV2(userAddress, req = null) {
     
     console.log(`🎯 Total: ${wxdaiBalances.length} balances vtoken V2 (WXDAI) récupérées sur ${allBalances.length} total`);
     
-    if (req) {
-      req.stopTimer('graphql_v2_vtoken_balances');
-      req.logEvent('graphql_v2_vtoken_balances_completed', { 
-        address: userAddress,
-        totalBalances: wxdaiBalances.length
-      });
-    }
-    
     return wxdaiBalances;
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_v2_vtoken_balances');
-      req.logEvent('graphql_v2_vtoken_balances_error', { 
-        address: userAddress, 
-        error: error.message 
-      });
-    }
-    
+  } catch (error) {  
     console.error('❌ Erreur lors de la récupération des balances vtoken V2:', error);
     throw error;
   }
@@ -186,8 +154,7 @@ async function fetchAllVTokenBalancesV2(userAddress, req = null) {
  * Récupère tous les balances V2 (atoken + vtoken) en une seule fois
  */
 async function fetchAllTokenBalancesV2(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_v2_all_token_balances') : null;
-  
+
   try {
     console.log(`🚀 Récupération de tous les balances V2 pour ${userAddress}`);
     
@@ -199,31 +166,14 @@ async function fetchAllTokenBalancesV2(userAddress, req = null) {
     
     const totalCount = atokenBalances.length + vtokenBalances.length;
     console.log(`🎯 Total combiné: ${totalCount} balances V2 récupérées`);
-    
-    if (req) {
-      req.stopTimer('graphql_v2_all_token_balances');
-      req.logEvent('graphql_v2_all_token_balances_completed', { 
-        address: userAddress,
-        atokenCount: atokenBalances.length,
-        vtokenCount: vtokenBalances.length,
-        totalCount: totalCount
-      });
-    }
+
     
     return {
       atoken: atokenBalances,
       vtoken: vtokenBalances
     };
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_v2_all_token_balances');
-      req.logEvent('graphql_v2_all_token_balances_error', { 
-        address: userAddress, 
-        error: error.message 
-      });
-    }
-    
+  } catch (error) { 
     console.error('❌ Erreur lors de la récupération de tous les balances V2:', error);
     throw error;
   }

@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-const timetracker = require('./middleware/timetracker');
 
 // Charger les variables d'environnement depuis le fichier .env
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -40,8 +39,6 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Middleware de tracking des performances
-app.use(timetracker);
 
 // Routes API
 app.use('/api/health', require('./routes/health'));

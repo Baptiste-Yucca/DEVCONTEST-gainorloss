@@ -349,12 +349,7 @@ function calculateDebtInterestFromBalancesV2(vtokenBalances) {
   };
 }
 
-/**
- * Calcule les intérêts pour la V2 (WXDAI uniquement)
- */
-async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
-  const timerName = req ? req.startTimer(`thegraph_v2_interest`) : null;
-  
+async function retrieveInterestAndTransactionsForAllTokensV2(userAddress, req = null) {
   console.log(`🚀 Calcul des intérêts V2 pour WXDAI via TheGraph`);
   
   try {
@@ -413,16 +408,6 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
     // Créer un relevé journalier combiné
     const dailyStatement = createDailyStatementV2(borrowInterest.dailyDetails, supplyInterest.dailyDetails);
     
-    if (req) {
-      req.stopTimer(`thegraph_v2_interest`);
-      req.logEvent('thegraph_v2_interest_completed', { 
-        address: userAddress,
-        borrowInterest: borrowInterest.totalInterest,
-        supplyInterest: supplyInterest.totalInterest,
-        netInterest: (BigInt(supplyInterest.totalInterest) - BigInt(borrowInterest.totalInterest)).toString()
-      });
-    }
-    
     return {
       token: 'WXDAI',
       borrow: borrowInterest,
@@ -438,13 +423,6 @@ async function calculateInterestForV2FromTheGraph(userAddress, req = null) {
     };
     
   } catch (error) {
-    if (req) {
-      req.stopTimer(`thegraph_v2_interest`);
-      req.logEvent('thegraph_v2_interest_error', { 
-        address: userAddress, 
-        error: error.message 
-      });
-    }
     
     console.error(`❌ Erreur lors du calcul des intérêts V2 TheGraph:`, error);
     throw error;
@@ -657,7 +635,7 @@ function formatDateYYYYMMDD(timestamp) {
 }
 
 module.exports = {
-  calculateInterestForV2FromTheGraph,
+  retrieveInterestAndTransactionsForAllTokensV2,
   calculateSupplyInterestFromBalancesV2,
   calculateDebtInterestFromBalancesV2,
   createDailyStatementV2

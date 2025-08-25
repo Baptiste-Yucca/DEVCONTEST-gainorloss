@@ -9,8 +9,7 @@ let timers = {};
  * Endpoint de santé principal
  */
 router.get('/api/health', (req, res) => {
-  const startTime = req.startTimer('health_check');
-  
+
   try {
     // Configuration de la base de données
     const dbConfig = {
@@ -29,20 +28,9 @@ router.get('/api/health', (req, res) => {
         averageResponseTime: calculateAverageResponseTime()
       }
     };
-    
-    req.stopTimer('health_check');
-    req.logEvent('health_check_completed', { 
-      status: 'healthy',
-      dbConfig 
-    });
-    
+  
     res.json(healthData);
-    
   } catch (error) {
-    req.stopTimer('health_check');
-    req.logEvent('health_check_error', { 
-      error: error.message 
-    });
     
     res.status(500).json({
       status: 'error',
@@ -56,7 +44,6 @@ router.get('/api/health', (req, res) => {
  * Endpoint pour les logs de performance détaillés
  */
 router.get('/api/health/performance', (req, res) => {
-  const startTime = req.startTimer('performance_check');
   
   try {
     const performanceData = {
@@ -73,20 +60,10 @@ router.get('/api/health/performance', (req, res) => {
       }
     };
     
-    req.stopTimer('performance_check');
-    req.logEvent('performance_check_completed', { 
-      logsCount: performanceLogs.length,
-      timersCount: Object.keys(timers).length
-    });
     
     res.json(performanceData);
     
-  } catch (error) {
-    req.stopTimer('performance_check');
-    req.logEvent('performance_check_error', { 
-      error: error.message 
-    });
-    
+  } catch (error) {  
     res.status(500).json({
       status: 'error',
       error: error.message,
@@ -99,8 +76,7 @@ router.get('/api/health/performance', (req, res) => {
  * Endpoint pour un résumé des performances
  */
 router.get('/api/health/performance/summary', (req, res) => {
-  const startTime = req.startTimer('performance_summary');
-  
+ 
   try {
     // Calculer les statistiques des timers
     const timerStats = Object.keys(timers).map(name => {
@@ -130,21 +106,10 @@ router.get('/api/health/performance/summary', (req, res) => {
       }
     };
     
-    req.stopTimer('performance_summary');
-    req.logEvent('performance_summary_completed', { 
-      totalRequests: performanceLogs.length,
-      slowestTimers: slowestTimers.length
-    });
-    
     res.json(summaryData);
     
   } catch (error) {
-    req.stopTimer('performance_summary');
-    req.logEvent('performance_summary_error', { 
-      error: error.message 
-    });
-    
-    res.status(500).json({
+      res.status(500).json({
       status: 'error',
       error: error.message,
       timestamp: new Date().toISOString()
@@ -156,7 +121,7 @@ router.get('/api/health/performance/summary', (req, res) => {
  * Endpoint pour vérifier l'état de la base de données
  */
 router.post('/api/health/database/status', async (req, res) => {
-  const startTime = req.startTimer('database_status_check');
+
   
   try {
     // Vérifier l'état des bases de données
@@ -176,10 +141,7 @@ router.post('/api/health/database/status', async (req, res) => {
         size: fs.existsSync(ratesDbPath) ? fs.statSync(ratesDbPath).size : 0
       }
     };
-    
-    req.stopTimer('database_status_check');
-    req.logEvent('database_status_check_completed', dbStatus);
-    
+
     res.json({
       status: 'success',
       message: 'Database status check completed',
@@ -188,11 +150,6 @@ router.post('/api/health/database/status', async (req, res) => {
     });
     
   } catch (error) {
-    req.stopTimer('database_status_check');
-    req.logEvent('database_status_check_error', { 
-      error: error.message 
-    });
-    
     res.status(500).json({
       status: 'error',
       error: error.message,

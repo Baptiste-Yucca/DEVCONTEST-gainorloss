@@ -339,7 +339,7 @@ const dTokenBalance_QUERY = `query VTokenMovements($user: String!, $first: Int!,
  * Récupère toutes les transactions d'une adresse en une seule requête optimisée
  */
 async function fetchAllTransactions(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_all_transactions_optimized') : null;
+
   
   try {
     console.log(`🚀 Récupération optimisée de toutes les transactions pour ${userAddress}`);
@@ -366,19 +366,6 @@ async function fetchAllTransactions(userAddress, req = null) {
     // Récupérer les transferts de tokens via Gnosisscan (en excluant ceux déjà trouvés)
     const tokenTransfers = await fetchTokenTransfersWithFallback(userAddress, existingTxHashes, req);
     
-    if (req) {
-      req.stopTimer('graphql_all_transactions_optimized');
-      req.logEvent('graphql_all_transactions_optimized_completed', { 
-        address: userAddress,
-        borrows: borrows.length,
-        supplies: supplies.length,
-        withdraws: withdraws.length,
-        repays: repays.length,
-        tokenTransfers: tokenTransfers.total,
-        total: borrows.length + supplies.length + withdraws.length + repays.length + tokenTransfers.total
-      });
-    }
-    
     return {
       borrows,
       supplies,
@@ -388,15 +375,7 @@ async function fetchAllTransactions(userAddress, req = null) {
       total: borrows.length + supplies.length + withdraws.length + repays.length + tokenTransfers.total
     };
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_all_transactions_optimized');
-      req.logEvent('graphql_all_transactions_optimized_error', { 
-        address: userAddress, 
-        error: error.message 
-      });
-    }
-    
+  } catch (error) {    
     console.error('Erreur lors de la récupération optimisée de toutes les transactions:', error);
     throw error;
   }
@@ -406,7 +385,7 @@ async function fetchAllTransactions(userAddress, req = null) {
  * Récupère seulement les nouvelles transactions depuis un timestamp donné
  */
 async function fetchNewTransactions(userAddress, fromTimestamp, req = null) {
-  const timerName = req ? req.startTimer('graphql_new_transactions') : null;
+
   
   try {
     console.log(`🆕 Récupération des nouvelles transactions pour ${userAddress} depuis ${new Date(fromTimestamp * 1000).toISOString()}`);
@@ -436,20 +415,6 @@ async function fetchNewTransactions(userAddress, fromTimestamp, req = null) {
     // Récupérer les nouveaux transferts de tokens via Gnosisscan
     const tokenTransfers = await fetchTokenTransfersWithFallback(userAddress, newTxHashes, req);
     
-    if (req) {
-      req.stopTimer('graphql_new_transactions');
-      req.logEvent('graphql_new_transactions_completed', { 
-        address: userAddress,
-        fromTimestamp,
-        borrows: borrows.length,
-        supplies: supplies.length,
-        withdraws: withdraws.length,
-        repays: repays.length,
-        tokenTransfers: tokenTransfers.total,
-        total: borrows.length + supplies.length + withdraws.length + repays.length + tokenTransfers.total
-      });
-    }
-    
     return {
       borrows,
       supplies,
@@ -460,15 +425,6 @@ async function fetchNewTransactions(userAddress, fromTimestamp, req = null) {
     };
     
   } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_new_transactions');
-      req.logEvent('graphql_new_transactions_error', { 
-        address: userAddress, 
-        fromTimestamp,
-        error: error.message 
-      });
-    }
-    
     console.error('Erreur lors de la récupération des nouvelles transactions:', error);
     throw error;
   }
@@ -503,7 +459,7 @@ async function fetchRepays(userAddress, req = null) {
  * Récupère tous les atokenBalanceHistoryItems avec pagination
  */
 async function fetchAllATokenBalances(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_atoken_balances') : null;
+
   const LIMIT = 1000; // Limite TheGraph par défaut
   const allBalances = [];
   let skip = 0;
@@ -543,25 +499,9 @@ async function fetchAllATokenBalances(userAddress, req = null) {
     
     console.log(`🎯 Total: ${allBalances.length} balances atoken (USDC/WXDAI) récupérées`);
     
-    if (req) {
-      req.stopTimer('graphql_atoken_balances');
-      req.logEvent('graphql_atoken_balances_completed', { 
-        address: userAddress,
-        totalBalances: allBalances.length
-      });
-    }
-    
     return allBalances;
     
-  } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_atoken_balances');
-      req.logEvent('graphql_atoken_balances_error', { 
-        address: userAddress,
-        error: error.message 
-      });
-    }
-    
+  } catch (error) {  
     console.error('❌ Erreur lors de la récupération des atoken balances:', error);
     throw error;
   }
@@ -571,7 +511,7 @@ async function fetchAllATokenBalances(userAddress, req = null) {
  * Récupère tous les vtokenBalanceHistoryItems avec pagination
  */
 async function fetchAllVTokenBalances(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_vtoken_balances') : null;
+
   const LIMIT = 1000; // Limite TheGraph par défaut
   const allBalances = [];
   let skip = 0;
@@ -611,25 +551,10 @@ async function fetchAllVTokenBalances(userAddress, req = null) {
     
     console.log(`🎯 Total: ${allBalances.length} balances vtoken (USDC/WXDAI) récupérées`);
     
-    if (req) {
-      req.stopTimer('graphql_vtoken_balances');
-      req.logEvent('graphql_vtoken_balances_completed', { 
-        address: userAddress,
-        totalBalances: allBalances.length
-      });
-    }
-    
     return allBalances;
     
   } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_vtoken_balances');
-      req.logEvent('graphql_vtoken_balances_error', { 
-        address: userAddress,
-        error: error.message 
-      });
-    }
-    
+ 
     console.error('❌ Erreur lors de la récupération des vtoken balances:', error);
     throw error;
   }
@@ -639,7 +564,7 @@ async function fetchAllVTokenBalances(userAddress, req = null) {
  * Récupère tous les balances (atoken + vtoken) avec pagination
  */
 async function fetchAllTokenBalances(userAddress, req = null) {
-  const timerName = req ? req.startTimer('graphql_all_token_balances') : null;
+
   
   try {
     console.log(`🚀 Récupération de tous les balances pour ${userAddress}`);
@@ -658,27 +583,9 @@ async function fetchAllTokenBalances(userAddress, req = null) {
     
     console.log(`🎯 Total combiné: ${result.total} balances récupérées`);
     
-    if (req) {
-      req.stopTimer('graphql_all_token_balances');
-      req.logEvent('graphql_all_token_balances_completed', { 
-        address: userAddress,
-        atokenCount: atokenBalances.length,
-        vtokenCount: vtokenBalances.length,
-        totalCount: result.total
-      });
-    }
-    
     return result;
     
   } catch (error) {
-    if (req) {
-      req.stopTimer('graphql_all_token_balances');
-      req.logEvent('graphql_all_token_balances_error', { 
-        address: userAddress,
-        error: error.message 
-      });
-    }
-    
     console.error('❌ Erreur lors de la récupération de tous les balances:', error);
     throw error;
   }

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Importer le service TheGraph V2
-const { calculateInterestForV2FromTheGraph } = require('../services/thegraph-interest-calculator-v2');
+const { retrieveInterestAndTransactionsForAllTokensV2 } = require('../services/thegraph-interest-calculator-v2');
 
 /**
  * @route GET /api/rmm/v2/:address1/:address2?/:address3?
@@ -10,7 +10,7 @@ const { calculateInterestForV2FromTheGraph } = require('../services/thegraph-int
  * @access Public
  */
 router.get('/:address1/:address2?/:address3?', async (req, res) => {
-  const requestTimer = req.startTimer('rmm_v2_endpoint');
+
   
   try {
     const { address1, address2, address3 } = req.params;
@@ -40,24 +40,16 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
         message: 'Maximum 3 adresses autorisées'
       });
     }
-
-    req.logEvent('rmm_v2_started', { 
-      addresses, 
-      count: addresses.length 
-    });
-
     const results = [];
     for (const address of addresses) {
-      const addressTimer = req.startTimer(`address_${address}`);
       
-      try {
-        req.logEvent('processing_address_v2', { address });
-        
+      try { 
         // Utiliser directement TheGraph V2 pour récupérer les intérêts
-        const interestResult = await calculateInterestForV2FromTheGraph(address, req);
+        const interestCalculations = {};
+        const interestanddataResults = await retrieveInterestAndTransactionsForAllTokensV2(address, req);
 
         // ✅ NOUVEAU: Récupérer les transactions depuis les résultats
-        const transactions = interestResult.transactions || {};
+        const { transactions, ...interestResult } = interestanddataResults;
 
         // Convertir le format pour compatibilité frontend
         const frontendCompatibleData = {
@@ -81,45 +73,14 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
               }
             }
           },
-          // ✅ NOUVEAU: Transactions pour le frontend
           transactions: transactions,
-          // Format V2 compatible (pour rétrocompatibilité)
-          stats: {
-            USDC: { debt: 0, supply: 0, total: 0 }, // V2: pas d'USDC
-            WXDAI: { 
-              debt: interestResult.borrow.dailyDetails.filter(d => d.transactionType === 'borrow' || d.transactionType === 'repay').length,
-              supply: interestResult.supply.dailyDetails.filter(d => d.transactionType === 'supply' || d.transactionType === 'withdraw').length,
-              total: interestResult.borrow.dailyDetails.length + interestResult.supply.dailyDetails.length
-            }
-          },
-          totals: {
-            USDC: { debt: 0, supply: 0 }, // V2: pas d'USDC
-            WXDAI: { 
-              debt: parseFloat(interestResult.borrow.summary.currentDebt || '0') / Math.pow(10, 18), // Convertir wei → WXDAI
-              supply: parseFloat(interestResult.supply.summary.currentSupply || '0') / Math.pow(10, 18) // Convertir wei → WXDAI
-            }
-          },
-          timestamp: new Date().toISOString()
         };
-
-        req.stopTimer(`address_${address}`);
-        req.logEvent('address_v2_processed_successfully', { 
-          address, 
-          token: interestResult.token
-        });
-
         results.push({ 
           address, 
           success: true, 
           data: frontendCompatibleData
         });
-      } catch (error) {
-        req.stopTimer(`address_${address}`);
-        req.logEvent('address_v2_processing_error', { 
-          address, 
-          error: error.message 
-        });
-        
+      } catch (error) {     
         console.error(`Erreur pour l'adresse V2 ${address}:`, error);
         results.push({ 
           address, 
@@ -131,13 +92,6 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
 
     const successfulResults = results.filter(r => r.success);
     const failedResults = results.filter(r => !r.success);
-
-    req.stopTimer('rmm_v2_endpoint');
-    req.logEvent('rmm_v2_completed', { 
-      totalAddresses: addresses.length,
-      successful: successfulResults.length,
-      failed: failedResults.length
-    });
 
     // Format de réponse compatible frontend (même structure que V3)
     const response = {
@@ -158,10 +112,6 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
     res.json(response);
 
   } catch (error) {
-    req.stopTimer('rmm_v2_endpoint');
-    req.logEvent('rmm_v2_error', { 
-      error: error.message 
-    });
     
     console.error('Erreur dans /api/rmm/v2:', error);
     res.status(500).json({
