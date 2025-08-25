@@ -358,7 +358,7 @@ async function retrieveInterestAndTransactionsForAllTokens(userAddress, req = nu
     const allBalances = await fetchAllTokenBalances(userAddress, req);
     
     // 1 the graph + others via gnosisscan 
-    const allTransactions = await fetchAllTransactionsV3(userAddress, req);
+    const allTransactions = await fetchAllTransactionsV3(userAddress);
     const gnosisTransactions = await fetchSupplyTokenTransactionsViaGnosisScan(userAddress, allTransactions, 'V3', req);
 
     // 2 transformation unifiée

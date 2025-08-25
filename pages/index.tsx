@@ -130,8 +130,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenBalances, setTokenBalances] = useState<TokenBalances | null>(null);
-  const [isV3Collapsed, setIsV3Collapsed] = useState(false);
-  const [isV2Collapsed, setIsV2Collapsed] = useState(false);
+  const [isV3Collapsed, setIsV3Collapsed] = useState(true);
   // Ajouter un état pour contrôler l'affichage des points estimés
   // const [showEstimatedPoints, setShowEstimatedPoints] = useState(true);
 
