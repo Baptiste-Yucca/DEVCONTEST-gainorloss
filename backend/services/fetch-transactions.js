@@ -87,7 +87,7 @@ const TRANSACTIONS_QUERY_V3 = `
 /**
  * Récupère toutes les transactions V3 d'une adresse avec pagination
  */
-async function fetchAllTransactionsV3(userAddress, req = null) {
+async function fetchAllTransactionsV3(userAddress) {
   const LIMIT = 1000;
   const allTransactions = {
     borrows: [],
@@ -110,11 +110,26 @@ async function fetchAllTransactionsV3(userAddress, req = null) {
       
       const data = await client.request(TRANSACTIONS_QUERY_V3, variables);
       
-      // Ajouter les transactions de ce batch
-      allTransactions.borrows.push(...(data.borrows || []));
-      allTransactions.supplies.push(...(data.supplies || []));
-      allTransactions.withdraws.push(...(data.withdraws || []));
-      allTransactions.repays.push(...(data.repays || []));
+      // ✅ NOUVEAU: Filtrage simple au moment du push
+      const validSymbols = ['USDC', 'WXDAI'];
+      
+      // Ajouter les transactions filtrées de ce batch
+      allTransactions.borrows.push(...(data.borrows || []).filter(tx => 
+        validSymbols.includes(tx.reserve?.symbol)
+      ));
+      
+      allTransactions.supplies.push(...(data.supplies || []).filter(tx => 
+        validSymbols.includes(tx.reserve?.symbol)
+      ));
+      
+      allTransactions.withdraws.push(...(data.withdraws || []).filter(tx => 
+        validSymbols.includes(tx.reserve?.symbol)
+      ));
+      
+      allTransactions.repays.push(...(data.repays || []).filter(tx => 
+        validSymbols.includes(tx.reserve?.symbol)
+      ));
+      
       
       console.log(` Batch ${Math.floor(skip/LIMIT) + 1}: ${data.borrows?.length || 0} borrows, ${data.supplies?.length || 0} supplies, ${data.withdraws?.length || 0} withdraws, ${data.repays?.length || 0} repays`);
       
