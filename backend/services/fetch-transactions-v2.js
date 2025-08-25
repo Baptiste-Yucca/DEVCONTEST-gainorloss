@@ -182,7 +182,7 @@ async function fetchAllTransactionsV2(userAddress, req = null) {
 /**
  * Transforme les transactions V2 en format compatible frontend
  */
-function transformTransactionsV2ToFrontendFormat(transactions) {
+function transformTransactionsV2ToFrontendFormat(transactions, gnosisTransactions = null) {
   const frontendTransactions = {
     USDC: { debt: [], supply: [] },  // V2: pas d'USDC, mais garder la structure
     WXDAI: { debt: [], supply: [] }
@@ -263,7 +263,26 @@ function transformTransactionsV2ToFrontendFormat(transactions) {
   });
   
   console.log(`🔄 Transactions V2 transformées: ${frontendTransactions.WXDAI.debt.length} debt, ${frontendTransactions.WXDAI.supply.length} supply`);
-  
+
+  // ✅ Ajouter les transactions GnosisScan (supply tokens uniquement)
+  if (gnosisTransactions) {
+    Object.keys(gnosisTransactions).forEach(tokenSymbol => {
+      const gnosisTxs = gnosisTransactions[tokenSymbol] || [];
+      
+      if (gnosisTxs.length > 0) {
+        // ✅ Ajouter à la section supply du bon token
+        frontendTransactions[tokenSymbol].supply.push(...gnosisTxs);
+        
+        console.log(`➕ ${gnosisTxs.length} transactions GnosisScan ajoutées pour ${tokenSymbol}`);
+      }
+    });
+    
+    // ✅ Trier toutes les transactions supply par timestamp (plus vieux → plus récent)
+    Object.keys(frontendTransactions).forEach(tokenSymbol => {
+      frontendTransactions[tokenSymbol].supply.sort((a, b) => a.timestamp - b.timestamp);
+    });
+  }
+
   return frontendTransactions;
 }
 

@@ -1,242 +1,66 @@
 const fetch = require('node-fetch');
 
 // Configuration Gnosisscan
-const GNOSISSCAN_API_URL = 'https://api.gnosisscan.io/api';
-const API_KEY = process.env.GNOSISSCAN_API_KEY;
-
-// Import depuis les constantes centralisées
-const { TOKENS, getSupplyTokenAddresses } = require('../../utils/constants.js');
+const GNOSISSCAN_API_URL = 'https://api.etherscan.io/v2/api';
+const API_KEY = '4DIPDRRSNUDM81QM2PMHTY8H6X5V6EYK7F'; // process.env.GNOSISSCAN_API_KEY || '';
 
 /**
- * Récupère le solde d'un token pour une adresse
+ * Récupère toutes les transactions de token avec pagination et respect des limites d'API
+ * Simule l'appel curl: https://api.etherscan.io/v2/api?chainid=100&module=account&action=tokentx&...
+ * 
+ * @param {string} userAddress - Adresse de l'utilisateur
+ * @param {string} tokenAddress - Adresse du token contract
+ * @param {number} startBlock - Bloc de début (ex: 32074665 pour V3)
+ * @param {number} endBlock - Bloc de fin (ex: 99999999)
+ * @param {Object} req - Objet request pour le logging (optionnel)
+ * @returns {Promise<Array>} - Tableau des transactions
  */
-async function fetchTokenBalance(address, tokenAddress, req = null) {
-  const timerName = req ? req.startTimer(`gnosisscan_balance_${tokenAddress}`) : null;
+async function fetchAllTokenTransactions(
+  userAddress, 
+  tokenAddress, 
+  startBlock = 32074665, 
+  endBlock = 99999999, 
+  req = null
+) {
+  const timerName = req ? req.startTimer(`gnosisscan_token_transactions_${tokenAddress}`) : null;
   
   try {
-    const url = `${GNOSISSCAN_API_URL}?module=account&action=tokenbalance&contractaddress=${tokenAddress}&address=${address}&tag=latest`;
+    console.log(`🔄 Récupération de toutes les transactions de token ${tokenAddress} pour ${userAddress}`);
+    console.log(`📊 Blocs: ${startBlock} → ${endBlock}`);
     
-    const params = new URLSearchParams({
-      module: 'account',
-      action: 'tokenbalance',
-      contractaddress: tokenAddress,
-      address: address,
-      tag: 'latest'
-    });
+    const allTransactions = [];
+    let currentPage = 1;
+    let hasMoreData = true;
+    let totalTransactions = 0;
     
-    if (API_KEY) {
-      params.append('apikey', API_KEY);
-    }
+    // ✅ RESPECTER LA LIMITE: 2 requêtes par seconde maximum
+    const DELAY_BETWEEN_REQUESTS = 500; // 500ms = 2 req/s max
     
-    const response = await fetch(`${GNOSISSCAN_API_URL}?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === '1') {
-      if (req) {
-        req.stopTimer(`gnosisscan_balance_${tokenAddress}`);
-        req.logEvent('gnosisscan_balance_completed', { 
-          address, 
-          tokenAddress, 
-          balance: data.result 
-        });
-      }
-      return data.result;
-    } else {
-      throw new Error(`Erreur API Gnosisscan: ${data.message}`);
-    }
-    
-  } catch (error) {
-    if (req) {
-      req.stopTimer(`gnosisscan_balance_${tokenAddress}`);
-      req.logEvent('gnosisscan_balance_error', { 
-        address, 
-        tokenAddress, 
-        error: error.message 
-      });
-    }
-    
-    console.error(`Erreur lors de la récupération du solde ${tokenAddress}:`, error);
-    return '0'; // Retourner 0 en cas d'erreur
-  }
-}
-
-/**
- * Récupère tous les soldes des tokens RMM pour une adresse
- */
-async function fetchTokenBalances(address, req = null) {
-  const timerName = req ? req.startTimer('gnosisscan_all_balances') : null;
-  
-  try {
-    console.log(`Gnosisscan: Récupération des soldes pour ${address}`);
-    
-    // Obtenir toutes les adresses des tokens
-    const allTokenAddresses = {
-      USDC: TOKENS.USDC.address,
-      WXDAI: TOKENS.WXDAI.address,
-      armmUSDC: TOKENS.USDC.supplyAddress,
-      armmWXDAI: TOKENS.WXDAI.supplyAddress,
-      debtUSDC: TOKENS.USDC.debtAddress,
-      debtWXDAI: TOKENS.WXDAI.debtAddress
-    };
-    
-    // Récupérer tous les soldes en parallèle
-    const balancePromises = Object.entries(allTokenAddresses).map(async ([tokenName, tokenAddress]) => {
-      const balance = await fetchTokenBalance(address, tokenAddress, req);
-      return [tokenName, balance];
-    });
-    
-    const results = await Promise.all(balancePromises);
-    
-    // Convertir en objet
-    const balances = Object.fromEntries(results);
-    
-    if (req) {
-      req.stopTimer('gnosisscan_all_balances');
-      req.logEvent('gnosisscan_all_balances_completed', { 
-        address, 
-        balances 
-      });
-    }
-    
-    console.log(`Gnosisscan: Soldes récupérés pour ${address}:`, {
-      armmUSDC: balances.armmUSDC,
-      armmWXDAI: balances.armmWXDAI,
-      debtUSDC: balances.debtUSDC,
-      debtWXDAI: balances.debtWXDAI
-    });
-    
-    return balances;
-    
-  } catch (error) {
-    if (req) {
-      req.stopTimer('gnosisscan_all_balances');
-      req.logEvent('gnosisscan_all_balances_error', { 
-        address, 
-        error: error.message 
-      });
-    }
-    
-    console.error('Erreur lors de la récupération des soldes:', error);
-    throw new Error(`Erreur lors de la récupération des soldes: ${error.message}`);
-  }
-}
-
-/**
- * Récupère les informations détaillées d'un token
- */
-async function fetchTokenInfo(tokenAddress) {
-  try {
-    const params = new URLSearchParams({
-      module: 'contract',
-      action: 'getabi',
-      address: tokenAddress
-    });
-    
-    if (API_KEY) {
-      params.append('apikey', API_KEY);
-    }
-    
-    const response = await fetch(`${GNOSISSCAN_API_URL}?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === '1') {
-      return {
-        address: tokenAddress,
-        abi: data.result
-      };
-    } else {
-      throw new Error(`Erreur API Gnosisscan: ${data.message}`);
-    }
-    
-  } catch (error) {
-    console.error(`Erreur lors de la récupération des infos du token ${tokenAddress}:`, error);
-    return null;
-  }
-}
-
-/**
- * Récupère les transactions d'une adresse
- */
-async function fetchAddressTransactions(address, startBlock = 0, endBlock = 99999999) {
-  try {
-    const params = new URLSearchParams({
-      module: 'account',
-      action: 'txlist',
-      address: address,
-      startblock: startBlock,
-      endblock: endBlock,
-      sort: 'desc'
-    });
-    
-    if (API_KEY) {
-      params.append('apikey', API_KEY);
-    }
-    
-    const response = await fetch(`${GNOSISSCAN_API_URL}?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === '1') {
-      return data.result;
-    } else {
-      throw new Error(`Erreur API Gnosisscan: ${data.message}`);
-    }
-    
-  } catch (error) {
-    console.error(`Erreur lors de la récupération des transactions pour ${address}:`, error);
-    return [];
-  }
-}
-
-/**
- * Récupère les transactions de transfert des tokens de supply pour une adresse
- */
-async function fetchTokenTransfers(userAddress, existingTxHashes = [], req = null) {
-  const timerName = req ? req.startTimer('gnosisscan_token_transfers') : null;
-  
-  try {
-    console.log(`🔄 Récupération des transferts de tokens pour ${userAddress}`);
-    
-    const existingHashSet = new Set(existingTxHashes);
-    const allTransfers = [];
-    
-    // Récupérer les transferts pour armmUSDC et armmWXDAI
-    const supplyTokenAddresses = getSupplyTokenAddresses();
-    for (const [tokenSymbol, contractAddress] of Object.entries(supplyTokenAddresses)) {
+    while (hasMoreData) {
+      console.log(`📄 Page ${currentPage}...`);
       
-      const tokenTimerName = req ? req.startTimer(`gnosisscan_transfers_${tokenSymbol}`) : null;
-      
-      console.log(`📊 Récupération des transferts ${tokenSymbol}...`);
-      
+      // ✅ PARAMÈTRES IDENTIQUES À L'APPEL CURL
       const params = new URLSearchParams({
+        chainid: '100', // Gnosis Chain
         module: 'account',
         action: 'tokentx',
-        contractaddress: contractAddress,
         address: userAddress,
-        page: 1,
-        offset: 10000,
-        sort: 'asc'
+        contractaddress: tokenAddress,
+        startblock: startBlock,
+        endblock: endBlock,
+        sort: 'asc',
+        page: currentPage,
+        offset: 1000 // Maximum par page
       });
       
       if (API_KEY) {
         params.append('apikey', API_KEY);
       }
       
-      const response = await fetch(`${GNOSISSCAN_API_URL}?${params}`);
+      const url = `${GNOSISSCAN_API_URL}?${params}`;
+      console.log(`🌐 URL: ${url.replace(API_KEY || '', '[API_KEY]')}`);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -245,129 +69,284 @@ async function fetchTokenTransfers(userAddress, existingTxHashes = [], req = nul
       const data = await response.json();
       
       if (data.status === '1' && data.result) {
-        // Filtrer les transactions déjà récupérées par TheGraph
-        const newTransfers = data.result.filter(tx => !existingHashSet.has(tx.hash));
+        const transactions = data.result;
+        const transactionCount = transactions.length;
         
-        // Grouper par hash pour gérer les doublons (même tx avec from différents)
-        const transfersByHash = new Map();
-        newTransfers.forEach(tx => {
-          const hash = tx.hash;
-          if (!transfersByHash.has(hash)) {
-            transfersByHash.set(hash, []);
+        console.log(`📊 Page ${currentPage}: ${transactionCount} transactions reçues`);
+        
+        // Ajouter les transactions à la liste
+        allTransactions.push(...transactions);
+        totalTransactions += transactionCount;
+        
+        // ✅ VÉRIFIER SI IL Y A PLUS DE DONNÉES
+        if (transactionCount < 1000) {
+          console.log(`✅ Fin de pagination: ${transactionCount} < 1000`);
+          hasMoreData = false;
+        } else {
+          console.log(`🔄 Plus de données disponibles, page suivante...`);
+          currentPage++;
+          
+          // ✅ RESPECTER LA LIMITE D'API: attendre 500ms
+          if (currentPage > 1) {
+            console.log(`⏱️  Attente ${DELAY_BETWEEN_REQUESTS}ms pour respecter la limite d'API...`);
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
           }
-          transfersByHash.get(hash).push(tx);
-        });
-        
-        // Transformer les données en choisissant la meilleure transaction par hash
-        const transformedTransfers = Array.from(transfersByHash.values()).map(txGroup => {
-          // Priorité : prendre la transaction avec from != adresse nulle
-          const bestTx = txGroup.find(tx => tx.from !== '0x0000000000000000000000000000000000000000') || txGroup[0];
-          
-          // Déterminer la direction du transfert
-          const isIncoming = bestTx.to.toLowerCase() === userAddress.toLowerCase();
-          const transfer = isIncoming ? 'in' : 'out';
-          
-          // Simplifier le nom de la fonction
-          let simplifiedFunction = null;
-          if (bestTx.functionName) {
-            const match = bestTx.functionName.match(/^([^(]+)/);
-            simplifiedFunction = match ? match[1] : bestTx.functionName;
-          }
-          
-          return {
-            timestamp: parseInt(bestTx.timeStamp),
-            hash: bestTx.hash,
-            from: bestTx.from,
-            to: bestTx.to,
-            value: bestTx.value,
-            tokenSymbol: bestTx.tokenSymbol, // Temporaire pour le tri
-            contractAddress: bestTx.contractAddress,
-            functionName: simplifiedFunction,
-            transfer
-          };
-        });
-        
-        allTransfers.push(...transformedTransfers);
-        
-        if (req) {
-          req.stopTimer(`gnosisscan_transfers_${tokenSymbol}`);
-          req.logEvent('gnosisscan_transfers_token_completed', { 
-            tokenSymbol, 
-            count: transformedTransfers.length 
-          });
         }
-        
-        console.log(`📊 ${transformedTransfers.length} nouveaux transferts ${tokenSymbol} récupérés`);
+      } else {
+        // Gérer les erreurs d'API
+        if (data.message && data.message.includes('rate limit')) {
+          console.error(`❌ Limite d'API atteinte: ${data.message}`);
+          throw new Error(`Limite d'API GnosisScan atteinte: ${data.message}`);
+        } else if (data.message) {
+          console.error(`❌ Erreur API GnosisScan: ${data.message}`);
+          throw new Error(`Erreur API GnosisScan: ${data.message}`);
+        } else {
+          console.error(`❌ Réponse API invalide:`, data);
+          throw new Error('Réponse API GnosisScan invalide');
+        }
       }
-      
-      // Attendre 200ms entre les requêtes pour respecter les limites d'API
-      await new Promise(resolve => setTimeout(resolve, 200));
     }
     
-    // Séparer les transactions par type et retirer tokenSymbol
-    const usdcTransfers = allTransfers
-      .filter(tx => tx.tokenSymbol.includes('USDC'))
-      .map(tx => {
-        const { tokenSymbol, ...txWithoutSymbol } = tx;
-        return txWithoutSymbol;
-      });
-    
-    const wxdaiTransfers = allTransfers
-      .filter(tx => tx.tokenSymbol.includes('WXDAI'))
-      .map(tx => {
-        const { tokenSymbol, ...txWithoutSymbol } = tx;
-        return txWithoutSymbol;
-      });
-    
-    const otherTransfers = allTransfers
-      .filter(tx => !tx.tokenSymbol.includes('USDC') && !tx.tokenSymbol.includes('WXDAI'))
-      .map(tx => {
-        const { tokenSymbol, ...txWithoutSymbol } = tx;
-        return txWithoutSymbol;
-      });
+    console.log(`🎯 Total final: ${totalTransactions} transactions récupérées en ${currentPage} pages`);
     
     if (req) {
-      req.stopTimer('gnosisscan_token_transfers');
-      req.logEvent('gnosisscan_token_transfers_completed', { 
-        address: userAddress,
-        usdc: usdcTransfers.length,
-        wxdai: wxdaiTransfers.length,
-        others: otherTransfers.length,
-        total: allTransfers.length
+      req.stopTimer(`gnosisscan_token_transactions_${tokenAddress}`);
+      req.logEvent('gnosisscan_token_transactions_completed', {
+        userAddress,
+        tokenAddress,
+        startBlock,
+        endBlock,
+        totalTransactions,
+        totalPages: currentPage
       });
     }
     
-    console.log(`✅ Total: ${usdcTransfers.length} USDC, ${wxdaiTransfers.length} WXDAI, ${otherTransfers.length} autres`);
-    
-    return {
-      usdc: usdcTransfers,
-      armmwxdai: wxdaiTransfers,
-      others: otherTransfers,
-      total: allTransfers.length
-    };
+    return allTransactions;
     
   } catch (error) {
     if (req) {
-      req.stopTimer('gnosisscan_token_transfers');
-      req.logEvent('gnosisscan_token_transfers_error', { 
-        address: userAddress, 
-        error: error.message 
+      req.stopTimer(`gnosisscan_token_transactions_${tokenAddress}`);
+      req.logEvent('gnosisscan_token_transactions_error', {
+        userAddress,
+        tokenAddress,
+        startBlock,
+        endBlock,
+        error: error.message
       });
     }
     
-    console.error(`Erreur lors de la récupération des transferts de tokens:`, error);
-    return {
-      usdcWxdai: [],
-      others: [],
-      total: 0
+    console.error(`❌ Erreur lors de la récupération des transactions de token:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Récupère les transactions de token avec des blocs spécifiques pour V2 et V3
+ * @param {string} userAddress - Adresse de l'utilisateur
+ * @param {string} tokenAddress - Adresse du token contract
+ * @param {string} version - Version du protocole ('V2' ou 'V3')
+ * @param {Object} req - Objet request pour le logging (optionnel)
+ * @returns {Promise<Array>} - Tableau des transactions
+ */
+async function fetchTokenTransactionsByVersion(
+  userAddress, 
+  tokenAddress, 
+  version = 'V3', 
+  req = null
+) {
+  try {
+    // ✅ BLOCS SPÉCIFIQUES PAR VERSION
+    const blockRanges = {
+      'V2': {
+        startBlock: 1, // À ajuster selon le déploiement V2
+        endBlock: 99999999    // Juste avant V3
+      },
+      'V3': {
+        startBlock: 32074665, // Déploiement V3
+        endBlock: 99999999    // Jusqu'à maintenant
+      }
     };
+    
+    const range = blockRanges[version] || blockRanges['V3'];
+    
+    console.log(`🚀 Récupération des transactions ${version} pour ${tokenAddress}`);
+    console.log(`📊 Blocs: ${range.startBlock} → ${range.endBlock}`);
+    
+    return await fetchAllTokenTransactions(
+      userAddress, 
+      tokenAddress, 
+      range.startBlock, 
+      range.endBlock, 
+      req
+    );
+    
+  } catch (error) {
+    console.error(`❌ Erreur lors de la récupération des transactions ${version}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Récupère et post-traite les transactions de supply tokens via GnosisScan
+ * @param {string} userAddress - Adresse de l'utilisateur
+ * @param {Array} existingTransactions - Transactions déjà connues (pour éviter les doublons)
+ * @param {string} version - Version du protocole ('V2' ou 'V3')
+ * @param {Object} req - Objet request pour le logging (optionnel)
+ * @returns {Promise<Object>} - Transactions formatées par token
+ */
+async function fetchSupplyTokenTransactionsViaGnosisScan(
+  userAddress, 
+  existingTransactions = [], 
+  version = 'V3', 
+  req = null
+) {
+  const timerName = req ? req.startTimer(`gnosisscan_supply_transactions_${version}`) : null;
+  
+  try {
+    console.log(`🚀 Récupération des transactions supply ${version} pour ${userAddress}`);
+    
+    // ✅ ADRESSES DES SUPPLY TOKENS SELON LA VERSION
+    const supplyTokenAddresses = {
+      'V3': {
+        'USDC': '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1', // armmUSDC
+        'WXDAI': '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b'  // armmWXDAI
+      },
+      'V2': {
+        'WXDAI': '0x7349C9eaA538e118725a6130e0f8341509b9f8A0'  // rmmV2WXDAI
+      }
+    };
+    
+    const tokensToFetch = supplyTokenAddresses[version] || supplyTokenAddresses['V3'];
+    const allRawTransactions = {};
+    const allFormattedTransactions = {};
+    
+    // ✅ RÉCUPÉRER LES TRANSACTIONS POUR CHAQUE TOKEN
+    for (const [tokenSymbol, contractAddress] of Object.entries(tokensToFetch)) {
+      console.log(`📊 Récupération des transactions ${tokenSymbol} (${contractAddress})...`);
+      
+      try {
+        const rawTransactions = await fetchAllTokenTransactions(
+          userAddress,
+          contractAddress,
+          version === 'V2' ? 1 : 32074665, // V2: bloc 1, V3: bloc 32074665
+          99999999,
+          req
+        );
+        
+        allRawTransactions[tokenSymbol] = rawTransactions;
+        console.log(`✅ ${rawTransactions.length} transactions brutes récupérées pour ${tokenSymbol}`);
+        
+      } catch (error) {
+        console.error(`❌ Erreur lors de la récupération des transactions ${tokenSymbol}:`, error);
+        allRawTransactions[tokenSymbol] = [];
+      }
+      
+      // ✅ RESPECTER LA LIMITE D'API ENTRE LES TOKENS
+      if (Object.keys(tokensToFetch).length > 1) {
+        console.log(`⏱️  Attente 500ms entre les tokens pour respecter la limite d'API...`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    // ✅ POST-TRAITEMENT GLOBAL APRÈS TOUS LES APPELS
+    console.log(`🔄 Post-traitement des transactions ${version}...`);
+    
+    for (const [tokenSymbol, rawTransactions] of Object.entries(allRawTransactions)) {
+      console.log(`🔍 Post-traitement de ${rawTransactions.length} transactions ${tokenSymbol}...`);
+      
+      // ✅ FILTRER ET FORMATER LES TRANSACTIONS
+      const filteredTransactions = rawTransactions
+        .filter(tx => {
+          // ❌ ÉLIMINER LES MINT/BURN (from ou to = 0x0000...)
+          if (tx.from === '0x0000000000000000000000000000000000000000' || 
+              tx.to === '0x0000000000000000000000000000000000000000') {
+            return false;
+          }
+          
+          // ✅ VÉRIFIER SI LA TRANSACTION EXISTE DÉJÀ DANS THEGRAPH
+          const isAlreadyKnown = existingTransactions.supplies.some(existingTx => 
+            existingTx.hash === tx.hash
+          ) || existingTransactions.withdraws.some(existingTx => 
+            existingTx.hash === tx.hash
+          );
+          
+          if (isAlreadyKnown) {
+            return false;
+          }
+          
+          return true;
+        })
+        .map(tx => {
+          // ✅ DÉTERMINER LE TYPE SELON LA DIRECTION
+          let type;
+          if (tx.to.toLowerCase() === userAddress.toLowerCase()) {
+            // ✅ VÉRIFIER SI C'EST UNE FONCTION DISPERSETOKEN
+            if (tx.functionName && tx.functionName.includes('disperseToken(address token, address[] recipients, uint256[] values)')) {
+              type = 'ronday'; // L'utilisateur reçoit des tokens via Ronday
+            } else {
+              type = 'in_others'; // L'utilisateur reçoit des tokens (cas par défaut)
+            }
+          } else if (tx.from.toLowerCase() === userAddress.toLowerCase()) {
+            type = 'out_others'; // L'utilisateur envoie des tokens
+          } else {
+            type = 'unknown'; // Cas par défaut (ne devrait pas arriver après filtrage)
+          }
+          
+          // ✅ FORMATER AU FORMAT FRONTEND
+          return {
+            txHash: tx.hash,
+            amount: tx.value,
+            timestamp: parseInt(tx.timeStamp),
+            type: type,
+            token: tokenSymbol,
+            version: version
+          };
+        });
+      
+      console.log(`✅ ${filteredTransactions.length} transactions ${tokenSymbol} après filtrage`);
+      allFormattedTransactions[tokenSymbol] = filteredTransactions;
+    }
+    
+    // ✅ RÉSUMÉ FINAL
+    const totalTransactions = Object.values(allFormattedTransactions)
+      .reduce((total, transactions) => total + transactions.length, 0);
+    
+    console.log(`🎯 Total final ${version}: ${totalTransactions} transactions uniques`);
+    
+    if (req) {
+      req.stopTimer(`gnosisscan_supply_transactions_${version}`);
+      req.logEvent('gnosisscan_supply_transactions_completed', {
+        userAddress,
+        version,
+        totalTransactions,
+        tokens: Object.keys(tokensToFetch),
+        transactionsByToken: Object.fromEntries(
+          Object.entries(allFormattedTransactions).map(([token, txs]) => [token, txs.length])
+        )
+      });
+    }
+    
+    return allFormattedTransactions;
+    
+  } catch (error) {
+    if (req) {
+      req.stopTimer(`gnosisscan_supply_transactions_${version}`);
+      req.logEvent('gnosisscan_supply_transactions_error', {
+        userAddress,
+        version,
+        error: error.message
+      });
+    }
+    
+    console.error(`❌ Erreur lors de la récupération des transactions supply ${version}:`, error);
+    throw error;
   }
 }
 
 module.exports = {
-  fetchTokenBalances,
-  fetchTokenBalance,
-  fetchTokenInfo,
-  fetchAddressTransactions,
-  fetchTokenTransfers
-}; 
+  fetchAllTokenTransactions,
+  fetchTokenTransactionsByVersion,
+  // ✅ NOUVELLE FONCTION PRINCIPALE
+  fetchSupplyTokenTransactionsViaGnosisScan
+};
+

@@ -88,7 +88,6 @@ const TRANSACTIONS_QUERY_V3 = `
  * Récupère toutes les transactions V3 d'une adresse avec pagination
  */
 async function fetchAllTransactionsV3(userAddress, req = null) {
-  const timerName = req ? req.startTimer('fetch_all_transactions_v3') : null;
   const LIMIT = 1000;
   const allTransactions = {
     borrows: [],
@@ -135,29 +134,10 @@ async function fetchAllTransactionsV3(userAddress, req = null) {
     
     console.log(`🎯 Total V3: ${totalTransactions} transactions récupérées`);
     
-    if (req) {
-      req.stopTimer('fetch_all_transactions_v3');
-      req.logEvent('fetch_all_transactions_v3_completed', { 
-        address: userAddress,
-        totalTransactions,
-        borrows: allTransactions.borrows.length,
-        supplies: allTransactions.supplies.length,
-        withdraws: allTransactions.withdraws.length,
-        repays: allTransactions.repays.length
-      });
-    }
     
     return allTransactions;
     
   } catch (error) {
-    if (req) {
-      req.stopTimer('fetch_all_transactions_v3');
-      req.logEvent('fetch_all_transactions_v3_error', { 
-        address: userAddress,
-        error: error.message 
-      });
-    }
-    
     console.error('❌ Erreur lors de la récupération des transactions V3:', error);
     throw error;
   }
@@ -182,7 +162,7 @@ function extractTxHashFromId(id) {
 /**
  * Transforme les transactions V3 en format compatible frontend
  */
-function transformTransactionsV3ToFrontendFormat(transactions) {
+function transformTransactionsV3ToFrontendFormat(transactions, gnosisTransactions = null) {
   const frontendTransactions = {
     USDC: { debt: [], supply: [] },
     WXDAI: { debt: [], supply: [] }
@@ -263,7 +243,26 @@ function transformTransactionsV3ToFrontendFormat(transactions) {
   });
   
   console.log(`🔄 Transactions V3 transformées: ${frontendTransactions.USDC.debt.length + frontendTransactions.USDC.supply.length} USDC, ${frontendTransactions.WXDAI.debt.length + frontendTransactions.WXDAI.supply.length} WXDAI`);
-  
+
+  // ✅ Ajouter les transactions GnosisScan (supply tokens uniquement)
+  if (gnosisTransactions) {
+    Object.keys(gnosisTransactions).forEach(tokenSymbol => {
+      const gnosisTxs = gnosisTransactions[tokenSymbol] || [];
+      
+      if (gnosisTxs.length > 0) {
+        // ✅ Ajouter à la section supply du bon token
+        frontendTransactions[tokenSymbol].supply.push(...gnosisTxs);
+        
+        console.log(`➕ ${gnosisTxs.length} transactions GnosisScan ajoutées pour ${tokenSymbol}`);
+      }
+    });
+    
+    // ✅ Trier toutes les transactions supply par timestamp (plus vieux → plus récent)
+    Object.keys(frontendTransactions).forEach(tokenSymbol => {
+      frontendTransactions[tokenSymbol].supply.sort((a, b) => a.timestamp - b.timestamp);
+    });
+  }
+
   return frontendTransactions;
 }
 
