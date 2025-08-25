@@ -15,16 +15,16 @@ const RAY = BigInt(10 ** 27); // 1e27
 // ✅ NOUVEAU: Importer depuis constants.js (chemin correct)
 const { TOKENS } = require('../../utils/constants');
 
-// ✅ NOUVEAU: Créer TOKENS_V2 dynamiquement
+
 const TOKENS_V2 = {
   rmmWXDAI: {
-    address: TOKENS.WXDAI.supplyAddress,
-    symbol: TOKENS.WXDAI.supplySymbol,
+    address: TOKENS.WXDAI.supplyV2Address,
+    symbol: TOKENS.WXDAI.supplyV2Symbol,
     decimals: TOKENS.WXDAI.decimals
   },
   debtWXDAI: {
-    address: TOKENS.WXDAI.debtAddress,
-    symbol: TOKENS.WXDAI.debtSymbol,
+    address: TOKENS.WXDAI.debtV2Address,
+    symbol: TOKENS.WXDAI.debtV2Symbol,
     decimals: TOKENS.WXDAI.decimals
   }
 };

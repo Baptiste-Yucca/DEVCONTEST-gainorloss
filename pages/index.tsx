@@ -764,7 +764,6 @@ export default function Home() {
                                 type="line"
                                 tokenAddress="0x0ade75f269a054673883319baa50e5e0360a775f"
                                 userAddress={address}
-                                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
                               />
 
                               {/* Graphique Supply WXDAI v2 */}
@@ -773,9 +772,8 @@ export default function Home() {
                                 title="WXDAI Supply Evolution (v2)"
                                 color="#3b82f6"
                                 type="area"
-                                tokenAddress="0xe91d153e0b41518a2ce8dd3d7944fa863463a97d"
+                                tokenAddress="0x7349c9eaa538e118725a6130e0f8341509b9f8a0"
                                 userAddress={address}
-                                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
                               />
                             </div>
                           </>
