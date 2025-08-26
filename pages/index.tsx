@@ -528,7 +528,7 @@ export default function Home() {
     return (
       <>
         <Head>
-          <title>RMM Analytics - Résultats</title>
+          <title>RMM Analytics</title>
         </Head>
 
         <div className="min-h-screen bg-gray-50">
@@ -606,7 +606,6 @@ export default function Home() {
                 type="line"
                 tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
                 userAddress={address}
-                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
 
               {/* Graphique Supply USDC */}
@@ -617,7 +616,6 @@ export default function Home() {
                 type="area"
                 tokenAddress="0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1"
                 userAddress={address}
-                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
             </div>
 
@@ -658,7 +656,6 @@ export default function Home() {
                 type="line"
                 tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
                 userAddress={address}
-                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
                     
               {/* Graphique Supply WXDAI */}
@@ -669,7 +666,6 @@ export default function Home() {
                 type="area"
                 tokenAddress="0x0ca4f5554dd9da6217d62d8df2816c82bba4157b"
                 userAddress={address}
-                // ❌ SUPPRIMER: showEstimatedPoints={showEstimatedPoints}
               />
             </div>
 
