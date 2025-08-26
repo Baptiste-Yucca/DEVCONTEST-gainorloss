@@ -39,9 +39,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-
 // Routes API
-app.use('/api/health', require('./routes/health'));
 app.use('/api/rmm/v2', require('./routes/rmm-v2')); // Route V2 AVANT la route V3
 app.use('/api/rmm', require('./routes/rmm')); // Route V3 APRÈS la route V2
 app.use('/api/balances', require('./routes/balances'));
@@ -54,7 +52,6 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     description: 'API pour analyser les données du protocole RMM',
     endpoints: {
-      health: '/api/health',
       'rmm-v2': '/api/rmm/v2/:address1/:address2?/:address3?',
       rmm: '/api/rmm/v3/:address1/:address2?/:address3?',
       balances: '/api/balances/v3/:address'
@@ -70,11 +67,8 @@ app.use('*', (req, res) => {
     message: `L'endpoint ${req.originalUrl} n'existe pas`,
     availableEndpoints: [
       'GET /',
-      'GET /api/health',
       'GET /api/rmm/v2/:address1/:address2?/:address3?',
       'GET /api/rmm/v3/:address1/:address2?/:address3?',
-      'GET /api/balances/v3/:address',
-      'POST /api/balances/v3/batch'
     ]
   });
 });

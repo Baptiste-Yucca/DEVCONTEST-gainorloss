@@ -331,8 +331,6 @@ pm2 stop rmmgain-backend
 pm2 delete rmmgain-frontend
 pm2 delete rmmgain-backend
 
-# Nettoyer manuellement le cache expiré
-curl -X POST http://localhost:5000/api/health/cache/cleanup
 ```
 
 #### 9. Variables d'environnement de production
@@ -354,23 +352,7 @@ Variables principales à configurer :
 - **Backend** : `PORT=5000`, `NODE_ENV=production`, `CORS_ORIGIN`
 - **Cache** : `CACHE_EXPIRATION_HOURS=24`
 
-## 📊 Monitoring et maintenance
 
-### Endpoints de monitoring
-
-```bash
-# Santé générale
-GET /api/health
-
-# Performance détaillée
-GET /api/health/performance
-
-# Résumé des performances
-GET /api/health/performance/summary
-
-# Nettoyage manuel du cache
-POST /api/health/cache/cleanup
-```
 
 ### Scripts de test
 

@@ -265,7 +265,7 @@ async function fetchRepays(userAddress, req = null) {
 /**
  * Récupère tous les atokenBalanceHistoryItems avec pagination
  */
-async function fetchAllATokenBalances(userAddress, req = null) {
+async function fetchAllATokenBalances(userAddress) {
 
   const LIMIT = 1000; // Limite TheGraph par défaut
   const allBalances = [];
@@ -370,7 +370,7 @@ async function fetchAllVTokenBalances(userAddress, req = null) {
 /**
  * Récupère tous les balances (atoken + vtoken) avec pagination
  */
-async function fetchAllTokenBalances(userAddress, req = null) {
+async function fetchAllTokenBalances(userAddress) {
 
   
   try {
@@ -378,8 +378,8 @@ async function fetchAllTokenBalances(userAddress, req = null) {
     
     // Récupérer en parallèle pour optimiser
     const [atokenBalances, vtokenBalances] = await Promise.all([
-      fetchAllATokenBalances(userAddress, req),
-      fetchAllVTokenBalances(userAddress, req)
+      fetchAllATokenBalances(userAddress),
+      fetchAllVTokenBalances(userAddress)
     ]);
     
     const result = {
@@ -405,9 +405,6 @@ module.exports = {
   fetchRepays,
   fetchAllTransactions,
 
-  // Nouvelles fonctions pour les balances
-  fetchAllATokenBalances,
-  fetchAllVTokenBalances,
   fetchAllTokenBalances,
   // Queries exportées pour référence
   sTokenBalance_QUERY,

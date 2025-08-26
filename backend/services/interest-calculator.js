@@ -4,9 +4,6 @@ const path = require('path');
 // Import depuis les constantes centralisées
 const { TOKENS } = require('../../utils/constants.js');
 
-// Chemin vers la base de données
-const DB_PATH = path.join(__dirname, '../../data/rates.db');
-
 /**
  * Calcule l'intérêt quotidien sur un montant supply donné un taux journalier (ex: 0.00015).
  *
