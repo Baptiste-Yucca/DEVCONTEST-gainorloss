@@ -357,7 +357,7 @@ async function retrieveInterestAndTransactionsForAllTokensV2(userAddress, req = 
     const allBalances = await fetchAllTokenBalancesV2(userAddress, req);
     
     // ✅ NOUVEAU: Récupérer les transactions V2 pour le frontend
-    const allTransactions = await fetchAllTransactionsV2(userAddress, req);
+    const allTransactions = await fetchAllTransactionsV2(userAddress);
 
     // ✅ NOUVEAU: Récupérer les transactions GnosisScan V2
     const gnosisTransactions = await fetchSupplyTokenTransactionsViaGnosisScan(userAddress, allTransactions, 'V2', req);
