@@ -48,13 +48,13 @@ router.get('/v3/:address1/:address2?/:address3?', async (req, res) => {
         // Initialiser les calculs d'intérêts pour cette adresse
         const interestCalculations = {};
         
-        // ✅ Récupérer les résultats
+        //Récupérer les résultats
         const interestanddataResults = await retrieveInterestAndTransactionsForAllTokens(address, req);
 
-        // ✅ Déstructurer en excluant 'transactions'
+        // Déstructurer en excluant 'transactions'
         const { transactions, ...interestResults } = interestanddataResults;
 
-        // ✅ Extraire les résultats par token (sans transactions)
+        // Extraire les résultats par token (sans transactions)
         for (const [stablecoin, interestResult] of Object.entries(interestResults)) {
           interestCalculations[stablecoin] = interestResult;
         }

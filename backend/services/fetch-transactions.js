@@ -21,7 +21,7 @@ const TRANSACTIONS_QUERY_V3 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Seulement l'id, on extrait le txHash
+      id           # Seulement l'id, on extrait le txHash
       reserve { 
         id
         symbol
@@ -38,7 +38,7 @@ const TRANSACTIONS_QUERY_V3 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Seulement l'id, on extrait le txHash
+      id           # Seulement l'id, on extrait le txHash
       reserve { 
         id
         symbol
@@ -55,7 +55,7 @@ const TRANSACTIONS_QUERY_V3 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Seulement l'id, on extrait le txHash
+      id           # Seulement l'id, on extrait le txHash
       reserve { 
         id
         symbol
@@ -72,7 +72,7 @@ const TRANSACTIONS_QUERY_V3 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Seulement l'id, on extrait le txHash
+      id           # extrait le txHash
       reserve { 
         id
         symbol
@@ -99,7 +99,6 @@ async function fetchAllTransactionsV3(userAddress) {
   let hasMore = true;
 
   try {
-    console.log(`🚀 Récupération de toutes les transactions V3 pour ${userAddress}`);
 
     while (hasMore) {
       const variables = {
@@ -110,7 +109,6 @@ async function fetchAllTransactionsV3(userAddress) {
 
       const data = await client.request(TRANSACTIONS_QUERY_V3, variables);
 
-      // ✅ NOUVEAU: Filtrage simple au moment du push
       const validSymbols = ['USDC', 'WXDAI'];
 
       // Ajouter les transactions filtrées de ce batch
@@ -131,8 +129,7 @@ async function fetchAllTransactionsV3(userAddress) {
       ));
 
 
-      console.log(` Batch ${Math.floor(skip / LIMIT) + 1}: ${data.borrows?.length || 0} borrows, ${data.supplies?.length || 0} supplies, ${data.withdraws?.length || 0} withdraws, ${data.repays?.length || 0} repays`);
-
+   
       // Vérifier s'il y a plus de données
       const totalInBatch = (data.borrows?.length || 0) + (data.supplies?.length || 0) + (data.withdraws?.length || 0) + (data.repays?.length || 0);
       if (totalInBatch < LIMIT * 4) {
@@ -145,9 +142,6 @@ async function fetchAllTransactionsV3(userAddress) {
 
     const totalTransactions = allTransactions.borrows.length + allTransactions.supplies.length +
       allTransactions.withdraws.length + allTransactions.repays.length;
-
-    console.log(`🎯 Total V3: ${totalTransactions} transactions récupérées`);
-
 
     return allTransactions;
 
@@ -258,20 +252,20 @@ function transformTransactionsV3ToFrontendFormat(transactions, gnosisTransaction
 
   console.log(`🔄 Transactions V3 transformées: ${frontendTransactions.USDC.debt.length + frontendTransactions.USDC.supply.length} USDC, ${frontendTransactions.WXDAI.debt.length + frontendTransactions.WXDAI.supply.length} WXDAI`);
 
-  // ✅ Ajouter les transactions GnosisScan (supply tokens uniquement)
+
   if (gnosisTransactions) {
     Object.keys(gnosisTransactions).forEach(tokenSymbol => {
       const gnosisTxs = gnosisTransactions[tokenSymbol] || [];
 
       if (gnosisTxs.length > 0) {
-        // ✅ Ajouter à la section supply du bon token
+
         frontendTransactions[tokenSymbol].supply.push(...gnosisTxs);
 
         console.log(`➕ ${gnosisTxs.length} transactions GnosisScan ajoutées pour ${tokenSymbol}`);
       }
     });
 
-    // ✅ Trier toutes les transactions supply par timestamp (plus vieux → plus récent)
+    //Trier toutes les transactions supply par timestamp (plus vieux → plus récent)
     Object.keys(frontendTransactions).forEach(tokenSymbol => {
       frontendTransactions[tokenSymbol].supply.sort((a, b) => a.timestamp - b.timestamp);
     });

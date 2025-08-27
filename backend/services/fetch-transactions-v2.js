@@ -21,7 +21,7 @@ const TRANSACTIONS_QUERY_V2 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Pour extraire le txHash
+      id           # Pour extraire le txHash
       reserve { 
         id
         symbol
@@ -38,7 +38,7 @@ const TRANSACTIONS_QUERY_V2 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Pour extraire le txHash
+      id           # Pour extraire le txHash
       reserve { 
         id
         symbol
@@ -55,7 +55,7 @@ const TRANSACTIONS_QUERY_V2 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Pour extraire le txHash
+      id           #  Pour extraire le txHash
       reserve { 
         id
         symbol
@@ -72,7 +72,7 @@ const TRANSACTIONS_QUERY_V2 = `
       orderBy: timestamp
       orderDirection: asc
     ) {
-      id           # ✅ Pour extraire le txHash
+      id           #  Pour extraire le txHash
       reserve { 
         id
         symbol
@@ -115,8 +115,7 @@ async function fetchAllTransactionsV2(userAddress) {
   let hasMore = true;
   
   try {
-    console.log(`🚀 Récupération de toutes les transactions V2 pour ${userAddress}`);
-    
+
     while (hasMore) {
       const variables = { 
         userAddress: userAddress.toLowerCase(),
@@ -182,7 +181,7 @@ function transformTransactionsV2ToFrontendFormat(transactions, gnosisTransaction
         txHash: txHash,
         amount: tx.amount,
         timestamp: tx.timestamp,
-        type: 'borrow',        // ✅ Correct
+        type: 'borrow',    
         token: token,
         version: 'V2'
       });
@@ -199,7 +198,7 @@ function transformTransactionsV2ToFrontendFormat(transactions, gnosisTransaction
         txHash: txHash,
         amount: tx.amount,
         timestamp: tx.timestamp,
-        type: 'repay',         // ✅ Correct
+        type: 'repay',   
         token: token,
         version: 'V2'
       });
@@ -216,7 +215,7 @@ function transformTransactionsV2ToFrontendFormat(transactions, gnosisTransaction
         txHash: txHash,
         amount: tx.amount,
         timestamp: tx.timestamp,
-        type: 'deposit',       // ✅ Correct: supplies = deposit
+        type: 'deposit', 
         token: token,
         version: 'V2'
       });
@@ -233,7 +232,7 @@ function transformTransactionsV2ToFrontendFormat(transactions, gnosisTransaction
         txHash: txHash,
         amount: tx.amount,
         timestamp: tx.timestamp,
-        type: 'withdraw',      // ✅ Correct: withdraws = withdraw
+        type: 'withdraw', 
         token: token,
         version: 'V2'
       });
@@ -242,20 +241,20 @@ function transformTransactionsV2ToFrontendFormat(transactions, gnosisTransaction
   
   console.log(`🔄 Transactions V2 transformées: ${frontendTransactions.WXDAI.debt.length} debt, ${frontendTransactions.WXDAI.supply.length} supply`);
 
-  // ✅ Ajouter les transactions GnosisScan (supply tokens uniquement)
+  // Ajouter les transactions GnosisScan (supply tokens uniquement)
   if (gnosisTransactions) {
     Object.keys(gnosisTransactions).forEach(tokenSymbol => {
       const gnosisTxs = gnosisTransactions[tokenSymbol] || [];
       
       if (gnosisTxs.length > 0) {
-        // ✅ Ajouter à la section supply du bon token
+        // Ajouter à la section supply du bon token
         frontendTransactions[tokenSymbol].supply.push(...gnosisTxs);
         
         console.log(`➕ ${gnosisTxs.length} transactions GnosisScan ajoutées pour ${tokenSymbol}`);
       }
     });
     
-    // ✅ Trier toutes les transactions supply par timestamp (plus vieux → plus récent)
+    // Trier toutes les transactions supply par timestamp (plus vieux → plus récent)
     Object.keys(frontendTransactions).forEach(tokenSymbol => {
       frontendTransactions[tokenSymbol].supply.sort((a, b) => a.timestamp - b.timestamp);
     });

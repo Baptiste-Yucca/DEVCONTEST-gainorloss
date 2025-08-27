@@ -150,7 +150,6 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8">
-      {/* ✅ HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
@@ -174,7 +173,6 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
         </div>
         
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* ✅ STATISTIQUES: Responsive avec flex-wrap pour éviter le débordement */}
           {isCollapsed && (
             <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-sm text-gray-600">
               <span>Total: {filteredTransactions.length}</span>
@@ -185,11 +183,10 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
               <span>Period: {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}</span>
             </div>
           )}
-          
-          {/* ✅ FILTRES ET EXPORT: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+
           {!isCollapsed && (
             <>
-              {/* ✅ FILTRES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2">
                 <div className="flex flex-col sm:flex-row gap-2">
                   <select
@@ -224,8 +221,6 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     <option value="V3">V3</option>
                   </select>
                 </div>
-
-                {/* ✅ FILTRE PAR DATE: Responsive avec flex-col sur mobile, flex-row sur desktop */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-gray-600">From:</span>
@@ -257,8 +252,7 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     />
                   </div>
                 </div>
-                
-                {/* ✅ BOUTONS D'ACTION: Responsive */}
+
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
@@ -278,10 +272,8 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
         </div>
       </div>
 
-      {/* ✅ CONTENU CONDITIONNEL */}
       {!isCollapsed && (
         <>
-          {/* ✅ STATISTIQUES: Responsive avec grid adaptatif */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
             {/* Colonne 1: Total */}
             <div className="bg-blue-50 border border-blue-100 p-3 sm:p-4 rounded-xl">
@@ -330,7 +322,6 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
             </div>
           </div>
 
-          {/* ✅ TABLEAU: Responsive avec scroll horizontal sur mobile */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-full">
               <thead>

@@ -88,8 +88,7 @@ async function fetchAllATokenBalances(userAddress) {
       }
     }
     
-    console.log(`🎯 Total: ${allBalances.length} balances atoken (USDC/WXDAI) récupérées`);
-    
+  
     return allBalances;
     
   } catch (error) {  
@@ -137,8 +136,7 @@ async function fetchAllVTokenBalances(userAddress, req = null) {
       }
     }
     
-    console.log(`🎯 Total: ${allBalances.length} balances vtoken (USDC/WXDAI) récupérées`);
-    
+  
     return allBalances;
     
   } catch (error) {
@@ -169,8 +167,7 @@ async function fetchAllTokenBalances(userAddress) {
       total: atokenBalances.length + vtokenBalances.length
     };
     
-    console.log(`🎯 Total combiné: ${result.total} balances récupérées`);
-    
+   
     return result;
     
   } catch (error) {

@@ -27,7 +27,6 @@ interface FinancialSummaryProps {
   // Adresse utilisateur
   userAddress: string;
   
-  // ✅ NOUVEAU: Transactions pour le tableau
   transactions: any[];
 }
 
@@ -38,7 +37,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   userAddress,
   transactions
 }) => {
-  // ✅ NOUVEAU: Calculer la période dynamiquement avec useMemo
+  // Calculer la période dynamiquement avec useMemo
   const defaultPeriod = useMemo(() => {
     const allDates: string[] = [];
     
@@ -90,7 +89,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     };
   }, [usdcData, wxdaiData, v2Data, transactions]);
 
-  // ✅ NOUVEAU: Utiliser la période calculée dynamiquement
+  // Utiliser la période calculée dynamiquement
   const [selectedPeriod, setSelectedPeriod] = useState<{ start: string; end: string }>(defaultPeriod);
 
   // État pour les filtres
@@ -252,7 +251,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     }
     
     return data;
-  }, [usdcData, wxdaiData, v2Data, selectedTokens, selectedPeriod, defaultPeriod]); // ✅ Ajout de selectedPeriod et defaultPeriod
+  }, [usdcData, wxdaiData, v2Data, selectedTokens, selectedPeriod, defaultPeriod]);
 
   // Calculs totaux
   const totals = useMemo(() => {
@@ -288,7 +287,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
   const exportToCSV = () => {
     const financialHeaders = ['Token', 'Version', 'Debt Interest', 'Supply Interest', 'PnL Net'];
     const financialDataRows = Object.entries(financialData).map(([tokenKey, data]) => [
-      getDisplayTokenName(tokenKey), // ✅ Utiliser le nom d'affichage
+      getDisplayTokenName(tokenKey),
       data.version,
       data.debt.toFixed(2),
       data.supply.toFixed(2),
@@ -474,7 +473,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     // En-têtes du tableau des transactions
     const txHeaders = ['Date', 'Type', 'Token', 'RMM', 'Montant', 'Hash'];
     
-    // ✅ CORRECTION: Optimisation de l'espace pour le tableau des transactions
     autoTable(doc, {
       startY: 40,
       head: [txHeaders],
@@ -513,20 +511,20 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
     doc.save(filename);
   };
 
-  // ✅ NOUVEAU: Fonction pour mapper l'affichage des tokens
+  // Fonction pour mapper l'affichage des tokens
   const getDisplayTokenName = (tokenKey: string): string => {
     return tokenKey === 'WXDAI_V2' ? 'WXDAI' : tokenKey;
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-      {/* ✅ HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+      {/*  HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Financial Summary</h2>
         
-        {/* ✅ FILTRES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+        {/* FILTRES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
         <div className="flex flex-col lg:flex-row gap-4">
-          {/* ✅ TOKENS: Responsive avec flex-wrap pour éviter le débordement */}
+          {/* TOKENS: Responsive avec flex-wrap pour éviter le débordement */}
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Token:</label>
             {[
@@ -551,8 +549,6 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
               </label>
             ))}
           </div>
-          
-          {/* ✅ DATES: Responsive avec flex-col sur mobile, flex-row sur desktop */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">From</label>
@@ -612,7 +608,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({
           </thead>
           <tbody>
             {Object.entries(financialData).map(([tokenKey, data]) => {
-              // ✅ NOUVEAU: Mapper l'affichage du token
+              // Mapper l'affichage du token
               const displayToken = tokenKey === 'WXDAI_V2' ? 'WXDAI' : tokenKey;
               
               return (

@@ -30,7 +30,7 @@ async function fetchAllTokenTransactions(
     let hasMoreData = true;
     let totalTransactions = 0;
     
-    // ✅ RESPECTER LA LIMITE: 2 requêtes par seconde maximum
+    // RESPECTER LA LIMITE: 2 requêtes par seconde maximum
     const DELAY_BETWEEN_REQUESTS = 500; // 500ms = 2 req/s max
     
     while (hasMoreData) {
@@ -67,20 +67,18 @@ async function fetchAllTokenTransactions(
         const transactions = data.result;
         const transactionCount = transactions.length;
         
-        console.log(`📊 Page ${currentPage}: ${transactionCount} transactions reçues`);
-        
         // Ajouter les transactions à la liste
         allTransactions.push(...transactions);
         totalTransactions += transactionCount;
         
-        // ✅ VÉRIFIER SI IL Y A PLUS DE DONNÉES
+        // VÉRIFIER SI IL Y A PLUS DE DONNÉES
         if (transactionCount < 1000) {
           hasMoreData = false;
         } else {
           console.log(`🔄 Plus de données disponibles, page suivante...`);
           currentPage++;
           
-          // ✅ RESPECTER LA LIMITE D'API: attendre 500ms
+          // RESPECTER LA LIMITE D'API: attendre 500ms
           if (currentPage > 1) {
             console.log(`⏱️  Attente ${DELAY_BETWEEN_REQUESTS}ms pour respecter la limite d'API...`);
             await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_REQUESTS));
@@ -124,7 +122,7 @@ async function fetchTokenTransactionsByVersion(
   req = null
 ) {
   try {
-    // ✅ BLOCS SPÉCIFIQUES PAR VERSION
+    // BLOCS SPÉCIFIQUES PAR VERSION
     const blockRanges = {
       'V2': {
         startBlock: 1, // À ajuster selon le déploiement V2
@@ -171,9 +169,8 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
 ) {
   
   try {
-    console.log(`🚀 Récupération des transactions supply ${version} pour ${userAddress}`);
-    
-    // ✅ ADRESSES DES SUPPLY TOKENS SELON LA VERSION
+
+    // ADRESSES DES SUPPLY TOKENS SELON LA VERSION
     const supplyTokenAddresses = {
       'V3': {
         'USDC': '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1', // armmUSDC
@@ -188,10 +185,10 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
     const allRawTransactions = {};
     const allFormattedTransactions = {};
     
-    // ✅ RÉCUPÉRER LES TRANSACTIONS POUR CHAQUE TOKEN
+    // RÉCUPÉRER LES TRANSACTIONS POUR CHAQUE TOKEN
     for (const [tokenSymbol, contractAddress] of Object.entries(tokensToFetch)) {
-      console.log(`📊 Récupération des transactions ${tokenSymbol} (${contractAddress})...`);
-      
+
+
       try {
         const rawTransactions = await fetchAllTokenTransactions(
           userAddress,
@@ -209,7 +206,7 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
         allRawTransactions[tokenSymbol] = [];
       }
       
-      // ✅ RESPECTER LA LIMITE D'API ENTRE LES TOKENS
+      // RESPECTER LA LIMITE D'API ENTRE LES TOKENS
       if (Object.keys(tokensToFetch).length > 1) {
         console.log(`⏱️  Attente 500ms entre les tokens pour respecter la limite d'API...`);
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -227,7 +224,7 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
             return false;
           }
           
-          // ✅ VÉRIFIER SI LA TRANSACTION EXISTE DÉJÀ DANS THEGRAPH
+          // VÉRIFIER SI LA TRANSACTION EXISTE DÉJÀ DANS THEGRAPH
           const isAlreadyKnown = existingTransactions.supplies.some(existingTx => 
             existingTx.hash === tx.hash
           ) || existingTransactions.withdraws.some(existingTx => 
@@ -241,10 +238,10 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
           return true;
         })
         .map(tx => {
-          // ✅ DÉTERMINER LE TYPE SELON LA DIRECTION
+          // DÉTERMINER LE TYPE SELON LA DIRECTION
           let type;
           if (tx.to.toLowerCase() === userAddress.toLowerCase()) {
-            // ✅ VÉRIFIER SI C'EST UNE FONCTION DISPERSETOKEN
+            // VÉRIFIER SI C'EST UNE FONCTION DISPERSETOKEN
             if (tx.functionName && tx.functionName.includes('disperseToken(address token, address[] recipients, uint256[] values)')) {
               type = 'ronday'; // L'utilisateur reçoit des tokens via Ronday
             } else {
@@ -256,7 +253,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
             type = 'unknown'; // Cas par défaut (ne devrait pas arriver après filtrage)
           }
           
-          // ✅ FORMATER AU FORMAT FRONTEND
           return {
             txHash: tx.hash,
             amount: tx.value,
@@ -270,11 +266,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
       console.log(`✅ ${filteredTransactions.length} transactions ${tokenSymbol} après filtrage`);
       allFormattedTransactions[tokenSymbol] = filteredTransactions;
     }
-    
-    // ✅ RÉSUMÉ FINAL
-    const totalTransactions = Object.values(allFormattedTransactions)
-      .reduce((total, transactions) => total + transactions.length, 0);
-    
     
     return allFormattedTransactions;
     

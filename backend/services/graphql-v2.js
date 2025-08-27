@@ -69,8 +69,7 @@ async function fetchAllATokenBalancesV2(userAddress, req = null) {
       const data = await clientV2.request(sTokenBalance_V2_QUERY, variables);
       const balances = data.atokenBalanceHistoryItems || [];
       
-      console.log(` Batch ${Math.floor(skip / LIMIT) + 1}: ${balances.length} balances récupérées`);
-      
+     
       allBalances.push(...balances);
       
       // Vérifier s'il y a plus de données
@@ -86,8 +85,7 @@ async function fetchAllATokenBalancesV2(userAddress, req = null) {
       balance.userReserve.reserve.symbol === 'rmmWXDAI'
     );
     
-    console.log(`🎯 Total: ${wxdaiBalances.length} balances atoken V2 (WXDAI) récupérées sur ${allBalances.length} total`);
-
+  
     
     return wxdaiBalances;
     
@@ -119,7 +117,6 @@ async function fetchAllVTokenBalancesV2(userAddress, req = null) {
       const data = await clientV2.request(dTokenBalance_V2_QUERY, variables);
       const balances = data.vtokenBalanceHistoryItems || [];
       
-      console.log(` Batch ${Math.floor(skip / LIMIT) + 1}: ${balances.length} balances récupérées`);
       
       allBalances.push(...balances);
       
@@ -136,8 +133,7 @@ async function fetchAllVTokenBalancesV2(userAddress, req = null) {
       balance.userReserve.reserve.symbol === 'rmmWXDAI'
     );
     
-    console.log(`🎯 Total: ${wxdaiBalances.length} balances vtoken V2 (WXDAI) récupérées sur ${allBalances.length} total`);
-    
+   
     return wxdaiBalances;
     
   } catch (error) {  
@@ -161,8 +157,7 @@ async function fetchAllTokenBalancesV2(userAddress, req = null) {
     ]);
     
     const totalCount = atokenBalances.length + vtokenBalances.length;
-    console.log(`🎯 Total combiné: ${totalCount} balances V2 récupérées`);
-
+   
     
     return {
       atoken: atokenBalances,

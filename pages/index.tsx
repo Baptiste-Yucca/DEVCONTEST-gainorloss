@@ -233,9 +233,9 @@ export default function Home() {
       }
     }
 
-    // ✅ Ajouter les transactions V2
+    //  Ajouter les transactions V2
     if (dataV2?.data?.results?.[0]?.data?.transactions?.WXDAI) {
-      // ✅ Même chemin que V3 !
+      //  Même chemin que V3 !
       const v2Data = dataV2.data.results[0].data.transactions.WXDAI;
       
       // Transactions de dette WXDAI V2
@@ -358,14 +358,14 @@ export default function Home() {
     const usdcData = result?.data?.interests?.USDC;
     const wxdaiData = result?.data?.interests?.WXDAI;
     
-    // ✅ NOUVEAU: Récupérer directement depuis les derniers points
+    //  NOUVEAU: Récupérer directement depuis les derniers points
     const usdcLastDebtPoint = usdcData?.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
     const usdcLastSupplyPoint = usdcData?.supply?.dailyDetails?.[usdcData.supply.dailyDetails.length - 1];
 
     const wxdaiLastDebtPoint = wxdaiData?.borrow?.dailyDetails?.[wxdaiData.borrow.dailyDetails.length - 1];
     const wxdaiLastSupplyPoint = wxdaiData?.supply?.dailyDetails?.[wxdaiData.supply.dailyDetails.length - 1];
 
-    // ✅ NOUVEAU: Calculer les valeurs finales
+    //  NOUVEAU: Calculer les valeurs finales
     const usdcTotalDebtInterest = usdcLastDebtPoint ? parseFloat(usdcLastDebtPoint.totalInterest) : 0;
     const usdcTotalSupplyInterest = usdcLastSupplyPoint ? parseFloat(usdcLastSupplyPoint.totalInterest) : 0;
     const usdcNetInterest = usdcTotalSupplyInterest - usdcTotalDebtInterest;
@@ -387,7 +387,7 @@ export default function Home() {
 
         <div className="min-h-screen bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-            {/* ✅ HEADER: Responsive avec flex-col sur mobile, flex-row sur desktop */}
+
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="text-center sm:text-left">
@@ -548,7 +548,6 @@ export default function Home() {
                         
                         return (
                           <>
-                            {/* ✅ NOUVEAU: Résumé WXDAI V2 identique à V3 */}
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
                               <h2 className="text-2xl font-bold text-gray-900 mb-6">WXDAI Summary (V2)</h2>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

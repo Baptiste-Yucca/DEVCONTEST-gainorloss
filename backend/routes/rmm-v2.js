@@ -48,7 +48,7 @@ router.get('/:address1/:address2?/:address3?', async (req, res) => {
         const interestCalculations = {};
         const interestanddataResults = await retrieveInterestAndTransactionsForAllTokensV2(address, req);
 
-        // ✅ NOUVEAU: Récupérer les transactions depuis les résultats
+        // Récupérer les transactions depuis les résultats
         const { transactions, ...interestResult } = interestanddataResults;
 
         // Convertir le format pour compatibilité frontend

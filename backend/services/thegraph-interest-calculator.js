@@ -265,7 +265,7 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
     let dayRepay = 0n;
     
     if (i === 0) {
-      // ✅ CORRECTION: Premier jour = pas d'intérêts générés
+
       dayTotalInterest = 0n;
       
       // Identifier le type de mouvement (premier point)
@@ -285,24 +285,24 @@ function calculateDebtInterestFromBalances(vtokenBalances, token) {
       const previousScaledVariableDebt = BigInt(previousBalance.scaledVariableDebt);
       const previousIndex = BigInt(previousBalance.index);
       
-      // ✅ CORRECTION: Identifier le type de mouvement avec conversion en sous-jacent
+      //  Identifier le type de mouvement avec conversion en sous-jacent
       if (scaledVariableDebt > previousScaledVariableDebt) {
         // Borrow : scaled a augmenté
         const deltaScaled = scaledVariableDebt - previousScaledVariableDebt;
-        // ✅ NOUVELLE FORMULE: Convertir en sous-jacent avec l'index courant
+        //  Convertir en sous-jacent avec l'index courant
         const borrowAmountWei = (deltaScaled * currentIndex) / RAY;
         dayBorrow += borrowAmountWei;
         totalBorrows += borrowAmountWei;
       } else if (scaledVariableDebt < previousScaledVariableDebt) {
         // Repay : scaled a diminué
         const deltaScaled = previousScaledVariableDebt - scaledVariableDebt;
-        // ✅ NOUVELLE FORMULE: Convertir en sous-jacent avec l'index courant
+        // Convertir en sous-jacent avec l'index courant
         const repayAmountWei = (deltaScaled * currentIndex) / RAY;
         dayRepay += repayAmountWei;
         totalRepays += repayAmountWei;
       }
       
-      // ✅ CORRECTION: Calculer les intérêts générés avec la vraie formule RMM
+      // Calculer les intérêts générés avec la vraie formule RMM
       // Intérêts = (scaled précédent * (index actuel - index précédent)) / RAY
       const periodInterest = (previousScaledVariableDebt * (currentIndex - previousIndex)) / RAY;
       
@@ -372,7 +372,7 @@ async function retrieveInterestAndTransactionsForAllTokens(userAddress, req = nu
       // Calculer les intérêts de dépôt
       const supplyInterest = calculateSupplyInterestFromBalances(allBalances.atoken, token);
       
-      // ✅ NOUVEAU: Ajouter le point "aujourd'hui" et calculer les intérêts
+      //  Ajouter le point "aujourd'hui" et calculer les intérêts
       if (borrowInterest.dailyDetails.length > 0 && currentBalances) {
         const currentDebtBalance = currentBalances[`debt${token}`]?.balance || "0";
         
@@ -531,9 +531,9 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
     date: todayDate,
     timestamp: todayTimestamp,
     [balanceType]: currentBalance, // 'debt' ou 'supply'
-    periodInterest: periodInterest.toString(), // ✅ CORRECTION: Sera calculé après
-    totalInterest: newtotalInterest.toString(), // Sera mis à jour après
-    transactionAmount: "0", // ✅ CORRECTION: Pas de transaction pour BalanceOf
+    periodInterest: periodInterest.toString(), 
+    totalInterest: newtotalInterest.toString(), 
+    transactionAmount: "0", 
     transactionType: "BalanceOf",
     source: "real"
   };
