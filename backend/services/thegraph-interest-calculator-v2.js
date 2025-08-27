@@ -90,8 +90,6 @@ async function getCurrentBalancesV2(userAddress) {
         };
       }
     });
-
-    console.log(`✅ Balances RPC V2 récupérées pour ${userAddress}`);
     return balances;
 
   } catch (error) {
@@ -543,8 +541,6 @@ function addTodayPointV2(dailyDetails, currentBalance, balanceType) {
   // Ajouter le point d'aujourd'hui
   dailyDetails.push(todayPoint);
 
-  console.log(`📅 Point d'aujourd'hui V2 ajouté: ${todayDate} - ${balanceType}: ${currentBalance}`);
-
   return dailyDetails;
 }
 
@@ -588,8 +584,6 @@ function calculateLastPointInterestV2(lastPoint, currentBalance, balanceType) {
     transactionType: "BalanceOf",
     source: "rpc" 
   };
-
-  console.log(`💰 Intérêts du dernier point V2 calculés: ${periodInterest} pour ${balanceType}`);
 
   return updatedLastPoint;
 }

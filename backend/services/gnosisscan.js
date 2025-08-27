@@ -1,10 +1,11 @@
+require("dotenv").config()
 const { TOKENS } = require('../../utils/constants');
 
 const fetch = require('node-fetch');
 
 // Configuration Gnosisscan
 const GNOSISSCAN_API_URL = 'https://api.etherscan.io/v2/api';
-const API_KEY = '4DIPDRRSNUDM81QM2PMHTY8H6X5V6EYK7F'; // process.env.GNOSISSCAN_API_KEY || '';
+const API_KEY = process.env.GNOSISSCAN_API_KEY || '';
 
 /**
  * Récupère toutes les transactions de token avec pagination et respect des limites d'API
@@ -201,7 +202,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
         );
         
         allRawTransactions[tokenSymbol] = rawTransactions;
-        console.log(`✅ ${rawTransactions.length} transactions brutes récupérées pour ${tokenSymbol}`);
         
       } catch (error) {
         console.error(`❌ Erreur lors de la récupération des transactions ${tokenSymbol}:`, error);
@@ -210,7 +210,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
       
       // RESPECTER LA LIMITE D'API ENTRE LES TOKENS
       if (Object.keys(tokensToFetch).length > 1) {
-        console.log(`⏱️  Attente 500ms entre les tokens pour respecter la limite d'API...`);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
@@ -264,8 +263,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
             version: version
           };
         });
-      
-      console.log(`✅ ${filteredTransactions.length} transactions ${tokenSymbol} après filtrage`);
       allFormattedTransactions[tokenSymbol] = filteredTransactions;
     }
     

@@ -1,411 +1,287 @@
-# RMMGain Dashboard
+# 🚀 RMM Analytics - Installation & Usage Guide
 
-Une application dashboard pour visualiser les données du protocole RMM sur la blockchain Gnosis.
+A comprehensive analytics platform for RMM (Real Money Market) protocol, providing detailed insights into your DeFi positions, interest calculations, and transaction history.
 
-## 🚀 Nouvelles fonctionnalités
+## 📋 Prerequisites
 
-### Cache intelligent avec expiration automatique
-- **Cache SQLite** : Stockage local des transactions TheGraph
-- **Expiration automatique** : Nettoyage configurable (défaut: 12h)
-- **Mise à jour incrémentale** : Récupération seulement des nouvelles transactions
-- **Performance optimisée** : Réduction de 99% du temps de réponse
+Before starting, ensure you have the following installed:
+- **Node.js** (v18 or higher)
+- **npm** (v8 or higher)
+- **Git**
 
-## Fonctionnalités
+## 🏗️ Project Structure
 
-- Recherche par adresse wallet (format EVM)
-- Visualisation des transactions de dépôt de liquidités (supplies)
-- Visualisation des transactions de retrait de liquidités (withdraws)
-- Visualisation des transactions d'emprunt (borrows)
-- Visualisation des transactions de remboursement (repays)
-- Formatage des montants au format humain
-- Support des tokens USDC et WXDAI
-- **Cache intelligent avec expiration automatique**
+```
+rmmgain/
+├── frontend/          # Next.js React application
+├── backend/           # Express.js API server
+├── components/        # React components
+├── utils/            # Utility functions and constants
+└── docs/             # Documentation
+```
 
-## Prérequis
+## 🚀 Quick Start
 
-- Node.js (v14 ou supérieur)
-- Yarn
-- SQLite3 (inclus avec Node.js)
+### Step 1: Clone the Repository
 
-## Installation
-
-1. Clonez le dépôt :
 ```bash
-git clone <url-du-depot>
+git clone <your-repository-url>
 cd rmmgain
 ```
 
-2. Installez les dépendances :
+### Step 2: Install Dependencies
+
+#### Frontend Dependencies
 ```bash
-yarn install
+npm install
 ```
 
-3. Configurez les variables d'environnement :
-
-**📋 Voir le fichier `ENV_SETUP.md` pour une configuration détaillée des variables d'environnement.**
-
-Configuration rapide :
+#### Backend Dependencies
 ```bash
-# Frontend (gainorloss)
-cp env.example .env.local
-
-# Backend (apigainorloss)
 cd backend
-cp env.example .env
+npm install
+cd ..
 ```
 
-Éditez les fichiers avec vos clés API :
-- `.env.local` : Variables pour le frontend Next.js
-- `backend/.env` : Variables pour l'API backend
+### Step 3: Environment Configuration
 
-## 🗄️ Configuration du cache
-
-### Variables d'environnement du cache
+#### Frontend Environment (.env)
+Create a `.env` file in the root directory:
 
 ```bash
-# Backend/.env
-CACHE_EXPIRATION_HOURS=12  # Expiration du cache en heures (défaut: 12)
+# Frontend Environment Variables
+NEXT_PUBLIC_BACKEND_URL=http://localhost:5000
+NEXT_PUBLIC_GNOSISSCAN_API_KEY=your_gnosisscan_api_key_here
+NEXT_PUBLIC_THEGRAPH_API_URL=https://api.thegraph.com/subgraphs/id/QmVH7ota6caVV2ceLY91KYYh6BJs2zeMScTTYgKDpt7VRg
 ```
 
-### Initialisation du cache
+#### Backend Environment (.env)
+Create a `.env` file in the `backend/` directory:
 
 ```bash
-# Depuis la racine du projet
+# Backend Environment Variables
+PORT=5000
+NODE_ENV=development
+THEGRAPH_API_KEY=your_thegraph_api_key_here
+GNOSISSCAN_API_KEY=your_gnosisscan_api_key_here
+GNOSIS_RPC_URL=https://rpc.gnosischain.com/
+CORS_ORIGIN=http://localhost:3000
+```
+
+### Step 4: API Keys Setup
+
+#### GnosisScan API Key (Required)
+1. Go to [https://gnosisscan.io/](https://gnosisscan.io/)
+2. Create a free account
+3. Navigate to "API-KEYs" in your profile
+4. Create a new API key
+5. Add it to both `.env` files
+
+#### TheGraph API Key (Recommended)
+1. Go to [https://thegraph.com/](https://thegraph.com/)
+2. Create an account
+3. Navigate to "API Keys"
+4. Create a new API key
+5. Add it to the backend `.env` file
+
+## 🎯 Running the Application
+
+### Development Mode
+
+#### Start Backend Server
+```bash
 cd backend
-node scripts/init-cache.js
+npm run dev
+```
+The backend will start on `http://localhost:5000`
+
+#### Start Frontend Application
+```bash
+# In a new terminal, from the root directory
+npm run dev
+```
+The frontend will start on `http://localhost:3000`
+
+### Production Mode
+
+#### Build Frontend
+```bash
+npm run build
+npm start
 ```
 
-## Développement
-
-Pour lancer le serveur de développement :
-
+#### Start Backend
 ```bash
-yarn dev
-```
-
-L'application sera disponible à l'adresse [http://localhost:3000](http://localhost:3000).
-
-## Production
-
-Pour construire l'application pour la production :
-
-```bash
-yarn build
-```
-
-Pour lancer l'application en mode production :
-
-```bash
-yarn start
-```
-
-## 🚀 Déploiement avec cache
-
-### Ordre d'exécution pour le déploiement
-
-#### 1. Préparation de l'environnement
-
-```bash
-# 1. Cloner le projet
-git clone <url-du-depot>
-cd rmmgain
-
-# 2. Installer les dépendances
-yarn install
-
-# 3. Configurer les variables d'environnement
-cp env.example .env.local
-cd backend
-cp env.example .env
-```
-
-#### 2. Configuration du cache
-
-```bash
-# 4. Initialiser la base de données de cache
-cd backend
-node scripts/init-cache.js
-
-# 5. Vérifier la configuration du cache
-node scripts/test-final-cache.js
-```
-
-#### 3. Test du système complet
-
-```bash
-# 6. Démarrer le backend
 cd backend
 npm start
-
-# 7. Dans un autre terminal, tester le cache
-node scripts/test-cache-expiration.js
 ```
 
-#### 4. Déploiement en production
+## 🛑 Stopping the Application
 
+### Stop Frontend
 ```bash
-# 8. Construire l'application
-yarn build
-
-# 9. Démarrer avec PM2
-pm2 start ecosystem.config.js
+# Press Ctrl+C in the frontend terminal
 ```
 
-## How to launch
-
-### Déploiement en production sur serveur
-
-Pour déployer l'application en production sur un serveur, suivez ces étapes :
-
-#### 1. Préparation du serveur
-
-Assurez-vous que votre serveur dispose de :
-- Node.js (v18 ou supérieur)
-- Yarn ou npm
-- Un reverse proxy (nginx recommandé)
-- Un gestionnaire de processus (PM2 recommandé)
-- **SQLite3** (pour le cache)
-
-#### 2. Installation de PM2 (recommandé)
-
+### Stop Backend
 ```bash
-npm install -g pm2
+# Press Ctrl+C in the backend terminal
 ```
 
-#### 3. Configuration des ports
+## 🔄 Restarting the Application
 
-L'application utilise les ports suivants :
-- **Frontend Next.js** : Port 3000 (par défaut)
-- **Backend API** : Port 5000 (par défaut)
-
-Vous pouvez modifier ces ports en configurant les variables d'environnement :
-
+### Restart Frontend
 ```bash
-# Frontend
-PORT=3000
+# Stop with Ctrl+C, then restart
+npm run dev
+```
+
+### Restart Backend
+```bash
+cd backend
+# Stop with Ctrl+C, then restart
+npm run dev
+```
+
+### Restart Both
+```bash
+# Stop both processes with Ctrl+C
+# Then restart in separate terminals:
+# Terminal 1:
+cd backend && npm run dev
+
+# Terminal 2:
+npm run dev
+```
+
+## 📊 Available Scripts
+
+### Frontend Scripts
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
+```
+
+### Backend Scripts
+```bash
+cd backend
+npm run dev              # Start with nodemon (auto-restart)
+npm start                # Start production server
+npm run test-env         # Test environment variables
+npm run test-balances    # Test balance API performance
+```
+
+## 🌐 API Endpoints
+
+### Main Endpoints
+- **Health Check**: `GET /`
+- **RMM V2**: `GET /api/rmm/v2/:address`
+- **RMM V3**: `GET /api/rmm/v3/:address`
+
+### Example Usage
+```bash
+# Test the API
+curl http://localhost:5000/api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Port Already in Use
+```bash
+# Check what's using the port
+lsof -i :5000
+lsof -i :3000
+
+# Kill the process
+kill -9 <PID>
+```
+
+#### Environment Variables Not Loading
+```bash
+# Verify .env files exist
+ls -la .env
+ls -la backend/.env
+
+# Check if variables are loaded
+echo $NEXT_PUBLIC_BACKEND_URL
+```
+
+#### API Key Errors
+```bash
+# Verify API keys in .env files
+cat .env | grep API_KEY
+cat backend/.env | grep API_KEY
+```
+
+#### Dependencies Issues
+```bash
+# Clear npm cache and reinstall
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install
+
 # Backend
-BACKEND_PORT=5000
-```
-
-#### 4. Configuration du cache en production
-
-```bash
-# Variables d'environnement pour le cache
-CACHE_EXPIRATION_HOURS=24  # Cache 24h en production
-```
-
-#### 5. Déploiement avec PM2
-
-Créez un fichier `ecosystem.config.js` à la racine du projet :
-
-```javascript
-module.exports = {
-  apps: [
-    {
-      name: 'rmmgain-frontend',
-      script: 'yarn',
-      args: 'start',
-      cwd: './',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3000
-      },
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '1G'
-    },
-    {
-      name: 'rmmgain-backend',
-      script: 'node',
-      args: 'server.js',
-      cwd: './backend',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 5000,
-        CACHE_EXPIRATION_HOURS: 24  // Cache 24h en production
-      },
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '1G'
-    }
-  ]
-};
-```
-
-#### 6. Lancement en production
-
-```bash
-# Construire l'application
-yarn build
-
-# Initialiser le cache
 cd backend
-node scripts/init-cache.js
-
-# Démarrer avec PM2
-pm2 start ecosystem.config.js
-
-# Sauvegarder la configuration PM2
-pm2 save
-
-# Configurer le démarrage automatique
-pm2 startup
+rm -rf node_modules package-lock.json
+npm install
 ```
 
-#### 7. Configuration Nginx (optionnel)
+### Performance Issues
 
-Créez un fichier de configuration nginx `/etc/nginx/sites-available/rmmgain` :
+#### Rate Limiting
+- GnosisScan: 5 calls/second (free), 100 calls/second (paid)
+- TheGraph: 1000 calls/day (free), custom limits (paid)
 
-```nginx
-server {
-    listen 80;
-    server_name votre-domaine.com;
-
-    # Redirection vers HTTPS
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name votre-domaine.com;
-
-    # Configuration SSL
-    ssl_certificate /path/to/your/certificate.crt;
-    ssl_certificate_key /path/to/your/private.key;
-
-    # Frontend
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    # Backend API
-    location /api/ {
-        proxy_pass http://localhost:5000/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-Activez la configuration :
+#### Memory Issues
 ```bash
-sudo ln -s /etc/nginx/sites-available/rmmgain /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+# Check Node.js memory usage
+node --max-old-space-size=4096 server.js
 ```
 
-#### 8. Commandes utiles
+## 📱 Using the Application
 
-```bash
-# Voir les processus PM2
-pm2 list
+1. **Open your browser** and navigate to `http://localhost:3000`
+2. **Enter an EVM address** (e.g., `0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f`)
+3. **Click "Analyze"** to view your RMM data
+4. **Explore the dashboard** with charts, transactions, and financial summaries
 
-# Voir les logs
-pm2 logs
+## 🏗️ Development
 
-# Redémarrer l'application
-pm2 restart rmmgain-frontend
-pm2 restart rmmgain-backend
+### Adding New Features
+1. Frontend components go in `components/`
+2. Backend routes go in `backend/routes/`
+3. Utility functions go in `utils/`
+4. Update types in `types/`
 
-# Arrêter l'application
-pm2 stop rmmgain-frontend
-pm2 stop rmmgain-backend
+### Code Style
+- Frontend: TypeScript + React hooks
+- Backend: ES6+ JavaScript + Express
+- Styling: TailwindCSS
+- Charts: Chart.js + React-Chartjs-2
 
-# Supprimer l'application de PM2
-pm2 delete rmmgain-frontend
-pm2 delete rmmgain-backend
+## 📚 Additional Resources
 
-```
+- **RMM Protocol**: [https://rmm.xyz/](https://rmm.xyz/)
+- **Gnosis Chain**: [https://gnosischain.com/](https://gnosischain.com/)
+- **TheGraph**: [https://thegraph.com/](https://thegraph.com/)
+- **GnosisScan**: [https://gnosisscan.io/](https://gnosisscan.io/)
 
-#### 9. Variables d'environnement de production
+## 🤝 Support
 
-**📋 Voir le fichier `ENV_SETUP.md` pour la configuration complète des variables de production.**
+If you encounter issues:
+1. Check the troubleshooting section above
+2. Verify all environment variables are set
+3. Ensure all dependencies are installed
+4. Check the console for error messages
 
-Configuration rapide :
-```bash
-# Frontend (gainorloss)
-cp env.example .env.production
+## 📄 License
 
-# Backend (apigainorloss)
-cd backend
-cp env.example .env.production
-```
+This project is licensed under the MIT License.
 
-Variables principales à configurer :
-- **Frontend** : `NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_GNOSISSCAN_API_KEY`
-- **Backend** : `PORT=5000`, `NODE_ENV=production`, `CORS_ORIGIN`
-- **Cache** : `CACHE_EXPIRATION_HOURS=24`
+---
 
-
-
-### Scripts de test
-
-```bash
-# Test du cache incrémental
-node scripts/test-final-cache.js
-
-# Test de l'expiration du cache
-node scripts/test-cache-expiration.js
-
-# Test des performances
-node scripts/test-graphql-optimization.js
-```
-
-## Structure du projet
-
-### Frontend : `gainorloss` (Next.js)
-- `components/` : Composants React réutilisables
-- `pages/` : Pages de l'application
-- `utils/` : Utilitaires et fonctions d'aide
-- `graphql-queries/` : Requêtes GraphQL pour TheGraph
-- `styles/` : Fichiers de style
-- `public/` : Assets statiques
-
-### Backend : `apigainorloss` (Express.js)
-- `backend/` : API REST avec Express.js
-  - `routes/` : Routes de l'API
-  - `services/` : Services métier
-    - `transaction-cache.js` : **Cache SQLite avec expiration**
-    - `graphql.js` : **Requêtes optimisées TheGraph**
-  - `scripts/` : Scripts utilitaires
-  - `data/` : **Base de données SQLite du cache**
-
-## 🗄️ Système de cache
-
-### Fonctionnement
-
-1. **Première requête** : Récupération complète depuis TheGraph + stockage en cache
-2. **Requêtes suivantes** : Vérification des nouvelles transactions depuis le dernier timestamp
-3. **Nouvelles transactions** : Ajout incrémental au cache
-4. **Expiration automatique** : Nettoyage des données expirées
-
-### Configuration
-
-```bash
-# Expiration du cache (en heures)
-CACHE_EXPIRATION_HOURS=12  # Défaut: 12h
-```
-
-### Performance
-
-- **Première requête** : ~1300ms (TheGraph complet)
-- **Requêtes suivantes** : ~15ms (Cache local)
-- **Amélioration** : 99% de réduction du temps de réponse
-
-## Tokens
+**Happy analyzing! 🚀📊**

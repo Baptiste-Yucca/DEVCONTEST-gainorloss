@@ -96,7 +96,6 @@ async function getCurrentBalances(userAddress) {
       }
     });
     
-    console.log(`✅ Balances RPC récupérées pour ${userAddress}`);
     return balances;
 
   } catch (error) {
@@ -584,9 +583,7 @@ function calculateLastPointInterest(lastPoint, currentBalance, balanceType, toke
     transactionType: "BalanceOf",
     source: "real" 
   };
-  
-  console.log(`💰 Intérêts du dernier point calculés: ${periodInterest} pour ${balanceType} ${token}`);
-  
+
   return updatedLastPoint;
 }
 
