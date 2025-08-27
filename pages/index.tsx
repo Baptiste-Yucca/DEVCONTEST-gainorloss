@@ -119,7 +119,7 @@ export default function Home() {
   const [dataV2, setDataV2] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isV3Collapsed, setIsV3Collapsed] = useState(true);
+  const [isCollapsed, setCollapsed] = useState(true);
 
   // Fonction pour formater les montants (conversion depuis base units)
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -619,8 +619,8 @@ export default function Home() {
                 transactions={prepareAllTransactions()}
                 userAddress={address}
                 title="Transactions"
-                isCollapsed={isV3Collapsed}
-                onToggleCollapse={() => setIsV3Collapsed(!isV3Collapsed)}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={() => setCollapsed(!isCollapsed)}
               />
             )}
           </div>

@@ -40,15 +40,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes API
-app.use('/api/rmm/v2', require('./routes/rmm-v2')); // Route V2 AVANT la route V3
-app.use('/api/rmm', require('./routes/rmm')); // Route V3 APRÈS la route V2
-app.use('/api/balances', require('./routes/balances'));
+app.use('/api/rmm/v2', require('./routes/rmm-v2'));
+app.use('/api/rmm', require('./routes/rmm')); 
 
 
 // Route racine
 app.get('/', (req, res) => {
   res.json({
-    name: 'RMM Gain API',
+    name: 'RMM GainOrLoss API',
     version: '1.0.0',
     description: 'API pour analyser les données du protocole RMM',
     endpoints: {
@@ -62,8 +61,8 @@ app.get('/', (req, res) => {
 // Gestion des erreurs 404
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Endpoint non trouvé',
-    message: `L'endpoint ${req.originalUrl} n'existe pas`,
+    error: 'Endpoint Not Found... you lost',
+    message: `${req.originalUrl} is not allowed`,
     availableEndpoints: [
       'GET /',
       'GET /api/rmm/v2/:address1/:address2?/:address3?',
@@ -85,7 +84,7 @@ app.use((err, req, res, next) => {
 
 // Démarrage du serveur
 app.listen(PORT, () => {
-  console.log(`🚀 API gainOrLoss has started... listenning on port ${PORT}`);
+  console.log(`🚀 API GainOrLoss has started... listenning on port ${PORT}`);
   console.log(`📊 Mode: ${process.env.NODE_ENV || 'development'}`);
 });
 
