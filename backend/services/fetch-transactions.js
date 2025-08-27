@@ -137,7 +137,6 @@ async function fetchAllTransactionsV3(userAddress) {
       const totalInBatch = (data.borrows?.length || 0) + (data.supplies?.length || 0) + (data.withdraws?.length || 0) + (data.repays?.length || 0);
       if (totalInBatch < LIMIT * 4) {
         hasMore = false;
-        console.log(`✅ Fin de pagination: ${totalInBatch} < ${LIMIT * 4}`);
       } else {
         skip += LIMIT;
         console.log(`⏭️  Pagination suivante: skip=${skip}`);

@@ -58,8 +58,7 @@ async function fetchAllATokenBalancesV2(userAddress, req = null) {
   let hasMore = true;
 
   try {
-    console.log(`🔍 Récupération de tous les atokenBalanceHistoryItems V2 pour ${userAddress}`);
-    
+  
     while (hasMore) {
       const variables = { 
         user: userAddress.toLowerCase(), 
@@ -77,7 +76,6 @@ async function fetchAllATokenBalancesV2(userAddress, req = null) {
       // Vérifier s'il y a plus de données
       if (balances.length < LIMIT) {
         hasMore = false;
-        console.log(`✅ Fin de pagination: ${balances.length} < ${LIMIT}`);
       } else {
         skip += LIMIT;
       }
@@ -110,8 +108,7 @@ async function fetchAllVTokenBalancesV2(userAddress, req = null) {
   let hasMore = true;
 
   try {
-    console.log(`🔍 Récupération de tous les vtokenBalanceHistoryItems V2 pour ${userAddress}`);
-    
+
     while (hasMore) {
       const variables = { 
         user: userAddress.toLowerCase(), 
@@ -129,7 +126,6 @@ async function fetchAllVTokenBalancesV2(userAddress, req = null) {
       // Vérifier s'il y a plus de données
       if (balances.length < LIMIT) {
         hasMore = false;
-        console.log(`✅ Fin de pagination: ${balances.length} < ${LIMIT}`);
       } else {
         skip += LIMIT;
       }

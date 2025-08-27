@@ -134,13 +134,11 @@ async function fetchAllTransactionsV2(userAddress) {
       allTransactions.withdraws.push(...(data.withdraws || []).filter(tx => isValidSymbol(tx.reserve?.symbol)));
       allTransactions.repays.push(...(data.repays || []).filter(tx => isValidSymbol(tx.reserve?.symbol)));
       
-      console.log(` Batch ${Math.floor(skip/LIMIT) + 1}: ${data.borrows?.length || 0} borrows, ${data.supplies?.length || 0} supplies, ${data.withdraws?.length || 0} withdraws, ${data.repays?.length || 0} repays`);
-      
+
       // Vérifier s'il y a plus de données
       const totalInBatch = (data.borrows?.length || 0) + (data.supplies?.length || 0) + (data.withdraws?.length || 0) + (data.repays?.length || 0);
       if (totalInBatch < LIMIT * 4) {
         hasMore = false;
-        console.log(`✅ Fin de pagination V2: ${totalInBatch} < ${LIMIT * 4}`);
       } else {
         skip += LIMIT;
         console.log(`⏭️  Pagination suivante V2: skip=${skip}`);
@@ -150,8 +148,7 @@ async function fetchAllTransactionsV2(userAddress) {
     const totalTransactions = allTransactions.borrows.length + allTransactions.supplies.length + 
                             allTransactions.withdraws.length + allTransactions.repays.length;
     
-    console.log(`🎯 Total V2: ${totalTransactions} transactions récupérées`);
-    
+
     return allTransactions;
     
   } catch (error) {   

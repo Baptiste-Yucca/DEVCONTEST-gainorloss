@@ -24,9 +24,7 @@ async function fetchAllTokenTransactions(
 ) {
 
   try {
-    console.log(`🔄 Récupération de toutes les transactions de token ${tokenAddress} pour ${userAddress}`);
-    console.log(`📊 Blocs: ${startBlock} → ${endBlock}`);
-    
+
     const allTransactions = [];
     let currentPage = 1;
     let hasMoreData = true;
@@ -36,9 +34,7 @@ async function fetchAllTokenTransactions(
     const DELAY_BETWEEN_REQUESTS = 500; // 500ms = 2 req/s max
     
     while (hasMoreData) {
-      console.log(`📄 Page ${currentPage}...`);
-      
-      // ✅ PARAMÈTRES IDENTIQUES À L'APPEL CURL
+
       const params = new URLSearchParams({
         chainid: '100', // Gnosis Chain
         module: 'account',
@@ -79,7 +75,6 @@ async function fetchAllTokenTransactions(
         
         // ✅ VÉRIFIER SI IL Y A PLUS DE DONNÉES
         if (transactionCount < 1000) {
-          console.log(`✅ Fin de pagination: ${transactionCount} < 1000`);
           hasMoreData = false;
         } else {
           console.log(`🔄 Plus de données disponibles, page suivante...`);
@@ -106,7 +101,6 @@ async function fetchAllTokenTransactions(
       }
     }
     
-    console.log(`🎯 Total final: ${totalTransactions} transactions récupérées en ${currentPage} pages`);  
     return allTransactions;
     
   } catch (error) { 
@@ -222,13 +216,9 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
       }
     }
     
-    // ✅ POST-TRAITEMENT GLOBAL APRÈS TOUS LES APPELS
-    console.log(`🔄 Post-traitement des transactions ${version}...`);
-    
     for (const [tokenSymbol, rawTransactions] of Object.entries(allRawTransactions)) {
-      console.log(`🔍 Post-traitement de ${rawTransactions.length} transactions ${tokenSymbol}...`);
-      
-      // ✅ FILTRER ET FORMATER LES TRANSACTIONS
+
+
       const filteredTransactions = rawTransactions
         .filter(tx => {
           // ❌ ÉLIMINER LES MINT/BURN (from ou to = 0x0000...)
@@ -285,7 +275,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
     const totalTransactions = Object.values(allFormattedTransactions)
       .reduce((total, transactions) => total + transactions.length, 0);
     
-    console.log(`🎯 Total final ${version}: ${totalTransactions} transactions uniques`);
     
     return allFormattedTransactions;
     
@@ -298,7 +287,6 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
 module.exports = {
   fetchAllTokenTransactions,
   fetchTokenTransactionsByVersion,
-  // ✅ NOUVELLE FONCTION PRINCIPALE
   fetchSupplyTokenTransactionsViaGnosisScan
 };
 

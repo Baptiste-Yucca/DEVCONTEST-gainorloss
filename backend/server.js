@@ -86,10 +86,8 @@ app.use((err, req, res, next) => {
 
 // Démarrage du serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur RMM Gain API démarré sur le port ${PORT}`);
+  console.log(`🚀 API gainOrLoss has started... listenning on port ${PORT}`);
   console.log(`📊 Mode: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
-  console.log(`🔍 Test: curl http://localhost:${PORT}/api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f`);
 });
 
 module.exports = app; 

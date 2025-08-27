@@ -34,8 +34,7 @@ const provider = new ethers.JsonRpcProvider('https://rpc.gnosis.gateway.fm');
  */
 export const fetchTokenBalancesRPC = async (userAddress: string): Promise<TokenBalances> => {
   try {
-    console.log(`🚀 Récupération RPC des balances pour ${userAddress}`);
-    
+
     const startTime = Date.now();
     const response = await fetch(`${BACKEND_API_URL}/api/balances/rpc/${userAddress}`, {
       method: 'GET',

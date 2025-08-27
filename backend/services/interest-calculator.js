@@ -1,8 +1,3 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-
-// Import depuis les constantes centralisées
-const { TOKENS } = require('../../utils/constants.js');
 
 /**
  * Calcule l'intérêt quotidien sur un montant supply donné un taux journalier (ex: 0.00015).
@@ -21,65 +16,6 @@ function computeDailyInterest(supply, dailyRate, decimals) {
   const interest = (supply * scaledRate) / RAY;
 
   return interest;
-}
-
-/**
- * Initialise la connexion à la base de données
- */
-function initDatabase() {
-  return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database(DB_PATH, (err) => {
-      if (err) {
-        console.error('Erreur lors de l\'ouverture de la base de données:', err);
-        reject(err);
-        return;
-      }
-      resolve(db);
-    });
-  });
-}
-
-/**
- * Récupère les taux depuis la base de données pour un token et une période
- */
-async function fetchRatesFromDB(token, fromTimestamp, req = null) {
-
-  
-  try {
-    const db = await initDatabase();
-    
-    // Convertir le timestamp en date YYYYMMDD
-    const fromDate = new Date(fromTimestamp * 1000);
-    const year = fromDate.getFullYear();
-    const month = String(fromDate.getMonth() + 1).padStart(2, '0');
-    const day = String(fromDate.getDate()).padStart(2, '0');
-    const fromDateStr = `${year}${month}${day}`;
-    
-    console.log(`📊 Récupération des taux depuis la DB pour ${token} à partir de ${fromDateStr}`);
-    
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT * FROM interest_rates 
-        WHERE token = ? AND date >= ?
-        ORDER BY date ASC
-      `;
-      
-      db.all(sql, [token, fromDateStr], (err, rows) => {
-        db.close();
-        if (err) {
-          console.error('Erreur lors de la récupération des taux:', err);
-          reject(err);
-          return;
-        }     
-        console.log(`📊 ${rows.length} taux récupérés depuis la DB pour ${token}`);
-        resolve(rows || []);
-      });
-    });
-    
-  } catch (error) {   
-    console.error('Erreur lors de la récupération des taux depuis la DB:', error);
-    throw error;
-  }
 }
 
 /**
