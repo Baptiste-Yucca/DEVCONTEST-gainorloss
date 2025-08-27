@@ -37,16 +37,6 @@ interface TokenBalance {
   decimals: number;
 }
 
-interface TokenBalances {
-  // SupplyTokens
-  armmUSDC: TokenBalance;
-  armmWXDAI: TokenBalance;
-  // DebtTokens
-  debtUSDC: TokenBalance;
-  debtWXDAI: TokenBalance;
-}
-
-// ✅ Utiliser la même interface pour V2 et V3
 interface ApiResponse {
   success: boolean;
   data: {
@@ -129,10 +119,7 @@ export default function Home() {
   const [dataV2, setDataV2] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tokenBalances, setTokenBalances] = useState<TokenBalances | null>(null);
   const [isV3Collapsed, setIsV3Collapsed] = useState(true);
-  // Ajouter un état pour contrôler l'affichage des points estimés
-  // const [showEstimatedPoints, setShowEstimatedPoints] = useState(true);
 
   // Fonction pour formater les montants (conversion depuis base units)
   const formatAmount = (amount: string, decimals = 6): number => {
@@ -330,144 +317,12 @@ export default function Home() {
       } catch (v2Error) {
         console.log('⚠️ Erreur lors de la récupération des données RMM v2:', v2Error);
       }
-      
-      // Récupérer les balances des tokens (même si pas de données)
-      console.log('💰 Récupération des balances des tokens...');
-      try {
-        const balances = await fetchTokenBalances(address.trim());
-        setTokenBalances(balances);
-        console.log('✅ Balances récupérées:', balances);
-      } catch (balanceError) {
-        console.error('❌ Erreur lors de la récupération des balances:', balanceError);
-        // En cas d'erreur, on garde tokenBalances à null pour afficher "N/A" dans les graphiques
-      }
+
     } catch (err) {
       console.error('❌ Erreur lors de la récupération des données:', err);
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fonction pour récupérer les balances des tokens via l'API backend RPC
-  const fetchTokenBalances = async (userAddress: string): Promise<TokenBalances> => {
-    try {
-      console.log('🚀 Récupération des balances via API backend RPC...');
-      
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/balances/rpc/${userAddress}`);
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API backend: ${response.status} ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Erreur lors de la récupération des balances');
-      }
-      
-      // Convertir le format de réponse du backend vers le format attendu par le frontend
-      const backendBalances = result.data.balances;
-      
-      return {
-        armmUSDC: {
-          token: backendBalances.armmUSDC.token,
-          balance: backendBalances.armmUSDC.formatted,
-          symbol: backendBalances.armmUSDC.symbol,
-          decimals: backendBalances.armmUSDC.decimals
-        },
-        armmWXDAI: {
-          token: backendBalances.armmWXDAI.token,
-          balance: backendBalances.armmWXDAI.formatted,
-          symbol: backendBalances.armmWXDAI.symbol,
-          decimals: backendBalances.armmWXDAI.decimals
-        },
-        debtUSDC: {
-          token: backendBalances.debtUSDC.token,
-          balance: backendBalances.debtUSDC.formatted,
-          symbol: backendBalances.debtUSDC.symbol,
-          decimals: backendBalances.debtUSDC.decimals
-        },
-        debtWXDAI: {
-          token: backendBalances.debtWXDAI.token,
-          balance: backendBalances.debtWXDAI.formatted,
-          symbol: backendBalances.debtWXDAI.symbol,
-          decimals: backendBalances.debtWXDAI.decimals
-        }
-      };
-    } catch (error) {
-      console.error('❌ Erreur lors de la récupération des balances RPC:', error);
-      
-      // Fallback vers l'ancienne API en cas d'erreur
-      console.log('🔄 Fallback vers l\'API V3...');
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-        const fallbackResponse = await fetch(`${backendUrl}/api/balances/v3/${userAddress}`);
-        
-        if (fallbackResponse.ok) {
-          const fallbackResult = await fallbackResponse.json();
-          if (fallbackResult.success) {
-            const backendBalances = fallbackResult.data.balances;
-            return {
-              armmUSDC: {
-                token: backendBalances.armmUSDC.token,
-                balance: backendBalances.armmUSDC.formatted,
-                symbol: backendBalances.armmUSDC.symbol,
-                decimals: backendBalances.armmUSDC.decimals
-              },
-              armmWXDAI: {
-                token: backendBalances.armmWXDAI.token,
-                balance: backendBalances.armmWXDAI.formatted,
-                symbol: backendBalances.armmWXDAI.symbol,
-                decimals: backendBalances.armmWXDAI.decimals
-              },
-              debtUSDC: {
-                token: backendBalances.debtUSDC.token,
-                balance: backendBalances.debtUSDC.formatted,
-                symbol: backendBalances.debtUSDC.symbol,
-                decimals: backendBalances.debtUSDC.decimals
-              },
-              debtWXDAI: {
-                token: backendBalances.debtWXDAI.token,
-                balance: backendBalances.debtWXDAI.formatted,
-                symbol: backendBalances.debtWXDAI.symbol,
-                decimals: backendBalances.debtWXDAI.decimals
-              }
-            };
-          }
-        }
-      } catch (fallbackError) {
-        console.error('❌ Erreur lors du fallback:', fallbackError);
-      }
-      
-      // Retourner des balances à 0 en cas d'erreur
-      return {
-        armmUSDC: {
-          token: '0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1',
-          balance: '0',
-          symbol: 'armmUSDC',
-          decimals: 6
-        },
-        armmWXDAI: {
-          token: '0x0ca4f5554dd9da6217d62d8df2816c82bba4157b',
-          balance: '0',
-          symbol: 'armmWXDAI',
-          decimals: 18
-        },
-        debtUSDC: {
-          token: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
-          balance: '0',
-          symbol: 'debtUSDC',
-          decimals: 6
-        },
-        debtWXDAI: {
-          token: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34',
-          balance: '0',
-          symbol: 'debtWXDAI',
-          decimals: 18
-        }
-      };
     }
   };
 
@@ -477,7 +332,6 @@ export default function Home() {
     setDataV2(null);
     setError(null);
     setLoading(false);
-    setTokenBalances(null);
   };
 
   // Écran de chargement

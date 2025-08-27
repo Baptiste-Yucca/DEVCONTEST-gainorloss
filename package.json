@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test-frontend": "node scripts/test-frontend-integration.js"
+    "lint": "next lint"
   },
   "dependencies": {
     "@types/node": "^22.13.16",

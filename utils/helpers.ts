@@ -5,9 +5,6 @@ import { TOKENS, ADDRESS_TO_TOKEN } from './constants';
 type TokenKey = keyof typeof TOKENS;
 type AddressToToken = typeof ADDRESS_TO_TOKEN;
 
-export const isValidEthereumAddress = (address: string): boolean => {
-  return ethers.isAddress(address);
-};
 
 export const formatAmount = (amount: string, reserveId: string): string => {
   try {
@@ -29,7 +26,3 @@ export const formatAmount = (amount: string, reserveId: string): string => {
     return '0.00';
   }
 };
-
-export const formatTimestamp = (timestamp: number): string => {
-  return new Date(timestamp * 1000).toLocaleString('fr-CH');
-}; 

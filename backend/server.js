@@ -54,7 +54,6 @@ app.get('/', (req, res) => {
     endpoints: {
       'rmm-v2': '/api/rmm/v2/:address1/:address2?/:address3?',
       rmm: '/api/rmm/v3/:address1/:address2?/:address3?',
-      balances: '/api/balances/v3/:address'
     },
     example: 'GET /api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f'
   });

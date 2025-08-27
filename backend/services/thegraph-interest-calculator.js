@@ -38,8 +38,7 @@ const TOKENS_V3 = {
  */
 async function getCurrentBalances(userAddress) {
   try {
-    console.log(`🚀 Récupération RPC des balances pour ${userAddress}`);
-    
+
     // Préparer les appels balanceOf pour tous les tokens
     const calls = Object.entries(TOKENS_V3).map(([key, token], index) => ({
       jsonrpc: "2.0",
@@ -122,7 +121,8 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
     return createEmptyResult('supply');
   }
 
-  console.log(`📊 ${tokenBalances.length} balances atoken trouvées pour ${token}`);
+
+
 
   // Trier par timestamp et dédupliquer par jour (garder le dernier)
   const sortedBalances = tokenBalances.sort((a, b) => a.timestamp - b.timestamp);
@@ -156,7 +156,6 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
     let dayWithdraw = 0n;
     
     if (i === 0) {
-      // ✅ CORRECTION: Premier jour = pas d'intérêts générés
       dayTotalInterest = 0n;
     } else {
       // Jour suivant : comparer avec le jour précédent
@@ -165,24 +164,19 @@ function calculateSupplyInterestFromBalances(atokenBalances, token) {
       const previousScaledATokenBalance = BigInt(previousBalance.scaledATokenBalance);
       const previousIndex = BigInt(previousBalance.index);
       
-      // ✅ CORRECTION: Identifier le type de mouvement avec conversion en sous-jacent
       if (scaledATokenBalance > previousScaledATokenBalance) {
         // Supply : scaled a augmenté
         const deltaScaled = scaledATokenBalance - previousScaledATokenBalance;
-        // ✅ NOUVELLE FORMULE: Convertir en sous-jacent avec l'index courant
         const supplyAmountWei = (deltaScaled * currentIndex) / RAY;
         daySupply = supplyAmountWei;
         totalSupplies += supplyAmountWei;
       } else if (scaledATokenBalance < previousScaledATokenBalance) {
         // Withdraw : scaled a diminué
         const deltaScaled = previousScaledATokenBalance - scaledATokenBalance;
-        // ✅ NOUVELLE FORMULE: Convertir en sous-jacent avec l'index courant
         const withdrawAmountWei = (deltaScaled * currentIndex) / RAY;
         dayWithdraw = withdrawAmountWei;
         totalWithdraws += withdrawAmountWei;
       }
-      
-      // ✅ CORRECTION: Calculer les intérêts générés avec la vraie formule RMM
       // Intérêts = (scaled précédent * (index actuel - index précédent)) / RAY
       const periodInterest = (previousScaledATokenBalance * (currentIndex - previousIndex)) / RAY;
       
@@ -551,7 +545,7 @@ function addTodayPoint(dailyDetails, currentBalance, balanceType, token) {
 }
 
 /**
- * ✅ NOUVEAU: Calcule les intérêts du dernier point avec le balanceOf actuel
+ * Calcule les intérêts du dernier point avec le balanceOf actuel
  */
 function calculateLastPointInterest(lastPoint, currentBalance, balanceType, token) {
   if (!lastPoint || !currentBalance) return lastPoint;
