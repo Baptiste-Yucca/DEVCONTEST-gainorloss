@@ -1,133 +1,147 @@
-import React, { useState } from 'react';
-import { TransactionWithType } from '../types/transaction';
-import { ethers } from 'ethers';
+import React, { useState, useMemo } from 'react';
+import { Transaction } from '../utils/api/types';
+
+interface TransactionWithType extends Transaction {
+  type: 'borrow' | 'repay' | 'deposit' | 'withdraw';
+  token: 'USDC' | 'WXDAI';
+  version?: 'V2' | 'V3';
+}
 
 interface TransactionsTableProps {
   transactions: TransactionWithType[];
-  address?: string;
+  userAddress: string;
+  title: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, address = '' }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+type FilterType = 'all' | 'USDC' | 'WXDAI';
+type TransactionType = 'all' | 'borrow' | 'repay' | 'deposit' | 'withdraw';
+type VersionType = 'all' | 'V2' | 'V3';
 
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
+interface DateRange {
+  start: Date;
+  end: Date;
+}
 
-  if (!transactions || transactions.length === 0) {
-    return (
-      <div className="mt-8 text-center text-gray-600">
-        Aucune transaction disponible pour cette adresse
-      </div>
-    );
-  }
-
-  // Trier les transactions du plus ancien au plus récent
-  const sortedTransactions = [...transactions].sort((a, b) => 
-    parseInt(a.formattedDate) - parseInt(b.formattedDate)
-  );
-
-  // Fonction pour formater la date YYYYMMDD... en YYYY/MM/DD HH:mm:ss
-  const formatDisplayDate = (formattedDate: string) => {
-    const year = formattedDate.substring(0, 4);
-    const month = formattedDate.substring(4, 6);
-    const day = formattedDate.substring(6, 8);
-    const hours = formattedDate.substring(8, 10) || '00';
-    const minutes = formattedDate.substring(10, 12) || '00';
-    const seconds = formattedDate.substring(12, 14) || '00';
-
-    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-  };
-
-  // Fonction pour obtenir la couleur de fond en fonction du type de transaction
-  const getTransactionTypeStyle = (type: string): string => {
-    switch (type) {
-      case 'borrow':
-        return 'bg-red-100';
-      case 'repay':
-        return 'bg-blue-100';
-      default:
-        return '';
+const TransactionsTable: React.FC<TransactionsTableProps> = ({ 
+  transactions, 
+  userAddress, 
+  title, 
+  isCollapsed = false, 
+  onToggleCollapse 
+}) => {
+  const [tokenFilter, setTokenFilter] = useState<FilterType>('all');
+  const [typeFilter, setTypeFilter] = useState<TransactionType>('all');
+  const [versionFilter, setVersionFilter] = useState<VersionType>('all');
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    if (transactions.length === 0) {
+      const today = new Date();
+      return { start: today, end: today };
     }
-  };
+    
+    const timestamps = transactions.map(tx => tx.timestamp * 1000);
+    const minDate = new Date(Math.min(...timestamps));
+    const maxDate = new Date(Math.max(...timestamps));
+    
+    return { start: minDate, end: maxDate };
+  });
 
-  // Fonction pour extraire le hash de transaction de l'ID composite
-  const extractTransactionHash = (id: string): string => {
-    // Format attendu: blockNumber:index:hashId:... 
-    const parts = id.split(':');
-    if (parts.length >= 3) {
-      return parts[2]; // Récupérer le troisième élément qui contient le hash
-    }
-    return id; // Si le format n'est pas celui attendu, retourner l'id original
-  };
-
-  // Fonction pour formater l'ID de transaction (hashid)
-  const formatHashId = (hash: string): string => {
-    if (!hash || hash.length < 8) return hash;
-    return `${hash.substring(0, 6)}...${hash.substring(hash.length - 4)}`;
-  };
-
-  // Générer un nom de fichier avec l'adresse (version courte si adresse présente)
-  const getFileName = (extension: string): string => {
-    let shortAddress = '';
-    if (address) {
-      shortAddress = '_' + address.substring(0, 6) + '...' + address.substring(address.length - 4);
-    }
-    return `rmm_transactions${shortAddress}.${extension}`;
-  };
-
-  // Fonctions d'exportation
-  const exportToCSV = () => {
-    // Préparer les données pour l'export CSV
-    const headers = ['Date', 'Type', 'Montant', 'Token', 'Transaction Hash'];
-    const csvData = sortedTransactions.map(tx => {
-      const amount = parseFloat(ethers.formatUnits(tx.amount, tx.ticker === 'USDC' ? 6 : 18)).toFixed(6);
-      return [
-        formatDisplayDate(tx.formattedDate),
-        tx.transactionType,
-        amount,
-        tx.ticker,
-        extractTransactionHash(tx.id)
-      ];
+  // Filtrer les transactions
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      const tokenMatch = tokenFilter === 'all' || tx.token === tokenFilter;
+      const typeMatch = typeFilter === 'all' || tx.type === typeFilter;
+      const versionMatch = versionFilter === 'all' || tx.version === versionFilter;
+      
+      // Filtre par date
+      const txDate = new Date(tx.timestamp * 1000);
+      const dateMatch = txDate >= dateRange.start && txDate <= dateRange.end;
+      
+      return tokenMatch && typeMatch && versionMatch && dateMatch;
     });
+  }, [transactions, tokenFilter, typeFilter, versionFilter, dateRange]);
 
-    // Créer le contenu CSV
-    const csvContent = [
+  // Fonction pour formater les montants
+  const formatAmount = (amount: string, decimals = 6): number => {
+    return parseFloat(amount) / Math.pow(10, decimals);
+  };
+
+  // Fonction pour formater les dates
+  const formatDate = (timestamp: number): string => {
+    return new Date(timestamp * 1000).toLocaleDateString('fr-CH', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Fonction pour obtenir les dates min/max des transactions
+  const getDateRange = () => {
+    if (transactions.length === 0) {
+      const today = new Date();
+      return { min: today, max: today };
+    }
+    
+    const timestamps = transactions.map(tx => tx.timestamp * 1000);
+    return {
+      min: new Date(Math.min(...timestamps)),
+      max: new Date(Math.max(...timestamps))
+    };
+  };
+
+  // Fonction pour formater une date pour l'input
+  const formatDateForInput = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+  };
+
+  // Fonction pour obtenir l'icône du type de transaction
+  const getTransactionIcon = (type: string): string => {
+    switch (type) {
+      case 'borrow': return '🤝';
+      case 'repay': return '📥';
+      case 'deposit': return '💰';
+      case 'withdraw': return '💸';
+      case 'ronday': return '🗓';
+      case 'in_others': return '⬇️';
+      case 'out_others': return '⬆️';
+      default: return '📊';
+    }
+  };
+
+  // Fonction pour obtenir la couleur du type de transaction
+  const getTransactionColor = (type: string): string => {
+    switch (type) {
+      case 'borrow': return 'text-red-600';
+      case 'repay': return 'text-green-600';
+      case 'deposit': return 'text-blue-600';
+      case 'withdraw': return 'text-orange-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  // Fonction pour exporter en CSV
+  const exportToCSV = () => {
+    const headers = ['Date', 'Type', 'Token', 'Montant', 'Hash', 'Version'];
+    const csvData = [
       headers.join(','),
-      ...csvData.map(row => row.join(','))
+      ...filteredTransactions.map(tx => [
+        formatDate(tx.timestamp),
+        tx.type,
+        tx.token,
+        formatAmount(tx.amount, tx.token === 'USDC' ? 6 : 18).toFixed(2),
+        tx.txHash || 'Hash non disponible',
+        tx.version || 'N/A'
+      ].join(','))
     ].join('\n');
 
-    // Créer un blob et déclencher le téléchargement
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', getFileName('csv'));
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportToJSON = () => {
-    // Préparer les données pour l'export JSON
-    const jsonData = sortedTransactions.map(tx => {
-      const amount = parseFloat(ethers.formatUnits(tx.amount, tx.ticker === 'USDC' ? 6 : 18)).toFixed(6);
-      return {
-        date: formatDisplayDate(tx.formattedDate),
-        type: tx.transactionType,
-        amount,
-        token: tx.ticker,
-        transactionHash: extractTransactionHash(tx.id)
-      };
-    });
-
-    // Créer un blob et déclencher le téléchargement
-    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', getFileName('json'));
+    link.setAttribute('download', `transactions_${userAddress}_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -135,88 +149,241 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, add
   };
 
   return (
-    <div className="mt-6 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-      <div 
-        className="flex justify-between items-center p-4 cursor-pointer bg-gradient-to-r from-indigo-50 to-indigo-100 hover:from-indigo-100 hover:to-indigo-200 transition-colors duration-200"
-        onClick={toggleExpanded}
-        onKeyDown={(e) => e.key === 'Enter' && toggleExpanded()}
-        tabIndex={0}
-        aria-expanded={isExpanded}
-        aria-label="Afficher/masquer les transactions"
-      >
-        <h3 className="text-base font-semibold text-indigo-700">Récapitulatif des transactions ({sortedTransactions.length})</h3>
-        <span className="text-xs font-medium px-3 py-1 bg-indigo-200 text-indigo-800 rounded-full">
-          {isExpanded ? 'Masquer' : 'Afficher'}
-        </span>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{title}</h2>
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+              aria-label={isCollapsed ? "Scroll" : "Unscroll"}
+            >
+              {isCollapsed ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
+        
+        <div className="flex flex-col lg:flex-row gap-4">
+          {isCollapsed && (
+            <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-sm text-gray-600">
+              <span>Total: {filteredTransactions.length}</span>
+              <span>Borrow: {filteredTransactions.filter(tx => tx.type === 'borrow').length}</span>
+              <span>Repay: {filteredTransactions.filter(tx => tx.type === 'repay').length}</span>
+              <span>Deposit: {filteredTransactions.filter(tx => tx.type === 'deposit').length}</span>
+              <span>Withdraw: {filteredTransactions.filter(tx => tx.type === 'withdraw').length}</span>
+              <span>Period: {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}</span>
+            </div>
+          )}
+
+          {!isCollapsed && (
+            <>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select
+                    value={tokenFilter}
+                    onChange={(e) => setTokenFilter(e.target.value as FilterType)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All tokens</option>
+                    <option value="USDC">USDC</option>
+                    <option value="WXDAI">WXDAI</option>
+                  </select>
+                  
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as TransactionType)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All types</option>
+                    <option value="borrow">Borrow</option>
+                    <option value="repay">Repay</option>
+                    <option value="deposit">Deposit</option>
+                    <option value="withdraw">Withdraw</option>
+                  </select>
+                  
+                  <select
+                    value={versionFilter}
+                    onChange={(e) => setVersionFilter(e.target.value as VersionType)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All versions</option>
+                    <option value="V2">V2</option>
+                    <option value="V3">V3</option>
+                  </select>
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">From:</span>
+                    <input
+                      type="date"
+                      value={formatDateForInput(dateRange.start)}
+                      onChange={(e) => {
+                        const newDate = new Date(e.target.value);
+                        setDateRange(prev => ({ ...prev, start: newDate }));
+                      }}
+                      min={formatDateForInput(getDateRange().min)}
+                      max={formatDateForInput(dateRange.end)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">To:</span>
+                    <input
+                      type="date"
+                      value={formatDateForInput(dateRange.end)}
+                      onChange={(e) => {
+                        const newDate = new Date(e.target.value);
+                        setDateRange(prev => ({ ...prev, end: newDate }));
+                      }}
+                      min={formatDateForInput(dateRange.start)}
+                      max={formatDateForInput(getDateRange().max)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setTokenFilter('all');
+                      setTypeFilter('all');
+                      const range = getDateRange();
+                      setDateRange({ start: range.min, end: range.max });
+                    }}
+                    className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium"
+                  >
+                    🔄 Reset
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {isExpanded && (
+      {!isCollapsed && (
         <>
-          <div className="flex justify-end space-x-2 p-3 bg-gray-50 border-t border-b border-gray-200">
-            <button 
-              onClick={exportToCSV}
-              className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
-              aria-label="Exporter au format CSV"
-            >
-              Exporter CSV
-            </button>
-            <button 
-              onClick={exportToJSON}
-              className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-              aria-label="Exporter au format JSON"
-            >
-              Exporter JSON
-            </button>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
+            {/* Colonne 1: Total */}
+            <div className="bg-blue-50 border border-blue-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-blue-700 mb-1">Total</h3>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
+            </div>
+            
+            {/* Colonne 2: Emprunts */}
+            <div className="bg-red-50 border border-red-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-red-700 mb-1">Borrow</h3>
+              <p className="text-lg sm:text-2xl font-bold text-red-600">
+                {filteredTransactions.filter(tx => tx.type === 'borrow').length}
+              </p>
+            </div>
+            
+            {/* Colonne 3: Remboursements */}
+            <div className="bg-purple-50 border border-purple-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-purple-700 mb-1">Repay</h3>
+              <p className="text-lg sm:text-2xl font-bold text-purple-600">
+                {filteredTransactions.filter(tx => tx.type === 'repay').length}
+              </p>
+            </div>
+            
+            {/* Colonne 4: Dépôts */}
+            <div className="bg-green-50 border border-green-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-green-700 mb-1">Deposit</h3>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">
+                {filteredTransactions.filter(tx => tx.type === 'deposit').length}
+              </p>
+            </div>
+            
+            {/* Colonne 5: Retraits */}
+            <div className="bg-orange-50 border border-orange-100 p-3 sm:p-4 rounded-xl">
+              <h3 className="text-xs sm:text-sm font-medium text-orange-700 mb-1">Withdraw</h3>
+              <p className="text-lg sm:text-2xl font-bold text-orange-600">
+                {filteredTransactions.filter(tx => tx.type === 'withdraw').length}
+              </p>
+            </div>
+            
+            {/* Colonne 6: Période */}
+            <div className="bg-gray-50 border border-gray-100 p-3 sm:p-4 rounded-xl col-span-2 sm:col-span-1">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-1">Period</h3>
+              <p className="text-xs sm:text-sm font-bold text-gray-600">
+                {formatDateForInput(dateRange.start)} - {formatDateForInput(dateRange.end)}
+              </p>
+            </div>
           </div>
+
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date</th>
-                  <th className="py-3 px-4 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Type</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Montant</th>
-                  <th className="py-3 px-4 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Token</th>
-                  <th className="py-3 px-4 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">Transaction</th>
+            <table className="w-full min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Date</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Type</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Token</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Amount</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Hash</th>
+                  <th className="text-left py-3 px-2 sm:px-4 font-semibold text-gray-900 text-xs sm:text-sm">Version</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {sortedTransactions.map((tx, index) => {
-                  const txHash = extractTransactionHash(tx.id);
-                  return (
-                  <tr key={index} className={`hover:bg-gray-50 ${getTransactionTypeStyle(tx.transactionType)}`}>
-                    <td className="py-3 px-4">{formatDisplayDate(tx.formattedDate)}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        tx.transactionType === 'borrow' 
-                          ? 'bg-red-100 text-red-800' 
-                          : tx.transactionType === 'repay'
-                            ? 'bg-blue-100 text-blue-800'
-                            : tx.transactionType === 'supply'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {tx.transactionType}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-medium">
-                      {parseFloat(ethers.formatUnits(tx.amount, tx.ticker === 'USDC' ? 6 : 18)).toFixed(6)}
-                    </td>
-                    <td className="py-3 px-4 text-right">{tx.ticker}</td>
-                    <td className="py-3 px-4 text-center">
-                      <a 
-                        href={`https://gnosisscan.io/tx/${txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-900 underline text-sm"
-                        aria-label={`Voir la transaction ${txHash} sur Gnosisscan`}
-                        tabIndex={0}
-                      >
-                        {formatHashId(txHash)}
-                      </a>
+              <tbody>
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-gray-500 text-sm">
+                      No transaction found with the current filters
                     </td>
                   </tr>
-                  );
-                })}
+                ) : (
+                  filteredTransactions.map((tx, index) => (
+                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                        {formatDate(tx.timestamp)}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTransactionColor(tx.type)}`}>
+                          {getTransactionIcon(tx.type)} {tx.type}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                        {tx.token}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm font-medium text-gray-900">
+                        {formatAmount(tx.amount, tx.token === 'USDC' ? 6 : 18).toFixed(2)} {tx.token}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4">
+                        {tx.txHash ? (
+                          <a
+                            href={`https://gnosisscan.io/tx/${tx.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-mono truncate block max-w-xs"
+                          >
+                            {tx.txHash.slice(0, 8)}...{tx.txHash.slice(-6)}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs sm:text-sm">Hash not available</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 sm:px-4 text-xs sm:text-sm text-gray-600">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          tx.version === 'V2' ? 'bg-blue-100 text-blue-700' : 
+                          tx.version === 'V3' ? 'bg-green-100 text-green-700' : 
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {tx.version || 'N/A'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -226,4 +393,4 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({ transactions, add
   );
 };
 
-export default TransactionsTable;
+export default TransactionsTable; 

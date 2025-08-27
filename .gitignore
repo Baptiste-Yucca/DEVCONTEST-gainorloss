@@ -1,3 +1,7 @@
+# IDE / Editor configs
+.vscode/
+.cursor/
+
 # dependencies
 /node_modules
 /.pnp
@@ -27,10 +31,40 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+backend/.env*
+backend/.env
 
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts 
+next-env.d.ts
+
+# databases
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+
+# logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# temporary files
+*.tmp
+*.temp
+.cache/ 

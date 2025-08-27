@@ -1,310 +1,687 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import Head from 'next/head';
-import Header from '../components/Header';
-import AddressForm from '../components/AddressForm';
-import Loading from '../components/Loading';
-import { formatAmount, formatTimestamp } from '../utils/helpers';
-import { TOKENS, ADDRESS_SC_TO_TOKEN } from '../utils/constants';
-import { AddressData, fetchAddressData } from '../utils/services/address';
-import DailyDataTable from '../components/DailyDataTable';
-import DailyDataChart from '../components/DailyDataChart';
+import { TOKENS } from '../utils/constants';
+import Chart from '../components/Chart';
 import TransactionsTable from '../components/TransactionsTable';
-import html2canvas from 'html2canvas';
+import FinancialSummary from '../components/FinancialSummary';
 
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  BarElement,
-} from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
-import { DailyData } from '../types/dailyData';
-import { TransactionWithType } from '../types/transaction';
-import { TokenBalances } from '../utils/api/types';
+// Types pour les données de l'API V3
+interface DailyDetail {
+  date: string;
+  timestamp: number;
+  debt?: string;
+  supply?: string;
+  dailyRate: number;
+  apr: number;
+  periodInterest: string;
+  totalInterest: string;
+  transactionAmount?: string;
+  transactionType?: string;
+  source?: 'real' | 'estimated'; // Ajouter un champ pour indiquer la source
+}
 
-// Enregistrer les composants ChartJS
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+// Types pour les données de l'API V2
+interface V2Transaction {
+  txHash: string;
+  amount: string;
+  amountFormatted: number;
+  timestamp: number;
+  type: 'borrow' | 'repay' | 'deposit' | 'withdraw';
+  reserve: 'rmmWXDAI';
+}
 
+// Types pour les balances des tokens
+interface TokenBalance {
+  token: string;
+  balance: string;
+  symbol: string;
+  decimals: number;
+}
 
+interface ApiResponse {
+  success: boolean;
+  data: {
+    results: Array<{
+      address: string;
+      success: boolean;
+      data: {
+        interests: {
+          USDC?: {
+            token: string;
+            borrow: {
+              totalInterest: string;
+              dailyDetails: DailyDetail[];
+            };
+            supply: {
+              totalInterest: string;
+              dailyDetails: DailyDetail[];
+            };
+            summary: {
+              totalBorrowInterest: string;
+              totalSupplyInterest: string;
+              netInterest: string;
+            };
+          };
+          WXDAI: {
+            token: string;
+            borrow: {
+              totalInterest: string;
+              dailyDetails: DailyDetail[];
+            };
+            supply: {
+              totalInterest: string;
+              dailyDetails: DailyDetail[];
+            };
+            summary: {
+              totalBorrowInterest: string;
+              totalSupplyInterest: string;
+              netInterest: string;
+            };
+          };
+        };
+        transactions?: {
+          USDC: {
+            debt: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+            supply: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+          };
+          WXDAI: {
+            debt: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+            supply: Array<{
+              txHash: string;
+              amount: string;
+              timestamp: number;
+              type: string;
+            }>;
+          };
+        };
+      };
+    }>;
+  };
+}
 
 export default function Home() {
-  const [address, setAddress] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [address, setAddress] = useState('');
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [dataV2, setDataV2] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searched, setSearched] = useState<boolean>(false);
-  const [dailyData, setDailyData] = useState<DailyData[]>([]);
-  const [transactions, setTransactions] = useState<TransactionWithType[]>([]);
-  const [capturingImage, setCapturingImage] = useState<boolean>(false);
-  const [tokenBalances, setTokenBalances] = useState<TokenBalances>({
-    armmUSDC: '0',
-    armmWXDAI: '0',
-    debtUSDC: '0',
-    debtWXDAI: '0'
-  });
+  const [isCollapsed, setCollapsed] = useState(true);
 
-  const handleAddressSubmit = async (address: string) => {
-    try {
-      setLoading(true);
-      setError('');
+  // Fonction pour formater les montants (conversion depuis base units)
+  const formatAmount = (amount: string, decimals = 6): number => {
+    return parseFloat(amount) / Math.pow(10, decimals);
+  };
+
+  // Fonction pour formater les dates YYYYMMDD
+  const formatDate = (dateStr: string): string => {
+    const year = dateStr.substring(0, 4);
+    const month = dateStr.substring(4, 6);
+    const day = dateStr.substring(6, 8);
+    return `${day}/${month}/${year}`;
+  };
+
+  // Corriger la fonction prepareChartData pour filtrer selon showEstimatedPoints
+  const prepareChartData = (dailyDetails: DailyDetail[], valueKey: 'debt' | 'supply', decimals = 6) => {
+    if (!dailyDetails || dailyDetails.length === 0) return [];
+    
+    return dailyDetails.map(detail => ({
+      date: detail.date,
+      value: formatAmount(detail[valueKey] || '0', decimals),
+      formattedDate: formatDate(detail.date)
+    }));
+  };
+
+  // Fonction pour préparer les données V2 pour Recharts
+  const prepareV2ChartData = (transactions: V2Transaction[]) => {
+    // Calculer la dette cumulée pour V2 (avec support des valeurs négatives)
+    let cumulativeDebt = 0;
+    const chartData: Array<{date: string; value: number; formattedDate: string; type?: string; amount?: number; timestamp?: number}> = [];
+    
+    // Trier les transactions par timestamp
+    const sortedTransactions = [...transactions].sort((a, b) => a.timestamp - b.timestamp);
+    
+    for (const tx of sortedTransactions) {
+      if (tx.type === 'borrow') {
+        cumulativeDebt += tx.amountFormatted;
+      } else if (tx.type === 'repay') {
+        cumulativeDebt -= tx.amountFormatted;
+      }
       
-      const result = await fetchAddressData(address);
-      
-      // Utiliser les différentes parties des données
-      setTokenBalances(result.tokenBalances);
-      setDailyData(result.dailyData);
-      setTransactions(result.transactions);
-      
-      // Trier les données du plus vieux au plus récent
-      const sortedData = [...result.dailyData].sort((a, b) => {
-        return parseInt(a.date) - parseInt(b.date);
+      chartData.push({
+        date: new Date(tx.timestamp * 1000).toISOString().split('T')[0],
+        value: cumulativeDebt, // Utiliser la dette cumulée au lieu du montant individuel
+        formattedDate: new Date(tx.timestamp * 1000).toLocaleDateString('fr-CH'),
+        type: tx.type,
+        amount: tx.amountFormatted,
+        timestamp: tx.timestamp
       });
+    }
+    
+    return chartData;
+  };
+
+  // Fonction pour préparer toutes les transactions pour le tableau
+  const prepareAllTransactions = () => {
+    const allTransactions: any[] = [];
+
+    // Ajouter les transactions V3
+    if (data?.data?.results?.[0]?.data?.transactions) {
+      const v3Transactions = data.data.results[0].data.transactions;
       
-      setDailyData(sortedData);
-      setSearched(true);
+      // Transactions USDC V3
+      if (v3Transactions.USDC) {
+        v3Transactions.USDC.debt.forEach((tx: any) => {
+          allTransactions.push({
+            timestamp: tx.timestamp,
+            amount: tx.amount,
+            type: tx.type,
+            token: 'USDC',
+            txHash: tx.txHash,
+            version: 'V3'
+          });
+        });
+        
+        v3Transactions.USDC.supply.forEach((tx: any) => {
+          allTransactions.push({
+            timestamp: tx.timestamp,
+            amount: tx.amount,
+            type: tx.type,
+            token: 'USDC',
+            txHash: tx.txHash,
+            version: 'V3'
+          });
+        });
+      }
+
+      // Transactions WXDAI V3
+      if (v3Transactions.WXDAI) {
+        v3Transactions.WXDAI.debt.forEach((tx: any) => {
+          allTransactions.push({
+            timestamp: tx.timestamp,
+            amount: tx.amount,
+            type: tx.type,
+            token: 'WXDAI',
+            txHash: tx.txHash,
+            version: 'V3'
+          });
+        });
+        
+        v3Transactions.WXDAI.supply.forEach((tx: any) => {
+          allTransactions.push({
+            timestamp: tx.timestamp,
+            amount: tx.amount,
+            type: tx.type,
+            token: 'WXDAI',
+            txHash: tx.txHash,
+            version: 'V3'
+          });
+        });
+      }
+    }
+
+    //  Ajouter les transactions V2
+    if (dataV2?.data?.results?.[0]?.data?.transactions?.WXDAI) {
+      //  Même chemin que V3 !
+      const v2Data = dataV2.data.results[0].data.transactions.WXDAI;
+      
+      // Transactions de dette WXDAI V2
+      v2Data.debt.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'WXDAI',
+          txHash: tx.txHash,
+          version: 'V2'
+        });
+      });
+
+      // Transactions de supply WXDAI V2
+      v2Data.supply.forEach((tx: any) => {
+        allTransactions.push({
+          timestamp: tx.timestamp,
+          amount: tx.amount,
+          type: tx.type,
+          token: 'WXDAI',
+          txHash: tx.txHash,
+          version: 'V2'
+        });
+      });
+    }
+
+    // Trier par timestamp décroissant (plus récent en premier)
+    return allTransactions.sort((a, b) => b.timestamp - a.timestamp);
+  };
+
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!address.trim()) {
+      alert('Veuillez saisir une adresse');
+      return;
+    }
+
+    // Validation basique de l'adresse EVM
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address.trim())) {
+      alert('Adresse EVM invalide (format: 0x...)');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setData(null);
+
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+      const apiUrl = `${backendUrl}/api/rmm/v3/${address.trim()}`;
+      console.log('🚀 Appel API vers:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      console.log('📡 Réponse API:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Données reçues:', result);
+      setData(result);
+      
+      // Récupérer les données RMM v2
+      console.log('🔄 Récupération des données RMM v2...');
+      try {
+        const v2Response = await fetch(`${backendUrl}/api/rmm/v2/${address.trim()}`);
+        if (v2Response.ok) {
+          const v2Result = await v2Response.json();
+          console.log('✅ Données RMM v2 reçues:', v2Result);
+          setDataV2(v2Result);
+        } else {
+          console.log('⚠️ Erreur lors de la récupération des données RMM v2');
+        }
+      } catch (v2Error) {
+        console.log('⚠️ Erreur lors de la récupération des données RMM v2:', v2Error);
+      }
+
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
-      setDailyData([]);
+      console.error('❌ Erreur lors de la récupération des données:', err);
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fonction pour capturer le graphique en image
-  const captureChartImage = async () => {
-    try {
-      setCapturingImage(true);
-      const chartElement = document.querySelector('.h-80') as HTMLElement;
-      
-      if (chartElement) {
-        const canvas = await html2canvas(chartElement, {
-          backgroundColor: 'white',
-          scale: 2, // Pour une meilleure qualité
-        });
-        
-        const imageData = canvas.toDataURL('image/jpeg', 0.8);
-        
-        // Créer l'URL pour partager sur Telegram
-        const text = `WAOW le RMM m'a couté... ${dailyData.reduce((sum, data) => sum + Number(data.interest) / 1000000, 0).toFixed(2)} USDC en intérêts... et toi ? Vérifie sur ${window.location.href}`;
-        const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`;
-        
-        // Ouvrir l'image dans une nouvelle fenêtre pour téléchargement
-        const newWindow = window.open();
-        if (newWindow) {
-          newWindow.document.write(`
-            <html>
-              <head>
-                <title>Capture du graphique</title>
-                <style>
-                  body { 
-                    margin: 0; 
-                    display: flex; 
-                    flex-direction: column; 
-                    align-items: center;
-                    font-family: Arial, sans-serif;
-                    padding: 20px;
-                  }
-                  img { max-width: 100%; border: 1px solid #eee; margin-bottom: 20px; }
-                  .actions { margin-top: 20px; }
-                  button {
-                    background-color: #4299e1;
-                    color: white;
-                    border: none;
-                    padding: 10px 15px;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    margin: 0 10px;
-                  }
-                  button:hover {
-                    background-color: #3182ce;
-                  }
-                  p { margin-bottom: 20px; }
-                </style>
-              </head>
-              <body>
-                <h2>Capture de votre graphique</h2>
-                <p>Coût total de la dette: ${dailyData.reduce((sum, data) => sum + Number(data.interest) / 1000000, 0).toFixed(2)} USDC</p>
-                <img src="${imageData}" alt="Graphique de dette" />
-                <div class="actions">
-                  <button onclick="downloadImage()">Télécharger l'image</button>
-                  <button onclick="shareOnTelegram()">Partager sur Telegram</button>
-                  <button onclick="window.close()">Fermer</button>
-                </div>
-                <p>Après téléchargement, vous pouvez partager cette image sur Telegram.</p>
-                <script>
-                  function downloadImage() {
-                    const link = document.createElement('a');
-                    link.download = 'rmm-dette-graphique.jpg';
-                    link.href = '${imageData}';
-                    link.click();
-                  }
-                  
-                  function shareOnTelegram() {
-                    window.open('${telegramUrl}', '_blank');
-                  }
-                </script>
-              </body>
-            </html>
-          `);
-          newWindow.document.close();
-        }
-      }
-    } catch (error) {
-      console.error("Erreur lors de la capture du graphique:", error);
-    } finally {
-      setCapturingImage(false);
-    }
+  const resetForm = () => {
+    setAddress('');
+    setData(null);
+    setDataV2(null);
+    setError(null);
+    setLoading(false);
   };
 
-  // Fonction pour obtenir le libellé du type de transaction
-  const getTransactionTypeLabel = (type: string): string => {
-    switch (type) {
-      case 'supply':
-        return 'Dépôt';
-      case 'withdraw':
-        return 'Retrait';
-      case 'borrow':
-        return 'Emprunt';
-      case 'repay':
-        return 'Remboursement';
-      default:
-        return type;
-    }
-  };
-
-  // Fonction pour obtenir le symbole du token à partir de l'adresse de réserve
-  const getTokenSymbol = (reserveId: string): string => {
-    const tokenAddress = reserveId.substring(0, 42).toLowerCase();
-    const tokenKey = ADDRESS_SC_TO_TOKEN[tokenAddress];
-    return tokenKey ? TOKENS[tokenKey].symbol : 'Inconnu';
-  };
-
-
-
-
-
-
-  // Ajouter d'un composant Error
-  const ErrorMessage = ({ message }: { message: string }) => (
-    <div className="my-4 p-4 bg-red-100 text-red-700 rounded-md">
-      {message}
-    </div>
-  );
-
-  // Fonction spécifique pour afficher le tableau DailyData
-  const displayDailyData = (dailyData: DailyData[]) => {
-    if (!dailyData || dailyData.length === 0) {
-      return (
-        <div className="mt-8 text-center text-gray-600">
-          Aucune donnée disponible pour cette adresse
+  // Écran de chargement
+  if (loading) {
+    return (
+      <>
+        <Head>
+          <title>RMM Analytics - Analysis in progress</title>
+        </Head>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center max-w-md">
+            <div className="animate-spin rounded-full h-12 w-12 border-2 border-gray-200 border-t-blue-500 mx-auto mb-6"></div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Analysis in progress</h2>
+            <p className="text-gray-600 text-sm">RMM data recovery for {address}</p>
+          </div>
         </div>
-      );
-    }
+      </>
+    );
+  }
+
+  // Si on a des données ou une erreur, afficher les résultats
+  if (data || error) {
+    const result = data?.data?.results?.[0];
+    const usdcData = result?.data?.interests?.USDC;
+    const wxdaiData = result?.data?.interests?.WXDAI;
+    
+    //  NOUVEAU: Récupérer directement depuis les derniers points
+    const usdcLastDebtPoint = usdcData?.borrow?.dailyDetails?.[usdcData.borrow.dailyDetails.length - 1];
+    const usdcLastSupplyPoint = usdcData?.supply?.dailyDetails?.[usdcData.supply.dailyDetails.length - 1];
+
+    const wxdaiLastDebtPoint = wxdaiData?.borrow?.dailyDetails?.[wxdaiData.borrow.dailyDetails.length - 1];
+    const wxdaiLastSupplyPoint = wxdaiData?.supply?.dailyDetails?.[wxdaiData.supply.dailyDetails.length - 1];
+
+    //  NOUVEAU: Calculer les valeurs finales
+    const usdcTotalDebtInterest = usdcLastDebtPoint ? parseFloat(usdcLastDebtPoint.totalInterest) : 0;
+    const usdcTotalSupplyInterest = usdcLastSupplyPoint ? parseFloat(usdcLastSupplyPoint.totalInterest) : 0;
+    const usdcNetInterest = usdcTotalSupplyInterest - usdcTotalDebtInterest;
+
+    const wxdaiTotalDebtInterest = wxdaiLastDebtPoint ? parseFloat(wxdaiLastDebtPoint.totalInterest) : 0;
+    const wxdaiTotalSupplyInterest = wxdaiLastSupplyPoint ? parseFloat(wxdaiLastSupplyPoint.totalInterest) : 0;
+    const wxdaiNetInterest = wxdaiTotalSupplyInterest - wxdaiTotalDebtInterest;
+
+    const usdcBorrowDetails = usdcData?.borrow?.dailyDetails || [];
+    const usdcSupplyDetails = usdcData?.supply?.dailyDetails || [];
+    const wxdaiBorrowDetails = wxdaiData?.borrow?.dailyDetails || [];
+    const wxdaiSupplyDetails = wxdaiData?.supply?.dailyDetails || [];
 
     return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="py-3 px-4 text-left">Date</th>
-              <th className="py-3 px-4 text-right">Montant (USDC)</th>
-              <th className="py-3 px-4 text-right">Intérêt (USDC)</th>
-              <th className="py-3 px-4 text-right">Taux</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {dailyData.map((data, index) => (
-              <tr key={index} className="hover:bg-gray-50">
-                <td className="py-3 px-4">{data.date}</td>
-                <td className="py-3 px-4 text-right">{Number(data.amount) / 1000000}</td>
-                <td className="py-3 px-4 text-right">{Number(data.interest) / 1000000}</td>
-                <td className="py-3 px-4 text-right">{parseFloat(data.rate) * 100}%</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
+      <>
+        <Head>
+          <title>RMM Analytics</title>
+        </Head>
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Head>
-        <title>rmmgain - Dashboard</title>
-        <meta name="description" content="Dashboard pour analyser les données du protocole" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
-      <Header />
-
-      <main className="container mx-auto p-4 max-w-5xl">
-        <div className="mt-8 mb-12 text-center">
-          <h2 className="text-3xl font-bold mb-8 text-indigo-800 animate-pulse">
-            😇 Es-tu prêt à connaitre la vérité? 😈
-          </h2>
-          <div className="max-w-md mx-auto">
-            <AddressForm onSubmit={handleAddressSubmit} />
-          </div>
-        </div>
-
-        {loading && <Loading />}
-        
-        {error && <ErrorMessage message={error} />}
-
-        {!loading && searched && (
-          <div className="my-8 bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-            <h3 className="text-xl font-semibold mb-4 text-center text-indigo-700">Résultats pour l'adresse :</h3>
-            <p className="text-gray-700 mb-8 break-all text-center bg-gray-50 p-3 rounded-lg border border-gray-200 font-mono text-sm">{address}</p>
-            
-            <div className="mb-10 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-md p-6 text-center border border-indigo-100">
-              <h3 className="text-xl font-semibold mb-4 text-indigo-800">Voilà combien ça t'as couté...</h3>
-              <p className="text-4xl font-bold text-red-600 mb-2 drop-shadow-sm">
-                {dailyData.reduce((sum, data) => sum + Number(data.interest) / 1000000, 0).toFixed(2)} USDC
-              </p>
-              <p className="text-lg text-gray-700 mb-6">
-                Soit environ <span className="font-semibold">{(dailyData.reduce((sum, data) => sum + Number(data.interest) / 1000000, 0) / 50).toFixed(2)} Realtokens</span>
-              </p>
-              
-              <div className="flex flex-wrap justify-center gap-4 mt-6">
-                <a 
-                  href={`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(`WAOW le RMM m'a couté... ${dailyData.reduce((sum, data) => sum + Number(data.interest) / 1000000, 0).toFixed(2)} USDC en intérêts... et toi ? Vérifie sur ${window.location.href}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">RMM Analytics</h1>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Address: <span className="font-mono bg-gray-100 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm break-all">{address}</span>
+                  </p>
+                </div>
+                <button 
+                  onClick={resetForm}
+                  className="w-full sm:w-auto bg-gray-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium text-sm sm:text-base"
                 >
-                  Partage le résultat sur Telegram!
-                </a>
+                  Try another address
+                </button>
               </div>
             </div>
-            
-            <div className="space-y-8">
-              <DailyDataChart dailyData={dailyData} />
-              <TransactionsTable transactions={transactions} address={address} />
-              <DailyDataTable dailyData={dailyData} address={address} />
-            </div>
-          </div>
-        )}
-      </main>
+            <FinancialSummary
+              usdcData={usdcData}
+              wxdaiData={wxdaiData}
+              v2Data={dataV2?.data?.results?.[0]?.data?.interests?.WXDAI}
+              userAddress={address}
+              transactions={prepareAllTransactions()} 
+            />
 
-      <footer className="mt-12 border-t border-gray-200 py-8 bg-gray-50">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p className="text-lg font-medium text-indigo-700">So, do you gain or loss?</p>
-          <p className="mt-2 text-sm">Développé avec ❤️ pour la commu'</p>
+            {/* Erreur */}
+            {error && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                <div className="text-center">
+                  <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Erreur</h2>
+                  <p className="text-gray-600">{error}</p>
+                </div>
+              </div>
+            )}
+
+            
+            {usdcData && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">USDC Summary</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
+                    <p className="text-3xl font-bold text-red-600">
+                      {formatAmount(usdcTotalDebtInterest).toFixed(2)} USDC
+                    </p>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
+                    <p className="text-3xl font-bold text-green-600">
+                      {formatAmount(usdcTotalSupplyInterest).toFixed(2)} USDC
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
+                    <p className={`text-3xl font-bold ${usdcNetInterest >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatAmount(usdcNetInterest).toFixed(2)} USDC
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Graphiques USDC */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Graphique Dette USDC */}
+              <Chart
+                data={prepareChartData(usdcBorrowDetails, 'debt', 6)}
+                title="USDC Debt Evolution"
+                color="#dc2626"
+                type="line"
+                tokenAddress={TOKENS.USDC.debtAddress}
+                userAddress={address}
+              />
+
+              {/* Graphique Supply USDC */}
+              <Chart
+                data={prepareChartData(usdcSupplyDetails, 'supply', 6)}
+                title="USDC Supply Evolution"
+                color="#059669"
+                type="area"
+                tokenAddress={TOKENS.USDC.address}
+                userAddress={address}
+              />
+            </div>
+
+            {/* WXDAI Summary */}
+            {wxdaiData && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">WXDAI Summary</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
+                    <p className="text-3xl font-bold text-red-600">
+                      {formatAmount(wxdaiTotalDebtInterest, 18).toFixed(2)} WXDAI
+                    </p>
+                  </div>
+                  <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
+                    <p className="text-3xl font-bold text-green-600">
+                      {formatAmount(wxdaiTotalSupplyInterest, 18).toFixed(2)} WXDAI
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
+                    <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
+                    <p className={`text-3xl font-bold ${wxdaiNetInterest >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatAmount(wxdaiNetInterest, 18).toFixed(2)} WXDAI
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Graphiques WXDAI */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              {/* Graphique Dette WXDAI */}
+              <Chart
+                data={prepareChartData(wxdaiBorrowDetails, 'debt', 18)}
+                title="WXDAI Debt Evolution"
+                color="#dc2626"
+                type="line"
+                tokenAddress={TOKENS.WXDAI.supplyAddress}
+                userAddress={address}
+              />
+                    
+              {/* Graphique Supply WXDAI */}
+              <Chart
+                data={prepareChartData(wxdaiSupplyDetails, 'supply', 18)}
+                title="WXDAI Supply Evolution"
+                color="#059669"
+                type="area"
+                tokenAddress="0x0ca4f5554dd9da6217d62d8df2816c82bba4157b"
+                userAddress={address}
+              />
+            </div>
+
+            {/* Graphiques RMM v2 - Montants */}
+            {dataV2 && (
+              <>
+               
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6">RMM v2 Transactions</h2>
+                  
+                  {/* Vérifier si le wallet a des données V2 */}
+                  {!dataV2.data?.results?.[0]?.data?.interests?.WXDAI ? (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">😢</div>
+                      <p className="text-lg text-gray-600">
+                        This wallet is too young and has never known the V2 :'(
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Extraire les données V2 comme V3 */}
+                      {(() => {
+                        const v2Result = dataV2.data.results[0];
+                        const v2WxdaiData = v2Result.data.interests.WXDAI;
+                        const v2WxdaiBorrowDetails = v2WxdaiData.borrow.dailyDetails || [];
+                        const v2WxdaiSupplyDetails = v2WxdaiData.supply.dailyDetails || [];
+                        
+                        return (
+                          <>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
+                              <h2 className="text-2xl font-bold text-gray-900 mb-6">WXDAI Summary (V2)</h2>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="bg-red-50 border border-red-100 p-6 rounded-xl">
+                                  <h3 className="text-sm font-medium text-red-700 mb-2">Borrow Interest</h3>
+                                  <p className="text-3xl font-bold text-red-600">
+                                    {formatAmount(v2WxdaiData.borrow.totalInterest, 18).toFixed(2)} WXDAI
+                                  </p>
+                                </div>
+                                <div className="bg-green-50 border border-green-100 p-6 rounded-xl">
+                                  <h3 className="text-sm font-medium text-green-700 mb-2">Supply Interest</h3>
+                                  <p className="text-3xl font-bold text-green-600">
+                                    {formatAmount(v2WxdaiData.supply.totalInterest, 18).toFixed(2)} WXDAI
+                                  </p>
+                                </div>
+                                <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
+                                  <h3 className="text-sm font-medium text-blue-700 mb-2">PnL Net</h3>
+                                  <p className={`text-3xl font-bold ${(parseFloat(v2WxdaiData.supply.totalInterest) - parseFloat(v2WxdaiData.borrow.totalInterest)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {formatAmount(parseFloat(v2WxdaiData.supply.totalInterest) - parseFloat(v2WxdaiData.borrow.totalInterest), 18).toFixed(2)} WXDAI
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Graphiques WXDAI v2 */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                              {/* Graphique Dette WXDAI v2 */}
+                              <Chart
+                                data={prepareChartData(v2WxdaiBorrowDetails, 'debt', 18)}
+                                title="WXDAI Debt Evolution (v2)"
+                                color="#f59e0b"
+                                type="line"
+                                tokenAddress={TOKENS.WXDAI.debtV2Address}
+                                userAddress={address}
+                              />
+
+                              {/* Graphique Supply WXDAI v2 */}
+                              <Chart
+                                data={prepareChartData(v2WxdaiSupplyDetails, 'supply', 18)}
+                                title="WXDAI Supply Evolution (v2)"
+                                color="#3b82f6"
+                                type="area"
+                                tokenAddress={TOKENS.WXDAI.supplyV2Address}
+                                userAddress={address}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+              
+              </>
+            )}
+
+            {/* Aucune donnée */}
+            {data?.data.results.length === 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+                <div className="text-gray-400 text-6xl mb-4">📊</div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">No data</h2>
+                <p className="text-gray-600">No RMM transaction found for this address</p>
+              </div>
+            )}
+
+            {/* Tableau des transactions unifié */}
+            {(data || dataV2) && prepareAllTransactions().length > 0 && (
+              <TransactionsTable 
+                transactions={prepareAllTransactions()}
+                userAddress={address}
+                title="Transactions"
+                isCollapsed={isCollapsed}
+                onToggleCollapse={() => setCollapsed(!isCollapsed)}
+              />
+            )}
+          </div>
         </div>
-      </footer>
-    </div>
+      </>
+    );
+  }
+
+  // Formulaire initial
+  return (
+    <>
+      <Head>
+        <title>RMM Analytics</title>
+        <meta name="description" content="Analyze your RMM earnings and losses" />
+      </Head>
+
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 w-full max-w-md">
+          {/* En-tête */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">
+              RMM Analytics
+            </h1>
+            <p className="text-gray-600 text-lg">
+            Analyze your RMM earnings and losses
+            </p>
+          </div>
+
+          {/* Formulaire */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-3">
+                EVM address
+              </label>
+              <input
+                type="text"
+                id="address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!address.trim()}
+              className="w-full bg-gray-900 text-white py-4 px-6 rounded-xl font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Analyze
+            </button>
+          </form>
+
+          {/* Note */}
+          <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <p className="text-sm text-blue-800">
+              💡 <strong>Info:</strong> Enter your EVM address to view your RMM transactions and calculate your earnigns/losses
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
   );
 } 

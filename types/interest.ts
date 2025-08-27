@@ -14,7 +14,7 @@ export interface DailyCostDetail {
   debtAmount: number; // Ajout du montant de la dette
   dailyRate: number; // Ajout du taux journalier
   apr: number; // Taux annuel en pourcentage
-  dailyInterest: number;
+  periodInterest: number;
   cumulativeInterest: number;
 }
 

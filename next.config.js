@@ -5,6 +5,17 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   webpack: (config) => {
+    // Ignorer complètement le dossier subgraph
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@graphprotocol/graph-ts': false,
+    };
+    
+    config.module.rules.push({
+      test: /\.(ts|tsx|js|jsx)$/,
+      exclude: /subgraph/,
+    });
+    
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

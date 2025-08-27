@@ -1,7 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-require('dotenv').config();
+const path = require('path');
+
+// Charger les variables d'environnement depuis le fichier .env
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -10,8 +13,23 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 
 // Configuration CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://gainorloss.mybots.fun'
+];
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Permettre les requêtes sans origin (comme les apps mobiles)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS bloqué pour:', origin);
+      callback(new Error('Non autorisé par CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -22,38 +40,33 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes API
-app.use('/api/rates', require('./routes/rates'));
-app.use('/api/transactions', require('./routes/transactions'));
-app.use('/api/balances', require('./routes/balances'));
-app.use('/api/health', require('./routes/health'));
+app.use('/api/rmm/v2', require('./routes/rmm-v2'));
+app.use('/api/rmm', require('./routes/rmm')); 
+
 
 // Route racine
 app.get('/', (req, res) => {
   res.json({
-    name: 'RMM Gain API',
+    name: 'RMM GainOrLoss API',
     version: '1.0.0',
     description: 'API pour analyser les données du protocole RMM',
     endpoints: {
-      rates: '/api/rates',
-      transactions: '/api/transactions',
-      balances: '/api/balances',
-      health: '/api/health'
+      'rmm-v2': '/api/rmm/v2/:address1/:address2?/:address3?',
+      rmm: '/api/rmm/v3/:address1/:address2?/:address3?',
     },
-    documentation: '/api/docs'
+    example: 'GET /api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f'
   });
 });
 
 // Gestion des erreurs 404
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: 'Endpoint non trouvé',
-    message: `L'endpoint ${req.originalUrl} n'existe pas`,
+    error: 'Endpoint Not Found... you lost',
+    message: `${req.originalUrl} is not allowed`,
     availableEndpoints: [
       'GET /',
-      'POST /api/rates',
-      'GET /api/transactions/:address',
-      'GET /api/balances/:address',
-      'GET /api/health'
+      'GET /api/rmm/v2/:address1/:address2?/:address3?',
+      'GET /api/rmm/v3/:address1/:address2?/:address3?',
     ]
   });
 });
@@ -71,10 +84,8 @@ app.use((err, req, res, next) => {
 
 // Démarrage du serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur RMM Gain API démarré sur le port ${PORT}`);
+  console.log(`🚀 API GainOrLoss has started... listenning on port ${PORT}`);
   console.log(`📊 Mode: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
-  console.log(`📚 Documentation: http://localhost:${PORT}/api/docs`);
 });
 
 module.exports = app; 
