@@ -15,8 +15,9 @@ app.use(helmet());
 // Configuration CORS
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://gainorloss.mybots.fun'
-];
+  process.env.CORS_ORIGIN || 'https://gainorloss.mybots.fun'
+].filter(Boolean); // Supprime les valeurs undefined
+console.log('�� CORS Origins autorisés:', allowedOrigins);
 
 const corsOptions = {
   origin: function (origin, callback) {
