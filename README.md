@@ -16,8 +16,7 @@ rmmgain/
 ├── frontend/          # Next.js React application
 ├── backend/           # Express.js API server
 ├── components/        # React components
-├── utils/            # Utility functions and constants
-└── docs/             # Documentation
+└── utils/            # Utility functions and constants
 ```
 
 ## 🚀 Quick Start
@@ -25,7 +24,7 @@ rmmgain/
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <your-repository-url>
+git clone git@github.com:Baptiste-Yucca/rmmgain.git
 cd rmmgain
 ```
 
@@ -169,8 +168,6 @@ npm run lint     # Run ESLint
 cd backend
 npm run dev              # Start with nodemon (auto-restart)
 npm start                # Start production server
-npm run test-env         # Test environment variables
-npm run test-balances    # Test balance API performance
 ```
 
 ## 🌐 API Endpoints
@@ -183,7 +180,7 @@ npm run test-balances    # Test balance API performance
 ### Example Usage
 ```bash
 # Test the API
-curl http://localhost:5000/api/rmm/v3/0x3f3994bb23c48204ddeb99aa6bf6dd275abf7a3f
+curl http://localhost:5000/api/rmm/v3/0x7ca24d4443ff5298d9a1729622a116b712a58a56
 ```
 
 ## 🔧 Troubleshooting
@@ -230,18 +227,6 @@ rm -rf node_modules package-lock.json
 npm install
 ```
 
-### Performance Issues
-
-#### Rate Limiting
-- GnosisScan: 5 calls/second (free), 100 calls/second (paid)
-- TheGraph: 1000 calls/day (free), custom limits (paid)
-
-#### Memory Issues
-```bash
-# Check Node.js memory usage
-node --max-old-space-size=4096 server.js
-```
-
 ## 📱 Using the Application
 
 1. **Open your browser** and navigate to `http://localhost:3000`
@@ -263,24 +248,17 @@ node --max-old-space-size=4096 server.js
 - Styling: TailwindCSS
 - Charts: Chart.js + React-Chartjs-2
 
-## 📚 Additional Resources
-
-- **RMM Protocol**: [https://rmm.xyz/](https://rmm.xyz/)
-- **Gnosis Chain**: [https://gnosischain.com/](https://gnosischain.com/)
-- **TheGraph**: [https://thegraph.com/](https://thegraph.com/)
-- **GnosisScan**: [https://gnosisscan.io/](https://gnosisscan.io/)
-
 ## 🤝 Support
 
 If you encounter issues:
-1. Check the troubleshooting section above
-2. Verify all environment variables are set
-3. Ensure all dependencies are installed
-4. Check the console for error messages
+1. Check the user guide
+2. Open an issue.
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+Please contact Realtoken DAO.
+
+## Made with ❤️ for the community -- Battistù
 
 ---
 
