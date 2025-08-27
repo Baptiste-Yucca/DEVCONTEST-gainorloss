@@ -409,12 +409,3 @@ CACHE_EXPIRATION_HOURS=12  # Défaut: 12h
 - **Amélioration** : 99% de réduction du temps de réponse
 
 ## Tokens
-
-L'application gère les tokens suivants sur la blockchain Gnosis :
-
-- USDC : 0xddafbb505ad214d7b80b1f830fccc89b60fb7a83 (6 décimales)
-- armmUSDC : 0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1 (token rémunérateur)
-- debtUSDC : 0x69c731aE5f5356a779f44C355aBB685d84e5E9e6 (token de dette)
-- WXDAI : 0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d (18 décimales)
-- armmWXDAI : 0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b (token rémunérateur)
-- debtWXDAI : 0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34 (token de dette) 

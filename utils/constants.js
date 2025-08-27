@@ -3,25 +3,23 @@ const TOKENS = {
     address: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a83',
     decimals: 6,
     symbol: 'USDC',
-    supplyAddress: '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1', 
+    supplyAddress: '0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1', 
     supplySymbol: 'armmUSDC',
-    debtAddress: '0x69c731aE5f5356a779f44C355aBB685d84e5E9e6',
+    debtAddress: '0x69c731ae5f5356a779f44c355abb685d84e5e9e6',
     debtSymbol: 'debtUSDC',
-    reserveId: '0xddafbb505ad214d7b80b1f830fccc89b60fb7a830xdaa06cf7adceb69fcfde68d896818b9938984a70'
   },
   WXDAI: {
-    address: '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d',
+    address: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d',
     decimals: 18,
     symbol: 'WXDAI',
-    supplyAddress: '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b',
+    supplyAddress: '0x0ca4f5554dd9da6217d62d8df2816c82bba4157b',
     supplySymbol: 'armmWXDAI',
-    supplyV2Address: '0x7349C9eaA538e118725a6130e0f8341509b9f8A0',
+    supplyV2Address: '0x7349c9eaa538e118725a6130e0f8341509b9f8a0',
     supplyV2Symbol: 'armmWXDAI_V2',
-    debtAddress: '0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34',
+    debtAddress: '0x9908801df7902675c3fedd6fea0294d18d5d5d34',
     debtSymbol: 'debtWXDAI',
-    debtV2Address: '0x6a7CeD66902D07066Ad08c81179d17d0fbE36829',
+    debtV2Address: '0x6a7ced66902d07066ad08c81179d17d0fbe36829',
     debtV2Symbol: 'debtWXDAI_V2',
-    reserveId: '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d0xdaa06cf7adceb69fcfde68d896818b9938984a70'
   }
 };
 
@@ -59,59 +57,12 @@ const TransactionType = {
   WITHDRAW: 'withdraw'
 };
 
-// Mapping des adresses de réserves vers les tickers
-const RESERVE_TO_TICKER = {
-  [TOKENS.USDC.reserveId]: TokenTicker.USDC,
-  [TOKENS.WXDAI.reserveId]: TokenTicker.WXDAI
-};
 
-// Mapping des tickers vers les adresses de réserves
-const TICKER_TO_RESERVE = {
-  [TokenTicker.USDC]: TOKENS.USDC.reserveId,
-  [TokenTicker.WXDAI]: TOKENS.WXDAI.reserveId,
-  [TokenTicker.DEFAULT]: "ERR"
-};
-
-// Helper function pour obtenir les adresses des tokens de supply
-const getSupplyTokenAddresses = () => ({
-  armmUSDC: TOKENS.USDC.supplyAddress,
-  armmWXDAI: TOKENS.WXDAI.supplyAddress
-});
-
-// Helper function pour obtenir les adresses des tokens de debt
-const getDebtTokenAddresses = () => ({
-  debtUSDC: TOKENS.USDC.debtAddress,
-  debtWXDAI: TOKENS.WXDAI.debtAddress
-});
-
-// Configuration pour les supply tokens et leurs blocs de départ
-const SUPPLY_TOKENS_CONFIG = {
-  armmV3WXDAI: {
-    address: '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b',
-    symbol: 'armmV3WXDAI',
-    startBlock: 32074665
-  },
-  armmV3USDC: {
-    address: '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1',
-    symbol: 'armmV3USDC',
-    startBlock: 32074665 
-  },
-  rmmV2WXDAI: {
-    address: '0x7349C9eaA538e118725a6130e0f8341509b9f8A0',
-    symbol: 'rmmV2WXDAI',
-    startBlock: 20206607
-  }
-};
 
 module.exports = {
   TOKENS,
   ADDRESS_TO_TOKEN,
   CONTRACTS,
   TokenTicker,
-  TransactionType,
-  RESERVE_TO_TICKER,
-  TICKER_TO_RESERVE,
-  SUPPLY_TOKENS_CONFIG,
-  getSupplyTokenAddresses,
-  getDebtTokenAddresses
+  TransactionType
 };

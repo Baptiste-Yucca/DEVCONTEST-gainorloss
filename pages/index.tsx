@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
+import { TOKENS } from '../utils/constants';
 import Chart from '../components/Chart';
 import TransactionsTable from '../components/TransactionsTable';
 import FinancialSummary from '../components/FinancialSummary';
@@ -458,7 +459,7 @@ export default function Home() {
                 title="USDC Debt Evolution"
                 color="#dc2626"
                 type="line"
-                tokenAddress="0x69c731aE5f5356a779f44C355aBB685d84e5E9e6"
+                tokenAddress={TOKENS.USDC.debtAddress}
                 userAddress={address}
               />
 
@@ -468,7 +469,7 @@ export default function Home() {
                 title="USDC Supply Evolution"
                 color="#059669"
                 type="area"
-                tokenAddress="0xed56f76e9cbc6a64b821e9c016eafbd3db5436d1"
+                tokenAddress={TOKENS.USDC.address}
                 userAddress={address}
               />
             </div>
@@ -508,7 +509,7 @@ export default function Home() {
                 title="WXDAI Debt Evolution"
                 color="#dc2626"
                 type="line"
-                tokenAddress="0x9908801dF7902675C3FEDD6Fea0294D18D5d5d34"
+                tokenAddress={TOKENS.WXDAI.supplyAddress}
                 userAddress={address}
               />
                     
@@ -580,7 +581,7 @@ export default function Home() {
                                 title="WXDAI Debt Evolution (v2)"
                                 color="#f59e0b"
                                 type="line"
-                                tokenAddress="0x0ade75f269a054673883319baa50e5e0360a775f"
+                                tokenAddress={TOKENS.WXDAI.debtV2Address}
                                 userAddress={address}
                               />
 
@@ -590,7 +591,7 @@ export default function Home() {
                                 title="WXDAI Supply Evolution (v2)"
                                 color="#3b82f6"
                                 type="area"
-                                tokenAddress="0x7349c9eaa538e118725a6130e0f8341509b9f8a0"
+                                tokenAddress={TOKENS.WXDAI.supplyV2Address}
                                 userAddress={address}
                               />
                             </div>

@@ -1,3 +1,5 @@
+const { TOKENS } = require('../../utils/constants');
+
 const fetch = require('node-fetch');
 
 // Configuration Gnosisscan
@@ -125,7 +127,7 @@ async function fetchTokenTransactionsByVersion(
     // BLOCS SPÉCIFIQUES PAR VERSION
     const blockRanges = {
       'V2': {
-        startBlock: 1, // À ajuster selon le déploiement V2
+        startBlock: 20206607, // À ajuster selon le déploiement V2
         endBlock: 99999999    // Juste avant V3
       },
       'V3': {
@@ -173,11 +175,11 @@ async function fetchSupplyTokenTransactionsViaGnosisScan(
     // ADRESSES DES SUPPLY TOKENS SELON LA VERSION
     const supplyTokenAddresses = {
       'V3': {
-        'USDC': '0xeD56F76E9cBC6A64b821e9c016eAFbd3db5436D1', // armmUSDC
-        'WXDAI': '0x0cA4f5554Dd9Da6217d62D8df2816c82bba4157b'  // armmWXDAI
+        'USDC': TOKENS.USDC.supplyAddress, // armmUSDC
+        'WXDAI': TOKENS.WXDAI.supplyAddress  // armmWXDAI
       },
       'V2': {
-        'WXDAI': '0x7349C9eaA538e118725a6130e0f8341509b9f8A0'  // rmmV2WXDAI
+        'WXDAI': TOKENS.WXDAI.supplyV2Address  // rmmV2WXDAI
       }
     };
     
