@@ -209,6 +209,9 @@ const TransactionsTable: React.FC<TransactionsTableProps> = ({
                     <option value="repay">Repay</option>
                     <option value="deposit">Deposit</option>
                     <option value="withdraw">Withdraw</option>
+                    <option value="ronday">Ronday</option>
+                    <option value="in_others">In others</option>
+                    <option value="out_others">Out others</option>
                   </select>
                   
                   <select
